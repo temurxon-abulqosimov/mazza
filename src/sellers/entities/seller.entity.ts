@@ -1,61 +1,30 @@
-import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
-    OneToMany,
-  } from 'typeorm';
-  import { BusinessType } from 'src/common/enums/business-type.enum';
-  import { SellerStatus } from 'src/common/enums/seller-status.enum';
-  import { Product } from 'src/products/entities/product.entity';
-  import { Booking } from 'src/bookings/entities/booking.entity';
-  
-  @Entity()
-  export class Seller {
-    @PrimaryGeneratedColumn()
-    id: number;
-  
-    @Column()
-    fullName: string;
-  
-    @Column({ unique: true })
-    phoneNumber: string;
-  
-    @Column({ unique: true })
-    telegramId: string;
-  
-    @Column()
-    businessName: string;
-  
-    @Column({ type: 'enum', enum: BusinessType })
-    businessType: BusinessType;
-  
-    @Column({ type: 'enum', enum: SellerStatus, default: SellerStatus.PENDING })
-    status: SellerStatus;
-  
-    @Column('float')
-    latitude: number;
-  
-    @Column('float')
-    longitude: number;
-  
-    @Column() // Minutes after midnight
-    opensAt: number;
-  
-    @Column()
-    closesAt: number;
-  
-    @OneToMany(() => Product, (product) => product.seller)
-    products: Product[];
-  
-    @OneToMany(() => Booking, (booking) => booking.seller)
-    bookings: Booking[];
-  
-    @CreateDateColumn()
-    createdAt: Date;
-  
-    @UpdateDateColumn()
-    updatedAt: Date;
-  }
-  
+// src/sellers/entities/seller.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { Product } from 'src/products/entities/product.entity';
+import { BusinessType } from 'src/common/enums/business-type.enum';
+
+
+
+@Entity()
+export class Seller {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  telegramId: string;
+
+  @Column()
+  fullName: string;
+
+  @Column()
+  phone: string;
+
+  @Column({ type: 'enum', enum: BusinessType })
+  businessType: BusinessType;
+
+  @Column({ type: 'point' })
+  location: { type: string; coordinates: number[] };
+
+  @OneToMany(() => Product, (product) => product.seller)
+  products: Product[];
+}

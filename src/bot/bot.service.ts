@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf, Scenes, session } from 'telegraf';
 import { BotContext } from './bot.context';
@@ -7,7 +7,7 @@ import { BotContext } from './bot.context';
 export class BotService implements OnModuleInit {
   constructor(
     @InjectBot() private bot: Telegraf<BotContext>,
-    private readonly stage: Scenes.Stage<BotContext>,
+    @Inject('SCENE_STAGE') private stage: Scenes.Stage<BotContext>, // ✅ Inject by token
   ) {}
 
   async onModuleInit() {

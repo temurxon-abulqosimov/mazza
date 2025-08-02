@@ -1,41 +1,20 @@
-import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    CreateDateColumn,
-} from 'typeorm';
+// src/bookings/entities/booking.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { Seller } from 'src/sellers/entities/seller.entity';
 import { Product } from 'src/products/entities/product.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Entity()
 export class Booking {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({unique: true})
-    code: string;
+  @Column({ default: () => `'${uuidv4()}'` })
+  code: string;
 
-    @ManyToOne(() => User, (user) => user.bookings)
-    user: User;
+  @ManyToOne(() => User, (user) => user.bookings)
+  user: User;
 
-    @ManyToOne(() => Seller, (seller) => seller.bookings)
-    seller: Seller;
-
-    @ManyToOne(() => Product)
-    product: Product;
-
-    @Column({ default: false })
-    isConfirmedBySeller: boolean;
-
-    @CreateDateColumn()
-    bookedAt: Date;
-
-    @Column({ nullable: true })
-    expiresAt?: Date;
-
-    @Column({ default: false })
-    isCancelled: boolean;
-
+  @ManyToOne(() => Product, (product) => product.bookings)
+  product: Product;
 }

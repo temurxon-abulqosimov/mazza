@@ -1,0 +1,88 @@
+// src/bot/i18n.ts
+import { BotContext } from './bot.context';
+
+export const i18n = (ctx: BotContext, key: string, params: Record<string, any> = {}) => {
+  const language = ctx.session.language || 'uz';
+  const translations: Record<string, Record<string, string>> = {
+    uz: {
+      welcome: 'Xush kelibsiz! Quyidagi buyruqlarni ishlatishingiz mumkin: {commands}',
+      error: 'Xatolik yuz berdi. Iltimos, qayta urinib koʻring.',
+      not_registered: 'Siz roʻyxatdan oʻtmagansiz. Iltimos, /register buyrugʻini ishlatib roʻyxatdan oʻting.',
+      not_seller: 'Siz sotuvchi sifatida roʻyxatdan oʻtmagansiz. Iltimos, /registerseller buyrugʻini ishlatib roʻyxatdan oʻting.',
+      share_location: 'Joylashuvingizni yuboring.',
+      share_location_button: 'Joylashuvni yuborish',
+      no_stores_found: 'Yaqin atrofda doʻkonlar topilmadi.',
+      select_store: 'Doʻkonni tanlang:\n{sellerList}',
+      select_product: 'Mahsulotni tanlang:\n{productList}',
+      invalid_selection: 'Notoʻgʻri tanlov. Iltimos, raqamni kiriting.',
+      no_products_found: 'Bu doʻkonda mahsulotlar yoʻq.',
+      booking_success: 'Buyurtma muvaffaqiyatli amalga oshirildi! Kod: {code}',
+      booking_failed: 'Buyurtma amalga oshmadi. Iltimos, qayta urinib koʻring.',
+      booking_limit_exceeded: 'Buyurtmalar soni chegarasidan oshib ketdi. Iltimos, keyinroq urinib koʻring.',
+      select_language: 'Tilni tanlang:',
+      language_set: '{language} tili oʻrnatildi.',
+      user_full_name: 'Toʻliq ismingizni kiriting:',
+      user_phone: 'Telefon raqamingizni kiriting:',
+      user_payment_method: 'Toʻlov usulini tanlang: Naqd yoki Karta?',
+      invalid_payment_method: 'Notoʻgʻri toʻlov usuli. Iltimos, "Naqd" yoki "Karta" deb yozing.',
+      user_registration_failed: 'Roʻyxatdan oʻtish muvaffaqiyatsiz boʻldi: Maʼlumotlar yetishmayapti.',
+      user_registration_success: '✅ Roʻyxatdan oʻtish muvaffaqiyatli!\n\n👤 Ism: {fullName}\n📞 Telefon: {phone}\n💳 Toʻlov: {paymentMethod}',
+      seller_full_name: 'Toʻliq ismingizni kiriting:',
+      seller_phone: 'Telefon raqamingizni kiriting:',
+      seller_business_type: 'Biznes turini kiriting (Kafe, Doʻkon, Restoran):',
+      invalid_business_type: 'Notoʻgʻri biznes turi. Iltimos, Kafe, Doʻkon yoki Restoran deb yozing.',
+      seller_registration_failed: 'Sotuvchi sifatida roʻyxatdan oʻtish muvaffaqiyatsiz boʻldi: Maʼlumotlar yetishmayapti.',
+      seller_registration_success: '✅ Sotuvchi sifatida roʻyxatdan oʻtish muvaffaqiyatli!',
+      product_name: 'Mahsulot nomini kiriting:',
+      product_price: 'Mahsulot narxini kiriting:',
+      product_discount_price: 'Chegirma narxini kiriting (yoki "none" deb yozing):',
+      invalid_price: 'Notoʻgʻri narx. Iltimos, haqiqiy raqam kiriting.',
+      invalid_discount_price: 'Notoʻgʻri chegirma narxi. Iltimos, haqiqiy raqam yoki "none" deb yozing.',
+      product_list_failed: 'Mahsulotni roʻyxatga qoʻshish muvaffaqiyatsiz boʻldi: Maʼlumotlar yetishmayapti.',
+      product_listed_success: '✅ Mahsulot muvaffaqiyatli roʻyxatga qoʻshildi!',
+    },
+    ru: {
+      welcome: 'Добро пожаловать! Вы можете использовать следующие команды: {commands}',
+      error: 'Произошла ошибка. Пожалуйста, попробуйте снова.',
+      not_registered: 'Вы не зарегистрированы. Пожалуйста, зарегистрируйтесь с помощью команды /register.',
+      not_seller: 'Вы не зарегистрированы как продавец. Пожалуйста, зарегистрируйтесь с помощью команды /registerseller.',
+      share_location: 'Отправьте ваше местоположение.',
+      share_location_button: 'Отправить местоположение',
+      no_stores_found: 'Магазины поблизости не найдены.',
+      select_store: 'Выберите магазин:\n{sellerList}',
+      select_product: 'Выберите продукт:\n{productList}',
+      invalid_selection: 'Неверный выбор. Пожалуйста, введите номер.',
+      no_products_found: 'В этом магазине нет продуктов.',
+      booking_success: 'Заказ успешно создан! Код: {code}',
+      booking_failed: 'Не удалось создать заказ. Пожалуйста, попробуйте снова.',
+      booking_limit_exceeded: 'Превышен лимит заказов. Пожалуйста, попробуйте позже.',
+      select_language: 'Выберите язык:',
+      language_set: 'Язык установлен: {language}',
+      user_full_name: 'Введите ваше полное имя:',
+      user_phone: 'Введите ваш номер телефона:',
+      user_payment_method: 'Выберите способ оплаты: Наличные или Карта?',
+      invalid_payment_method: 'Неверный способ оплаты. Пожалуйста, введите "Наличные" или "Карта".',
+      user_registration_failed: 'Регистрация не удалась: недостаточно данных.',
+      user_registration_success: '✅ Регистрация завершена!\n\n👤 Имя: {fullName}\n📞 Телефон: {phone}\n💳 Оплата: {paymentMethod}',
+      seller_full_name: 'Введите ваше полное имя:',
+      seller_phone: 'Введите ваш номер телефона:',
+      seller_business_type: 'Введите тип бизнеса (Кафе, Магазин, Ресторан):',
+      invalid_business_type: 'Неверный тип бизнеса. Пожалуйста, введите Кафе, Магазин или Ресторан.',
+      seller_registration_failed: 'Регистрация продавца не удалась: недостаточно данных.',
+      seller_registration_success: '✅ Регистрация продавца завершена!',
+      product_name: 'Введите название продукта:',
+      product_price: 'Введите цену продукта:',
+      product_discount_price: 'Введите цену со скидкой (или "none" для пропуска):',
+      invalid_price: 'Неверная цена. Пожалуйста, введите действительное число.',
+      invalid_discount_price: 'Неверная цена со скидкой. Пожалуйста, введите действительное число или "none".',
+      product_list_failed: 'Не удалось добавить продукт: недостаточно данных.',
+      product_listed_success: '✅ Продукт успешно добавлен в список!',
+    },
+  };
+
+  let message = translations[language][key] || key;
+  Object.keys(params).forEach((param) => {
+    message = message.replace(`{${param}}`, params[param]);
+  });
+  return message;
+};

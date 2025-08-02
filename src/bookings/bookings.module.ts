@@ -10,5 +10,6 @@ import { Product } from 'src/products/entities/product.entity';
 @Module({
   imports: [ TypeOrmModule.forFeature([Booking, User, Seller, Product]), ],
   providers: [BookingsService],
+  exports: [BookingsService],
 })
 export class BookingsModule {}
