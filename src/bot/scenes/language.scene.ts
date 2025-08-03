@@ -1,34 +1,26 @@
-import { Scene, SceneEnter, SceneLeave } from 'nestjs-telegraf';
+import { Ctx, Scene, SceneEnter, On, Action } from 'nestjs-telegraf';
+import { Context } from 'telegraf';
+import { getLanguageKeyboard } from 'src/common/utils/keyboard.util';
+import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
+import { getMessage } from 'src/config/messages';
 
-@Scene('LANGUAGE_SCENE')
+@Scene('language')
 export class LanguageScene {
   @SceneEnter()
-  async enter(ctx) {
-    // Nothing needed; keyboard already shown in /start
+  async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    await ctx.reply(getMessage('uz', 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
   }
 
-  async onMessage(ctx) {
-    const text = ctx.message.text;
-    if (text.includes('Oʻzbekcha')) {
-      ctx.session.language = 'uz';
-    } else if (text.includes('Русский')) {
-      ctx.session.language = 'ru';
-    } else {
-      return ctx.reply('Iltimos, tilni tanlang / Пожалуйста, выберите язык');
+  @Action(/lang_(uz|ru)/)
+  async onLanguageSelect(@Ctx() ctx: TelegramContext) {
+    if (!ctx.match) return;
+    
+    const language = ctx.match[1] as 'uz' | 'ru';
+    ctx.session.language = language;
+
+    await ctx.reply(getMessage(language, 'languageSelected'));
+    if (ctx.scene) {
+      await ctx.scene.enter('role');
     }
-
-    await ctx.reply(
-      ctx.session.language === 'uz'
-        ? 'Iltimos, rolingizni tanlang'
-        : 'Пожалуйста, выберите свою роль',
-      {
-        reply_markup: {
-          keyboard: [['🧑‍💼 Sotuvchi / Продавец', '🙋‍♂️ Foydalanuvchi / Пользователь']],
-          resize_keyboard: true,
-        },
-      }
-    );
-
-    return ctx.scene.enter('ROLE_SCENE');
   }
 }

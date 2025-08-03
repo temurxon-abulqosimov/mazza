@@ -1,25 +1,41 @@
 // src/products/entities/product.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Seller } from 'src/sellers/entities/seller.entity';
-import { Booking } from 'src/bookings/entities/booking.entity';
+import { Order } from 'src/orders/entities/order.entity';
+import { Rating } from 'src/ratings/entities/rating.entity';
 
 @Entity()
 export class Product {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  name: string;
-
   @Column('float')
   price: number;
 
   @Column('float', { nullable: true })
-  discountPrice?: number;
+  originalPrice?: number;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ type: 'timestamp' })
+  availableUntil: Date;
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @ManyToOne(() => Seller, (seller) => seller.products)
   seller: Seller;
 
-  @OneToMany(() => Booking, (booking) => booking.product)
-  bookings: Booking[];
+  @OneToMany(() => Order, (order) => order.product)
+  orders: Order[];
+
+  @OneToMany(() => Rating, (rating) => rating.product)
+  ratings: Rating[];
 }

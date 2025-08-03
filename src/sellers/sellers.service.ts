@@ -1,10 +1,10 @@
-// src/sellers/sellers.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Seller } from './entities/seller.entity';
-import { Product } from 'src/products/entities/product.entity';
-import { BusinessType } from 'src/common/enums/business-type.enum';
+import { CreateSellerDto } from './dto/create-seller.dto';
+import { calculateDistance } from 'src/common/utils/distance.util';
+import { SellerStatus } from 'src/common/enums/seller-status.enum';
 
 @Injectable()
 export class SellersService {
@@ -13,59 +13,101 @@ export class SellersService {
     private sellersRepository: Repository<Seller>,
   ) {}
 
-  async createSeller(data: {
-    telegramId: string;
-    fullName: string;
-    phone: string;
-    businessType: BusinessType;
-    latitude: number;
-    longitude: number;
-  }): Promise<Seller> {
+  async create(createSellerDto: CreateSellerDto): Promise<Seller> {
     const seller = this.sellersRepository.create({
-      ...data,
-      location: {
-        type: 'Point',
-        coordinates: [data.longitude, data.latitude],
-      },
+      ...createSellerDto,
+      location: createSellerDto.location,
     });
     return this.sellersRepository.save(seller);
   }
 
-  async findByTelegramId(telegramId: string): Promise<Seller | null> {
-    return this.sellersRepository.findOne({ where: { telegramId } });
+  async findAll(): Promise<Seller[]> {
+    return this.sellersRepository.find({
+      relations: ['products'],
+    });
   }
 
-  async findNearby(latitude: number, longitude: number): Promise<Seller[]> {
-    try {
-      const sellers = await this.sellersRepository
-        .createQueryBuilder('seller')
-        .where(
-          `ST_DWithin(
-            seller.location,
-            ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326),
-            5000
-          )`
-        )
-        .setParameters({ longitude, latitude })
-        .getMany();
-      return sellers;
-    } catch (error) {
-      console.warn('PostGIS not available, falling back to Haversine formula');
-      const sellers = await this.sellersRepository.find();
-      return sellers.filter((seller) => {
-        const [lon, lat] = seller.location.coordinates;
-        const R = 6371e3; // Earth's radius in meters
-        const φ1 = (latitude * Math.PI) / 180;
-        const φ2 = (lat * Math.PI) / 180;
-        const Δφ = ((lat - latitude) * Math.PI) / 180;
-        const Δλ = ((lon - longitude) * Math.PI) / 180;
-        const a =
-          Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-          Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = R * c;
-        return distance <= 5000;
-      });
+  async findOne(id: number): Promise<Seller | null> {
+    return this.sellersRepository.findOne({
+      where: { id },
+      relations: ['products'],
+    });
+  }
+
+  async findByTelegramId(telegramId: string): Promise<Seller | null> {
+    return this.sellersRepository.findOne({
+      where: { telegramId },
+      relations: ['products'],
+    });
+  }
+
+  async findApprovedSellers(): Promise<Seller[]> {
+    return this.sellersRepository.find({
+      where: { status: SellerStatus.APPROVED },
+      relations: ['products'],
+    });
+  }
+
+  async findNearbyStores(
+    userLat: number,
+    userLon: number,
+    limit: number = 10,
+  ): Promise<Array<Seller & { distance: number; isOpen: boolean; averageRating: number }>> {
+    const sellers = await this.sellersRepository
+      .createQueryBuilder('seller')
+      .leftJoinAndSelect('seller.products', 'products')
+      .where('seller.status = :status', { status: SellerStatus.APPROVED })
+      .andWhere('products.isActive = :isActive', { isActive: true })
+      .andWhere('products.availableUntil > :now', { now: new Date() })
+      .getMany();
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    const sellersWithDistance = sellers.map(seller => {
+      const distance = calculateDistance(
+        userLat,
+        userLon,
+        seller.location.latitude,
+        seller.location.longitude,
+      );
+
+      const isOpen = currentTime >= seller.opensAt && currentTime <= seller.closesAt;
+
+      return {
+        ...seller,
+        distance,
+        isOpen,
+        averageRating: 0, // Will be calculated separately
+      };
+    });
+
+    // Sort by distance and return top results
+    return sellersWithDistance
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
+  }
+
+  async update(id: number, updateSellerDto: Partial<CreateSellerDto>): Promise<Seller | null> {
+    const updateData: any = { ...updateSellerDto };
+    if (updateSellerDto.location) {
+      updateData.location = updateSellerDto.location;
     }
+    await this.sellersRepository.update(id, updateData);
+    return this.findOne(id);
+  }
+
+  async updateStatus(id: number, status: SellerStatus): Promise<Seller | null> {
+    await this.sellersRepository.update(id, { status });
+    return this.findOne(id);
+  }
+
+  async updateLanguage(telegramId: string, language: 'uz' | 'ru'): Promise<Seller | null> {
+    await this.sellersRepository.update({ telegramId }, { language });
+    return this.findByTelegramId(telegramId);
+  }
+
+  async remove(id: number): Promise<void> {
+    await this.sellersRepository.delete(id);
   }
 }

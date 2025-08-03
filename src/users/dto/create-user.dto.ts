@@ -1,11 +1,11 @@
-import { IsEnum, IsString, Matches, ValidateNested } from 'class-validator';
+import { IsString, Matches, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { LocationDto } from 'src/common/dtos/location.dto';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
 
 export class CreateUserDto {
   @IsString()
-  fullName: string;
+  telegramId: string;
 
   @IsString()
   @Matches(/^\+998\s?(9[0-9]|3[3]|7[1]|8[8]|6[1])[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$/, {
@@ -17,7 +17,7 @@ export class CreateUserDto {
   @Type(() => LocationDto)
   location: LocationDto;
 
-  @IsEnum(PaymentMethod)
+  @IsString()
   paymentMethod: PaymentMethod;
 
   @IsString()

@@ -1,110 +1,168 @@
 // src/bot/scenes/seller-registration.scene.ts
-import { Injectable } from '@nestjs/common';
-import { Scenes, Composer } from 'telegraf';
-import { BotContext } from '../bot.context';
+import { Ctx, Scene, SceneEnter, On, Action } from 'nestjs-telegraf';
+import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
+import { getLocationKeyboard, getBusinessTypeKeyboard } from 'src/common/utils/keyboard.util';
 import { SellersService } from 'src/sellers/sellers.service';
-import { i18n } from '../i18n';
-import { MyWizardSession } from '../types/session.intreface';
+import { CreateSellerDto } from 'src/sellers/dto/create-seller.dto';
 import { BusinessType } from 'src/common/enums/business-type.enum';
+import { SellerStatus } from 'src/common/enums/seller-status.enum';
+import { getMessage } from 'src/config/messages';
+import { SessionProvider } from '../providers/session.provider';
 
-@Injectable()
-export class SellerRegistrationWizard extends Scenes.WizardScene<BotContext> {
-  constructor(private readonly sellersService: SellersService) {
-    super(
-      'SELLER_REGISTRATION_SCENE', // Ensure this matches
-      async (ctx: BotContext) => {
-        console.log('Step 1: Asking for seller full name');
-        await ctx.reply(i18n(ctx, 'seller_full_name'));
-        return ctx.wizard.next();
-      },
-      new Composer<BotContext>().on('text', async (ctx) => {
-        if (!ctx.message || !('text' in ctx.message)) {
-          console.error('ctx.message or text is undefined in SellerRegistrationWizard step 2');
-          await ctx.reply(i18n(ctx, 'error'));
-          return ctx.scene.leave();
-        }
-        const session = ctx.session as MyWizardSession;
-        session.fullName = ctx.message.text;
-        console.log('Step 2: Received full name:', session.fullName);
-        await ctx.reply(i18n(ctx, 'seller_phone'));
-        return ctx.wizard.next();
-      }),
-      new Composer<BotContext>().on('text', async (ctx) => {
-        if (!ctx.message || !('text' in ctx.message)) {
-          console.error('ctx.message or text is undefined in SellerRegistrationWizard step 3');
-          await ctx.reply(i18n(ctx, 'error'));
-          return ctx.scene.leave();
-        }
-        const session = ctx.session as MyWizardSession;
-        session.phone = ctx.message.text;
-        console.log('Step 3: Received phone number:', session.phone);
-        await ctx.reply(i18n(ctx, 'seller_business_type'));
-        return ctx.wizard.next();
-      }),
-      new Composer<BotContext>().on('text', async (ctx) => {
-        if (!ctx.message || !('text' in ctx.message)) {
-          console.error('ctx.message or text is undefined in SellerRegistrationWizard step 4');
-          await ctx.reply(i18n(ctx, 'error'));
-          return ctx.scene.leave();
-        }
-        const session = ctx.session as MyWizardSession;
-        const businessTypeInput = ctx.message.text.toLowerCase();
-        const validBusinessTypes = Object.values(BusinessType) as string[];
-        if (!validBusinessTypes.includes(businessTypeInput)) {
-          await ctx.reply(i18n(ctx, 'invalid_business_type'));
-          return;
-        }
-        session.businessType = businessTypeInput as BusinessType;
-        console.log('Step 4: Received business type:', session.businessType);
-        await ctx.reply(i18n(ctx, 'share_location'), {
-          reply_markup: { keyboard: [[{ text: i18n(ctx, 'share_location_button'), request_location: true }]], one_time_keyboard: true },
-        });
-        return ctx.wizard.next();
-      }),
-      new Composer<BotContext>().on('location', async (ctx) => {
-        if (!ctx.from) {
-          console.error('ctx.from is undefined in SellerRegistrationWizard step 5');
-          await ctx.reply(i18n(ctx, 'error'));
-          return ctx.scene.leave();
-        }
-        if (!ctx.message || !('location' in ctx.message)) {
-          console.error('ctx.message or location is undefined in SellerRegistrationWizard step 5');
-          await ctx.reply(i18n(ctx, 'error'));
-          return ctx.scene.leave();
-        }
-        const session = ctx.session as MyWizardSession;
-        session.latitude = ctx.message.location.latitude;
-        session.longitude = ctx.message.location.longitude;
-        console.log('Step 5: Received location:', { latitude: session.latitude, longitude: session.longitude });
+@Scene('seller-registration')
+export class SellerRegistrationScene {
+  constructor(
+    private readonly sellersService: SellersService,
+    private readonly sessionProvider: SessionProvider,
+  ) {}
 
-        if (!session.fullName || !session.phone || !session.businessType || !session.latitude || !session.longitude) {
-          await ctx.reply(i18n(ctx, 'seller_registration_failed'));
-          return ctx.scene.leave();
-        }
+  private initializeSession(ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    ctx.session = this.sessionProvider.getSession(telegramId);
+  }
 
-        try {
-          await this.sellersService.createSeller({
-            telegramId: ctx.from.id.toString(),
-            fullName: session.fullName,
-            phone: session.phone,
-            businessType: session.businessType,
-            latitude: session.latitude,
-            longitude: session.longitude,
-          });
-          console.log('✅ Seller created:', {
-            fullName: session.fullName,
-            phone: session.phone,
-            businessType: session.businessType,
-          });
-          await ctx.reply(i18n(ctx, 'seller_registration_success'));
-        } catch (error) {
-          console.error('❌ Failed to create seller:', error);
-          await ctx.reply(i18n(ctx, 'error'));
-        }
+  @SceneEnter()
+  async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    ctx.session.registrationStep = 'phone';
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'));
+  }
 
-        return ctx.scene.leave();
-      })
-    );
-    console.log('✅ SellerRegistrationWizard instantiated');
+  @On('contact')
+  async onContact(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'phone') return;
+    if (!ctx.message || !('contact' in ctx.message)) return;
+
+    const contact = ctx.message.contact;
+    if (!contact.phone_number) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'registration.phoneError'));
+    }
+
+    ctx.session.sellerData = { phoneNumber: contact.phone_number };
+    ctx.session.registrationStep = 'business_name';
+
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
+  }
+
+  @On('text')
+  async onText(@Ctx() ctx: TelegramContext) {
+    const step = ctx.session.registrationStep;
+    const language = ctx.session.language || 'uz';
+    if (!ctx.message || !('text' in ctx.message)) return;
+
+    if (step === 'business_name') {
+      if (!ctx.session.sellerData) {
+        ctx.session.sellerData = {};
+      }
+      ctx.session.sellerData.businessName = ctx.message.text;
+      ctx.session.registrationStep = 'business_type';
+
+      await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { reply_markup: getBusinessTypeKeyboard(language) });
+    } else if (step === 'opens_at') {
+      const timeText = ctx.message.text;
+      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+      
+      if (!timeMatch) {
+        return ctx.reply(getMessage(language, 'validation.invalidTime'));
+      }
+
+      const hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
+      if (!ctx.session.sellerData) {
+        ctx.session.sellerData = {};
+      }
+      ctx.session.sellerData.opensAt = hours * 60 + minutes;
+      ctx.session.registrationStep = 'closes_at';
+
+      await ctx.reply(getMessage(language, 'registration.opensAtSuccess'));
+    } else if (step === 'closes_at') {
+      const timeText = ctx.message.text;
+      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+      
+      if (!timeMatch) {
+        return ctx.reply(getMessage(language, 'validation.invalidTime'));
+      }
+
+      const hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
+      if (!ctx.session.sellerData) {
+        ctx.session.sellerData = {};
+      }
+      ctx.session.sellerData.closesAt = hours * 60 + minutes;
+      ctx.session.registrationStep = 'location';
+
+      await ctx.reply(getMessage(language, 'registration.closesAtSuccess'), { reply_markup: getLocationKeyboard(language) });
+    } else {
+      await ctx.reply(getMessage(language, 'validation.invalidFormat'));
+    }
+  }
+
+  @Action(/business_(cafe|restaurant|market|bakery|other)/)
+  async onBusinessType(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'business_type') return;
+    if (!ctx.match) return;
+
+    const businessType = ctx.match[1] as BusinessType;
+    if (!ctx.session.sellerData) {
+      ctx.session.sellerData = {};
+    }
+    ctx.session.sellerData.businessType = businessType;
+    ctx.session.registrationStep = 'opens_at';
+
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.businessTypeRequest'));
+  }
+
+  @On('location')
+  async onLocation(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'location') return;
+    if (!ctx.message || !('location' in ctx.message)) return;
+
+    const location = ctx.message.location;
+    if (!ctx.session.sellerData) {
+      ctx.session.sellerData = {};
+    }
+    ctx.session.sellerData.location = {
+      latitude: location.latitude,
+      longitude: location.longitude
+    };
+
+    // Create seller
+    try {
+      if (!ctx.from) throw new Error('User not found');
+      if (!ctx.session.sellerData.phoneNumber || !ctx.session.sellerData.businessName || 
+          !ctx.session.sellerData.businessType || !ctx.session.sellerData.location ||
+          ctx.session.sellerData.opensAt === undefined || ctx.session.sellerData.closesAt === undefined) {
+        throw new Error('Missing seller data');
+      }
+
+      const createSellerDto: CreateSellerDto = {
+        telegramId: ctx.from.id.toString(),
+        phoneNumber: ctx.session.sellerData.phoneNumber,
+        businessName: ctx.session.sellerData.businessName,
+        businessType: ctx.session.sellerData.businessType,
+        location: ctx.session.sellerData.location,
+        opensAt: ctx.session.sellerData.opensAt,
+        closesAt: ctx.session.sellerData.closesAt,
+        status: SellerStatus.PENDING,
+        language: ctx.session.language
+      };
+
+      await this.sellersService.create(createSellerDto);
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.sellerRegistration'));
+      if (ctx.scene) {
+        await ctx.scene.leave();
+      }
+    } catch (error) {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
   }
 }

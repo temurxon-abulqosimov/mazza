@@ -1,28 +1,35 @@
-import { Scene, SceneEnter } from 'nestjs-telegraf';
+import { Ctx, Scene, SceneEnter, Action } from 'nestjs-telegraf';
+import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
+import { getRoleKeyboard } from 'src/common/utils/keyboard.util';
+import { UserRole } from 'src/common/enums/user-role.enum';
+import { getMessage } from 'src/config/messages';
 
-@Scene('ROLE_SCENE')
+@Scene('role')
 export class RoleScene {
   @SceneEnter()
-  async enter(ctx) {
-    // Nothing needed; keyboard already shown in previous scene
+  async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    const language = ctx.session.language || 'uz';
+    await ctx.reply('', { reply_markup: getRoleKeyboard(language) });
   }
 
-  async onMessage(ctx) {
-    const text = ctx.message.text;
-    const lang = ctx.session.language;
+  @Action(/role_(user|seller)/)
+  async onRoleSelect(@Ctx() ctx: TelegramContext) {
+    if (!ctx.match) return;
+    
+    const role = ctx.match[1] as UserRole;
+    ctx.session.role = role;
 
-    if (text.includes('Sotuvchi') || text.includes('Продавец')) {
-      ctx.session.role = 'seller';
-      return ctx.scene.enter('SELLER_REGISTRATION_SCENE');
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, `roleSelected.${role}`));
+    
+    if (role === UserRole.USER) {
+      if (ctx.scene) {
+        await ctx.scene.enter('user-registration');
+      }
+    } else {
+      if (ctx.scene) {
+        await ctx.scene.enter('seller-registration');
+      }
     }
-
-    if (text.includes('Foydalanuvchi') || text.includes('Пользователь')) {
-      ctx.session.role = 'user';
-      return ctx.scene.enter('USER_REGISTRATION_SCENE');
-    }
-
-    return ctx.reply(
-      lang === 'uz' ? 'Iltimos, rolingizni tanlang' : 'Пожалуйста, выберите роль'
-    );
   }
 }

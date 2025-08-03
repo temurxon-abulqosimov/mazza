@@ -1,82 +1,114 @@
 // src/bot/scenes/user-registration.scene.ts
-import { Injectable } from '@nestjs/common';
-import { Scenes, Composer } from 'telegraf';
-import { BotContext, MyWizardSession } from '../bot.context';
+import { Ctx, Scene, SceneEnter, On, Action, Message } from 'nestjs-telegraf';
+import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
+import { getLocationKeyboard, getPaymentMethodKeyboard } from 'src/common/utils/keyboard.util';
 import { UsersService } from 'src/users/users.service';
+import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
-import { i18n } from '../i18n';
+import { getMessage } from 'src/config/messages';
+import { SessionProvider } from '../providers/session.provider';
 
-@Injectable()
-export class UserRegistrationWizard extends Scenes.WizardScene<BotContext> {
-  constructor(private readonly usersService: UsersService) {
-    super(
-      'USER_REGISTRATION_SCENE',
-      async (ctx: BotContext) => {
-        console.log('Step 1: Asking for full name');
-        await ctx.reply(i18n(ctx, 'user_full_name'));
-        return ctx.wizard.next();
-      },
-      new Composer<BotContext>().on('text', async (ctx) => {
-        const session = ctx.session as MyWizardSession;
-        session.fullName = ctx.message.text;
-        console.log('Step 2: Received full name:', session.fullName);
-        await ctx.reply(i18n(ctx, 'user_phone'));
-        return ctx.wizard.next();
-      }),
-      new Composer<BotContext>().on('text', async (ctx) => {
-        const session = ctx.session as MyWizardSession;
-        session.phone = ctx.message.text;
-        console.log('Step 3: Received phone number:', session.phone);
-        await ctx.reply(i18n(ctx, 'user_payment_method'));
-        return ctx.wizard.next();
-      }),
-      new Composer<BotContext>().on('text', async (ctx) => {
-        const session = ctx.session as MyWizardSession;
-        const paymentText = ctx.message.text.toLowerCase();
+@Scene('user-registration')
+export class UserRegistrationScene {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly sessionProvider: SessionProvider,
+  ) {}
 
-        if (paymentText !== 'cash' && paymentText !== 'card') {
-          await ctx.reply(i18n(ctx, 'invalid_payment_method'));
-          return;
-        }
+  private initializeSession(ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    ctx.session = this.sessionProvider.getSession(telegramId);
+  }
 
-        const paymentMethod = paymentText === 'cash' ? PaymentMethod.CASH : PaymentMethod.CARD;
-        session.paymentMethod = paymentMethod;
+  @SceneEnter()
+  async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    ctx.session.registrationStep = 'phone';
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'));
+  }
 
-        if (!session.fullName || !session.phone) {
-          await ctx.reply(i18n(ctx, 'user_registration_failed'));
-          return ctx.scene.leave();
-        }
+  @On('contact')
+  async onContact(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'phone') return;
+    if (!ctx.message || !('contact' in ctx.message)) return;
 
-        try {
-          await this.usersService.createUser({
-            telegramId: ctx.from.id.toString(),
-            fullName: session.fullName,
-            phone: session.phone,
-            paymentMethod,
-            language: ctx.session.language || 'uz',
-          });
+    const contact = ctx.message.contact;
+    if (!contact.phone_number) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'registration.phoneError'));
+    }
 
-          console.log('✅ User created:', {
-            fullName: session.fullName,
-            phone: session.phone,
-            paymentMethod,
-          });
+    ctx.session.userData = { phoneNumber: contact.phone_number };
+    ctx.session.registrationStep = 'location';
 
-          await ctx.reply(
-            i18n(ctx, 'user_registration_success', {
-              fullName: session.fullName,
-              phone: session.phone,
-              paymentMethod: paymentText.charAt(0).toUpperCase() + paymentText.slice(1),
-            })
-          );
-        } catch (error) {
-          console.error('❌ Failed to create user:', error);
-          await ctx.reply(i18n(ctx, 'error'));
-        }
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getLocationKeyboard(language) });
+  }
 
-        return ctx.scene.leave();
-      })
-    );
-    console.log('✅ UserRegistrationWizard instantiated');
+  @On('location')
+  async onLocation(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'location') return;
+    if (!ctx.message || !('location' in ctx.message)) return;
+
+    const location = ctx.message.location;
+    if (!ctx.session.userData) {
+      ctx.session.userData = {};
+    }
+    ctx.session.userData.location = {
+      latitude: location.latitude,
+      longitude: location.longitude
+    };
+    ctx.session.registrationStep = 'payment';
+
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.locationSuccess'), { reply_markup: getPaymentMethodKeyboard(language) });
+  }
+
+  @Action(/payment_(cash|card|click|payme)/)
+  async onPaymentMethod(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'payment') return;
+    if (!ctx.match) return;
+
+    const paymentMethod = ctx.match[1] as PaymentMethod;
+    if (!ctx.session.userData) {
+      ctx.session.userData = {};
+    }
+    ctx.session.userData.paymentMethod = paymentMethod;
+
+    // Create user
+    try {
+      if (!ctx.from) throw new Error('User not found');
+      if (!ctx.session.userData.phoneNumber || !ctx.session.userData.location || !ctx.session.userData.paymentMethod) {
+        throw new Error('Missing user data');
+      }
+
+      const createUserDto: CreateUserDto = {
+        telegramId: ctx.from.id.toString(),
+        phoneNumber: ctx.session.userData.phoneNumber,
+        location: ctx.session.userData.location,
+        paymentMethod: ctx.session.userData.paymentMethod,
+        language: ctx.session.language
+      };
+
+      await this.usersService.create(createUserDto);
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.userRegistration'));
+      if (ctx.scene) {
+        await ctx.scene.leave();
+      }
+    } catch (error) {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
+  @On('text')
+  async onText(@Ctx() ctx: TelegramContext) {
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'validation.invalidFormat'));
   }
 }
