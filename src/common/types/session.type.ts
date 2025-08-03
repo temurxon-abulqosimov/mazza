@@ -6,6 +6,7 @@ export interface SessionData {
   language: 'uz' | 'ru';
   role?: UserRole;
   registrationStep?: string;
+  action?: string;
   userData?: {
     phoneNumber?: string;
     location?: {
@@ -34,4 +35,5 @@ export interface SessionData {
   currentPage?: number;
   selectedStoreId?: number;
   selectedProductId?: number;
+  selectedPaymentMethod?: string;
 } 

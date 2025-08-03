@@ -13,11 +13,36 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const user = this.usersRepository.create({
-      ...createUserDto,
-      location: createUserDto.location,
-    });
-    return this.usersRepository.save(user);
+    console.log('UsersService: Creating user with DTO:', createUserDto);
+    
+    // Convert DTO to entity-compatible object
+    const userData = {
+      telegramId: createUserDto.telegramId,
+      phoneNumber: createUserDto.phoneNumber,
+      paymentMethod: createUserDto.paymentMethod,
+      language: createUserDto.language,
+      location: createUserDto.location ? {
+        latitude: createUserDto.location.latitude,
+        longitude: createUserDto.location.longitude
+      } : undefined
+    };
+    
+    const user = this.usersRepository.create(userData);
+    
+    console.log('UsersService: Created user entity:', user);
+    
+    try {
+      const savedUser = await this.usersRepository.save(user);
+      console.log('UsersService: User saved successfully:', savedUser);
+      return savedUser;
+    } catch (error) {
+      console.error('UsersService: Error saving user:', error);
+      // Check if it's a unique constraint violation
+      if (error.code === '23505' && error.constraint && error.constraint.includes('telegramId')) {
+        throw new Error('User already exists with this telegram ID');
+      }
+      throw error;
+    }
   }
 
   async findAll(): Promise<User[]> {
@@ -36,6 +61,8 @@ export class UsersService {
     const updateData: any = { ...updateUserDto };
     if (updateUserDto.location) {
       updateData.location = updateUserDto.location;
+    } else if (updateUserDto.location === null) {
+      updateData.location = null;
     }
     await this.usersRepository.update(id, updateData);
     return this.findOne(id);

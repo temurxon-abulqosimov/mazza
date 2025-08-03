@@ -1,5 +1,5 @@
 // src/products/entities/product.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { Seller } from 'src/sellers/entities/seller.entity';
 import { Order } from 'src/orders/entities/order.entity';
 import { Rating } from 'src/ratings/entities/rating.entity';
@@ -31,6 +31,7 @@ export class Product {
   updatedAt: Date;
 
   @ManyToOne(() => Seller, (seller) => seller.products)
+  @JoinColumn({ name: 'sellerId' })
   seller: Seller;
 
   @OneToMany(() => Order, (order) => order.product)

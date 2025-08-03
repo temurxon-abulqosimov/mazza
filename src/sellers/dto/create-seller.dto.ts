@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, IsString, Matches, ValidateNested } from 'class-validator';
+import { IsNumber, IsString, Matches, ValidateNested, IsOptional } from 'class-validator';
 import { LocationDto } from 'src/common/dtos/location.dto';
 import { BusinessType } from 'src/common/enums/business-type.enum';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
@@ -14,9 +14,10 @@ export class CreateSellerDto {
   })
   phoneNumber: string;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => LocationDto)
-  location: LocationDto;
+  location?: LocationDto;
 
   @IsString()
   businessType: BusinessType;

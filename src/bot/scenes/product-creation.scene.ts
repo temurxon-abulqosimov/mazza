@@ -14,6 +14,7 @@ export class ProductCreationScene {
 
   @SceneEnter()
   async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    console.log('Product creation scene entered');
     const language = ctx.session.language || 'uz';
     ctx.session.registrationStep = 'price';
     await ctx.reply(getMessage(language, 'registration.priceRequest'));

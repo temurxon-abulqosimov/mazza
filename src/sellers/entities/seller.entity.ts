@@ -21,8 +21,13 @@ export class Seller {
   @Column({ type: 'enum', enum: BusinessType })
   businessType: BusinessType;
 
-  @Column({ type: 'point', transformer: {
-    to: (value: { latitude: number; longitude: number }) => `(${value.longitude},${value.latitude})`,
+  @Column({ type: 'point', nullable: true, transformer: {
+    to: (value: { latitude: number; longitude: number } | undefined) => {
+      if (!value || !value.latitude || !value.longitude) {
+        return null;
+      }
+      return `(${value.longitude},${value.latitude})`;
+    },
     from: (value: any) => {
       if (!value) return null;
       
@@ -53,7 +58,7 @@ export class Seller {
       return null;
     }
   }})
-  location: { latitude: number; longitude: number };
+  location?: { latitude: number; longitude: number };
 
   @Column({ type: 'int' })
   opensAt: number; // Minutes from midnight

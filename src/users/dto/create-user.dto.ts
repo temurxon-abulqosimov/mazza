@@ -1,4 +1,4 @@
-import { IsString, Matches, ValidateNested } from 'class-validator';
+import { IsString, Matches, ValidateNested, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { LocationDto } from 'src/common/dtos/location.dto';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
@@ -13,12 +13,14 @@ export class CreateUserDto {
   })
   phoneNumber: string;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => LocationDto)
-  location: LocationDto;
+  location?: LocationDto;
 
+  @IsOptional()
   @IsString()
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
 
   @IsString()
   language: 'uz' | 'ru';

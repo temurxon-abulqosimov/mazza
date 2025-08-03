@@ -13,8 +13,21 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const product = this.productsRepository.create(createProductDto);
-    return this.productsRepository.save(product);
+    console.log('ProductsService: Creating product with DTO:', createProductDto);
+    
+    // Create product with explicit sellerId
+    const product = this.productsRepository.create({
+      price: createProductDto.price,
+      originalPrice: createProductDto.originalPrice,
+      description: createProductDto.description,
+      availableUntil: createProductDto.availableUntil,
+      seller: { id: createProductDto.sellerId }
+    });
+    
+    console.log('ProductsService: Created product entity:', product);
+    const savedProduct = await this.productsRepository.save(product);
+    console.log('ProductsService: Saved product:', savedProduct);
+    return savedProduct;
   }
 
   async findAll(): Promise<Product[]> {
@@ -32,11 +45,19 @@ export class ProductsService {
   }
 
   async findBySeller(sellerId: number): Promise<Product[]> {
-    return this.productsRepository.find({
-      where: { seller: { id: sellerId }, isActive: true },
-      relations: ['seller'],
-      order: { createdAt: 'DESC' },
-    });
+    console.log('ProductsService: Finding products for sellerId:', sellerId);
+    
+    // Try using query builder for more explicit control
+    const products = await this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('product.isActive = :isActive', { isActive: true })
+      .orderBy('product.createdAt', 'DESC')
+      .getMany();
+    
+    console.log('ProductsService: Found products:', products);
+    return products;
   }
 
   async findActiveProducts(): Promise<Product[]> {

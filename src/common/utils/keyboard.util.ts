@@ -20,6 +20,9 @@ export function getRoleKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
       [
         { text: getMessage(language, 'roleSelected.user'), callback_data: 'role_user' },
         { text: getMessage(language, 'roleSelected.seller'), callback_data: 'role_seller' }
+      ],
+      [
+        { text: getMessage(language, 'actions.back'), callback_data: 'back_to_language' }
       ]
     ]
   };
@@ -46,6 +49,12 @@ export function getBusinessTypeKeyboard(language: 'uz' | 'ru'): InlineKeyboardMa
     keyboard.push(row);
   }
 
+  // Add back button
+  keyboard.push([{
+    text: getMessage(language, 'actions.back'),
+    callback_data: 'back_to_business_name'
+  }]);
+
   return { inline_keyboard: keyboard };
 }
 
@@ -70,6 +79,12 @@ export function getPaymentMethodKeyboard(language: 'uz' | 'ru'): InlineKeyboardM
     keyboard.push(row);
   }
 
+  // Add back button
+  keyboard.push([{
+    text: getMessage(language, 'actions.back'),
+    callback_data: 'back_to_store'
+  }]);
+
   return { inline_keyboard: keyboard };
 }
 
@@ -93,16 +108,27 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
   };
 }
 
-export function getMainMenuKeyboard(language: 'uz' | 'ru'): any {
-  return {
-    keyboard: [
-      [getMessage(language, 'mainMenu.findStores')],
-      [getMessage(language, 'mainMenu.myOrders')],
-      [getMessage(language, 'mainMenu.postProduct'), getMessage(language, 'mainMenu.myProducts')],
-      [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
-    ],
-    resize_keyboard: true
-  };
+export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'seller'): any {
+  if (role === 'seller') {
+    // Seller menu: My Products, Add Product, Support, Language
+    return {
+      keyboard: [
+        [getMessage(language, 'mainMenu.myProducts')],
+        [getMessage(language, 'mainMenu.postProduct')],
+        [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
+      ],
+      resize_keyboard: true
+    };
+  } else {
+    // User menu: Find Stores, Support, Language (no My Orders since they just buy)
+    return {
+      keyboard: [
+        [getMessage(language, 'mainMenu.findStores')],
+        [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
+      ],
+      resize_keyboard: true
+    };
+  }
 }
 
 export function getStoreListKeyboard(stores: any[], currentPage: number, language: 'uz' | 'ru'): InlineKeyboardMarkup {
@@ -148,6 +174,12 @@ export function getStoreListKeyboard(stores: any[], currentPage: number, languag
     keyboard.push(paginationRow);
   }
 
+  // Add back to main menu button
+  keyboard.push([{
+    text: getMessage(language, 'actions.backToMainMenu'),
+    callback_data: 'back_to_main_menu'
+  }]);
+
   return { inline_keyboard: keyboard };
 }
 
@@ -156,6 +188,64 @@ export function getProductActionKeyboard(productId: number, language: 'uz' | 'ru
     inline_keyboard: [
       [{ text: getMessage(language, 'actions.buy'), callback_data: `buy_${productId}` }],
       [{ text: getMessage(language, 'actions.back'), callback_data: 'back_to_stores' }]
+    ]
+  };
+}
+
+export function getProductListKeyboard(products: any[], language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  const keyboard: any[][] = [];
+  
+  // Add buy buttons for each product
+  products.forEach(product => {
+    keyboard.push([{
+      text: `${getMessage(language, 'actions.buy')} #${product.id}`,
+      callback_data: `buy_${product.id}`
+    }]);
+  });
+
+  // Add back buttons
+  keyboard.push([
+    {
+      text: getMessage(language, 'actions.back'),
+      callback_data: 'back_to_stores'
+    },
+    {
+      text: getMessage(language, 'actions.backToMainMenu'),
+      callback_data: 'back_to_main_menu'
+    }
+  ]);
+
+  return { inline_keyboard: keyboard };
+}
+
+export function getNoStoresKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: getMessage(language, 'actions.tryAgain'),
+          callback_data: 'try_again_location'
+        }
+      ],
+      [
+        {
+          text: getMessage(language, 'actions.backToMainMenu'),
+          callback_data: 'back_to_main_menu'
+        }
+      ]
+    ]
+  };
+}
+
+export function getSupportKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: getMessage(language, 'actions.backToMainMenu'),
+          callback_data: 'back_to_main_menu'
+        }
+      ]
     ]
   };
 }

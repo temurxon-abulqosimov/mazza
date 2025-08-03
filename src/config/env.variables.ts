@@ -18,7 +18,7 @@ export const envVariables = {
     NODE_ENV: process.env.NODE_ENV || 'development',
     
     // Support Configuration
-    SUPPORT_USERNAME: process.env.SUPPORT_USERNAME || '@temurxon_admin',
+    SUPPORT_USERNAME: process.env.SUPPORT_USERNAME || '@avtemur',
     
     // Validation
     validate() {

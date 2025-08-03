@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard } from 'src/common/utils/keyboard.util';
 import { UsersService } from 'src/users/users.service';
 import { SellersService } from 'src/sellers/sellers.service';
 import { ProductsService } from 'src/products/products.service';
@@ -32,6 +32,42 @@ export class BotUpdate {
     ctx.session = this.sessionProvider.getSession(telegramId);
   }
 
+  @Command('debug')
+  async debugCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin (you can modify this check)
+    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      const allUsers = await this.usersService.findAll();
+      const allSellers = await this.sellersService.findAll();
+      
+      console.log('=== DEBUG INFO ===');
+      console.log('Total users:', allUsers.length);
+      console.log('Total sellers:', allSellers.length);
+      console.log('Users:', allUsers);
+      console.log('Sellers:', allSellers);
+      
+      // Test creating a simple user
+      console.log('=== TESTING USER CREATION ===');
+      const testUser = await this.usersService.create({
+        telegramId: 'test_' + Date.now(),
+        phoneNumber: '+998901234567',
+        language: 'uz'
+      });
+      console.log('Test user created:', testUser);
+      
+      await ctx.reply(`🔍 Debug Info:\n\n👥 Users: ${allUsers.length}\n🏪 Sellers: ${allSellers.length}\n✅ Test user created\n\nCheck console for details.`);
+    } catch (error) {
+      console.error('Debug command error:', error);
+      await ctx.reply(`❌ Debug command failed: ${error.message}\n\nCheck console for error.`);
+    }
+  }
+
   @Command('start')
   async startCommand(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
@@ -39,10 +75,14 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
+    console.log('Start command for telegramId:', telegramId);
     
     // Check if user already exists
     let user = await this.usersService.findByTelegramId(telegramId);
     let seller = await this.sellersService.findByTelegramId(telegramId);
+
+    console.log('Found user:', user);
+    console.log('Found seller:', seller);
 
     if (user || seller) {
       // User already registered, show main menu
@@ -50,7 +90,8 @@ export class BotUpdate {
       ctx.session.language = language;
       ctx.session.role = user ? UserRole.USER : UserRole.SELLER;
 
-      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language) });
+      const role = user ? 'user' : 'seller';
+      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, role) });
     } else {
       // New user, show language selection
       await ctx.reply(getMessage('uz', 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
@@ -98,6 +139,23 @@ export class BotUpdate {
     if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep) {
       const step = ctx.session.registrationStep;
       
+      // Handle back commands
+      if (text.toLowerCase() === 'back' || text.toLowerCase() === 'orqaga' || text.toLowerCase() === 'назад') {
+        if (step === 'business_type') {
+          ctx.session.registrationStep = 'business_name';
+          await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
+          return;
+        } else if (step === 'opens_at') {
+          ctx.session.registrationStep = 'business_type';
+          await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { reply_markup: getBusinessTypeKeyboard(language) });
+          return;
+        } else if (step === 'closes_at') {
+          ctx.session.registrationStep = 'opens_at';
+          await ctx.reply(getMessage(language, 'registration.opensAtRequest'));
+          return;
+        }
+      }
+      
       if (step === 'business_name') {
         if (!ctx.session.sellerData) {
           ctx.session.sellerData = {};
@@ -137,11 +195,135 @@ export class BotUpdate {
       }
     }
 
+    // Handle product creation text inputs
+    if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep && ctx.session.registrationStep.startsWith('product_')) {
+      const step = ctx.session.registrationStep;
+      
+      // Handle back commands for product creation
+      if (text.toLowerCase() === 'back' || text.toLowerCase() === 'orqaga' || text.toLowerCase() === 'назад') {
+        if (step === 'product_original_price') {
+          ctx.session.registrationStep = 'product_price';
+          await ctx.reply(getMessage(language, 'registration.priceRequest'));
+          return;
+        } else if (step === 'product_description') {
+          ctx.session.registrationStep = 'product_original_price';
+          await ctx.reply(getMessage(language, 'registration.priceSuccess'));
+          return;
+        } else if (step === 'product_available_until') {
+          ctx.session.registrationStep = 'product_description';
+          await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
+          return;
+        } else if (step === 'product_price') {
+          // Go back to main menu
+          ctx.session.registrationStep = undefined;
+          ctx.session.productData = undefined;
+          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'seller') });
+          return;
+        }
+      }
+      
+      if (step === 'product_price') {
+        const price = parseFloat(text);
+        if (isNaN(price) || price <= 0) {
+          return ctx.reply(getMessage(language, 'validation.invalidPrice'));
+        }
+
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.price = price;
+        ctx.session.registrationStep = 'product_original_price';
+        await ctx.reply(getMessage(language, 'registration.priceSuccess'));
+        return;
+      } else if (step === 'product_original_price') {
+        const originalPrice = parseFloat(text);
+        if (isNaN(originalPrice) || originalPrice < 0) {
+          return ctx.reply(getMessage(language, 'validation.invalidOriginalPrice'));
+        }
+
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.originalPrice = originalPrice > 0 ? originalPrice : undefined;
+        ctx.session.registrationStep = 'product_description';
+        await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
+        return;
+      } else if (step === 'product_description') {
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.description = text;
+        ctx.session.registrationStep = 'product_available_until';
+        await ctx.reply(getMessage(language, 'registration.descriptionSuccess'));
+        return;
+      } else if (step === 'product_available_until') {
+        const timeText = text;
+        const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+        
+        if (!timeMatch) {
+          return ctx.reply(getMessage(language, 'validation.invalidTime'));
+        }
+
+        const hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        
+        // Create available until date (today at specified time)
+        const availableUntil = new Date();
+        availableUntil.setHours(hours, minutes, 0, 0);
+        
+        // If time has passed today, set it for tomorrow
+        if (availableUntil <= new Date()) {
+          availableUntil.setDate(availableUntil.getDate() + 1);
+        }
+
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.availableUntil = availableUntil.toISOString();
+
+        // Create product
+        try {
+          if (!ctx.from) throw new Error('User not found');
+          if (!ctx.session.productData.price || !ctx.session.productData.description || !ctx.session.productData.availableUntil) {
+            throw new Error('Missing product data');
+          }
+
+          const telegramId = ctx.from.id.toString();
+          const seller = await this.sellersService.findByTelegramId(telegramId);
+          
+          console.log('Found seller for product creation:', seller);
+          
+          if (!seller) {
+            throw new Error('Seller not found');
+          }
+
+          const createProductDto = {
+            price: ctx.session.productData.price,
+            originalPrice: ctx.session.productData.originalPrice,
+            description: ctx.session.productData.description,
+            availableUntil: ctx.session.productData.availableUntil,
+            sellerId: seller.id
+          };
+
+          console.log('Creating product with DTO:', createProductDto);
+          await this.productsService.create(createProductDto);
+
+          // Clear product data and registration step
+          ctx.session.productData = {};
+          ctx.session.registrationStep = undefined;
+
+          await ctx.reply(getMessage(language, 'success.productCreated'));
+        } catch (error) {
+          console.error('Product creation error:', error);
+          await ctx.reply(getMessage(language, 'error.productCreationFailed'));
+        }
+        return;
+      }
+    }
+
     // Handle main menu text commands
     if (text.includes(getMessage(language, 'mainMenu.findStores'))) {
       await this.handleFindStores(ctx);
-    } else if (text.includes(getMessage(language, 'mainMenu.myOrders'))) {
-      await this.handleMyOrders(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.postProduct'))) {
       await this.handleAddProduct(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.myProducts'))) {
@@ -171,10 +353,52 @@ export class BotUpdate {
     const language = ctx.session.language || 'uz';
     
     if (ctx.session.role === UserRole.USER) {
-      // User registration
+      // User registration - complete after phone number
       ctx.session.userData = { phoneNumber: contact.phone_number };
-      ctx.session.registrationStep = 'location';
-      await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getLocationKeyboard(language) });
+      
+      // Complete user registration immediately
+      try {
+        if (!ctx.from) throw new Error('User not found');
+        if (!ctx.session.userData.phoneNumber) {
+          throw new Error('Missing user data');
+        }
+
+        // Check if user already exists
+        const existingUser = await this.usersService.findByTelegramId(ctx.from.id.toString());
+        if (existingUser) {
+          await ctx.reply(getMessage(language, 'error.userAlreadyExists'));
+          return;
+        }
+
+        const createUserDto = {
+          telegramId: ctx.from.id.toString(),
+          phoneNumber: ctx.session.userData.phoneNumber,
+          location: undefined, // Location will be set when finding stores
+          paymentMethod: undefined, // Payment method will be set during purchase
+          language: ctx.session.language
+        };
+
+                console.log('Creating user with DTO:', createUserDto);
+        const createdUser = await this.usersService.create(createUserDto);
+        console.log('User created successfully:', createdUser);
+        
+        await ctx.reply(getMessage(language, 'success.userRegistration'));
+        await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'user') });
+      } catch (error) {
+        console.error('User registration error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          constraint: error.constraint,
+          detail: error.detail
+        });
+        
+        if (error.message === 'User already exists with this telegram ID') {
+          await ctx.reply(getMessage(language, 'error.userAlreadyExists'));
+        } else {
+          await ctx.reply(`❌ Registration failed: ${error.message}`);
+        }
+      }
     } else if (ctx.session.role === UserRole.SELLER) {
       // Seller registration
       ctx.session.sellerData = { phoneNumber: contact.phone_number };
@@ -188,12 +412,20 @@ export class BotUpdate {
     this.initializeSession(ctx);
     
     if (!ctx.message || !('location' in ctx.message)) return;
-    if (ctx.session.registrationStep !== 'location') return;
-
+    
     const location = ctx.message.location;
     console.log('Received location:', location);
     
     const language = ctx.session.language || 'uz';
+    
+    // Handle finding stores action
+    if (ctx.session.action === 'finding_stores') {
+      await this.handleFindStoresWithLocation(ctx, location);
+      return;
+    }
+    
+    // Handle registration location step
+    if (ctx.session.registrationStep !== 'location') return;
     
     if (ctx.session.role === UserRole.USER) {
       // User registration - location step
@@ -225,12 +457,19 @@ export class BotUpdate {
           throw new Error('Missing seller data');
         }
 
+        // Check if seller already exists
+        const existingSeller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+        if (existingSeller) {
+          await ctx.reply(getMessage(language, 'error.sellerAlreadyExists'));
+          return;
+        }
+
         const createSellerDto = {
           telegramId: ctx.from.id.toString(),
           phoneNumber: ctx.session.sellerData.phoneNumber,
           businessName: ctx.session.sellerData.businessName,
           businessType: ctx.session.sellerData.businessType,
-          location: ctx.session.sellerData.location,
+          location: ctx.session.sellerData.location || undefined,
           opensAt: ctx.session.sellerData.opensAt,
           closesAt: ctx.session.sellerData.closesAt,
           language: ctx.session.language,
@@ -239,8 +478,14 @@ export class BotUpdate {
 
         await this.sellersService.create(createSellerDto);
         await ctx.reply(getMessage(language, 'success.sellerRegistration'));
+        await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'seller') });
       } catch (error) {
-        await ctx.reply(getMessage(language, 'error.general'));
+        console.error('Seller registration error:', error);
+        if (error.message === 'Seller already exists with this telegram ID') {
+          await ctx.reply(getMessage(language, 'error.sellerAlreadyExists'));
+        } else {
+          await ctx.reply(getMessage(language, 'error.general'));
+        }
       }
     }
   }
@@ -274,6 +519,63 @@ export class BotUpdate {
     await this.handleFindStores(ctx);
   }
 
+  @Action('current_page')
+  async onCurrentPage(@Ctx() ctx: TelegramContext) {
+    // Do nothing when user clicks on current page number
+    // This prevents unnecessary actions
+  }
+
+  @Action('back_to_stores')
+  async onBackToStores(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Clear any selected store/product
+    ctx.session.selectedStoreId = undefined;
+    ctx.session.selectedProductId = undefined;
+    ctx.session.selectedPaymentMethod = undefined;
+    ctx.session.action = undefined;
+    
+    // Ask for location again to show stores
+    ctx.session.action = 'finding_stores';
+    await ctx.reply(getMessage(language, 'stores.requestLocation'), { reply_markup: getLocationKeyboard(language) });
+  }
+
+  @Action('back_to_main_menu')
+  async onBackToMainMenu(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    // Clear all session data
+    ctx.session.selectedStoreId = undefined;
+    ctx.session.selectedProductId = undefined;
+    ctx.session.selectedPaymentMethod = undefined;
+    ctx.session.action = undefined;
+    ctx.session.currentPage = undefined;
+    
+    // Show main menu
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const user = await this.usersService.findByTelegramId(telegramId);
+    const seller = await this.sellersService.findByTelegramId(telegramId);
+    
+    if (user || seller) {
+      const language = user?.language || seller?.language || 'uz';
+      const role = user ? 'user' : 'seller';
+      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, role) });
+    }
+  }
+
+  @Action('try_again_location')
+  async onTryAgainLocation(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Ask for location again
+    ctx.session.action = 'finding_stores';
+    await ctx.reply(getMessage(language, 'stores.requestLocation'), { reply_markup: getLocationKeyboard(language) });
+  }
+
   @Action(/lang_(uz|ru)/)
   async onLanguageSelect(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
@@ -284,6 +586,20 @@ export class BotUpdate {
 
     await ctx.reply(getMessage(language, 'languageSelected'));
     await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
+  }
+
+  @Action('back_to_language')
+  async onBackToLanguage(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Clear registration data
+    ctx.session.role = undefined;
+    ctx.session.registrationStep = undefined;
+    ctx.session.userData = undefined;
+    ctx.session.sellerData = undefined;
+    
+    await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
   }
 
   @Action(/role_(user|seller)/)
@@ -315,44 +631,35 @@ export class BotUpdate {
     this.initializeSession(ctx);
     
     if (!ctx.match) return;
-    if (ctx.session.registrationStep !== 'payment') return;
-
+    
     const paymentMethod = ctx.match[1];
     const language = ctx.session.language || 'uz';
     
-    if (ctx.session.role === UserRole.USER) {
-      if (!ctx.session.userData) {
-        ctx.session.userData = {};
-      }
-      ctx.session.userData.paymentMethod = paymentMethod as any;
+    // Handle payment method selection during purchase
+    if (ctx.session.action === 'selecting_payment') {
+      ctx.session.selectedPaymentMethod = paymentMethod;
+      ctx.session.action = undefined;
+      
+      // Complete the purchase
+      await this.handleCompletePurchase(ctx);
+      return;
+    }
+  }
 
-      // Complete user registration
-      try {
-        if (!ctx.from) throw new Error('User not found');
-        if (!ctx.session.userData.phoneNumber || !ctx.session.userData.location || !ctx.session.userData.paymentMethod) {
-          throw new Error('Missing user data');
-        }
-
-        const createUserDto = {
-          telegramId: ctx.from.id.toString(),
-          phoneNumber: ctx.session.userData.phoneNumber,
-          location: ctx.session.userData.location,
-          paymentMethod: ctx.session.userData.paymentMethod,
-          language: ctx.session.language
-        };
-
-        await this.usersService.create(createUserDto);
-        
-        // Debug: Check if user was created with location
-        const createdUser = await this.usersService.findByTelegramId(ctx.from.id.toString());
-        console.log('Created user:', createdUser);
-        console.log('User location:', createdUser?.location);
-
-        const language = ctx.session.language || 'uz';
-        await ctx.reply(getMessage(language, 'success.userRegistration'));
-      } catch (error) {
-        await ctx.reply(getMessage(language, 'error.general'));
-      }
+  @Action('back_to_store')
+  async onBackToStore(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    // Clear payment method selection
+    ctx.session.selectedPaymentMethod = undefined;
+    ctx.session.action = undefined;
+    
+    // Go back to store details
+    if (ctx.session.selectedStoreId) {
+      await this.handleStoreDetails(ctx, ctx.session.selectedStoreId);
+    } else {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.storeNotFound'));
     }
   }
 
@@ -376,34 +683,105 @@ export class BotUpdate {
     }
   }
 
+  @Action('back_to_business_name')
+  async onBackToBusinessName(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Go back to business name step
+    ctx.session.registrationStep = 'business_name';
+    await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
+  }
+
+  @Action('back_to_business_type')
+  async onBackToBusinessType(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Go back to business type step
+    ctx.session.registrationStep = 'business_type';
+    await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { reply_markup: getBusinessTypeKeyboard(language) });
+  }
+
+  @Action('back_to_opens_at')
+  async onBackToOpensAt(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Go back to opens at step
+    ctx.session.registrationStep = 'opens_at';
+    await ctx.reply(getMessage(language, 'registration.opensAtRequest'));
+  }
+
+  @Action('back_to_closes_at')
+  async onBackToClosesAt(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Go back to closes at step
+    ctx.session.registrationStep = 'closes_at';
+    await ctx.reply(getMessage(language, 'registration.closesAtRequest'));
+  }
+
   private async handleFindStores(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
     const user = await this.usersService.findByTelegramId(telegramId);
+    const seller = await this.sellersService.findByTelegramId(telegramId);
+    
+    // Check if user is a seller (sellers shouldn't find stores)
+    if (seller) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.sellersCannotFindStores'));
+    }
     
     if (!user) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.userNotFound'));
     }
 
-    if (!user.location) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.locationNotFound'));
-    }
+    // Always ask for current location when finding stores
+    const language = ctx.session.language || 'uz';
+    ctx.session.action = 'finding_stores';
+    await ctx.reply(getMessage(language, 'stores.requestLocation'), { reply_markup: getLocationKeyboard(language) });
+  }
 
+  private async handleFindStoresWithLocation(@Ctx() ctx: TelegramContext, location: any) {
+    const language = ctx.session.language || 'uz';
+    
+    // Clear the action
+    ctx.session.action = undefined;
+    
+    // Update user's location in database
+    if (ctx.from) {
+      const telegramId = ctx.from.id.toString();
+      const user = await this.usersService.findByTelegramId(telegramId);
+      
+      if (user) {
+        // Update user's location
+        await this.usersService.update(user.id, {
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude
+          }
+        });
+        console.log('Updated user location in database');
+      }
+    }
+    
     const stores = await this.sellersService.findNearbyStores(
-      user.location.latitude,
-      user.location.longitude
+      location.latitude,
+      location.longitude
     );
 
     if (stores.length === 0) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.noStoresNearby'));
+      return ctx.reply(getMessage(language, 'error.noStoresNearby'), { 
+        reply_markup: getNoStoresKeyboard(language) 
+      });
     }
 
     const currentPage = ctx.session.currentPage || 0;
-    const language = ctx.session.language || 'uz';
     
     let storeList = '';
     const itemsPerPage = 10;
@@ -440,42 +818,40 @@ export class BotUpdate {
     const language = ctx.session.language || 'uz';
 
     const hours = `${Math.floor(store.opensAt / 60)}:${(store.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(store.closesAt / 60)}:${(store.closesAt % 60).toString().padStart(2, '0')}`;
+    const isOpen = this.isStoreOpen(store.opensAt, store.closesAt);
+    const status = isOpen ? getMessage(language, 'stores.openStatus') : getMessage(language, 'stores.closedStatus');
+
+    // Store information
+    let storeInfo = getMessage(language, 'stores.storeDetailsHeader', {
+      businessName: store.businessName,
+      businessType: store.businessType,
+      phoneNumber: store.phoneNumber,
+      hours: hours,
+      status: status
+    });
 
     if (products.length > 0) {
+      // Add products list with buy buttons
       let productsList = '';
       products.forEach((product, index) => {
-        const discount = product.originalPrice ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+        const availableUntil = new Date(product.availableUntil);
+        const availableTime = `${availableUntil.getHours()}:${availableUntil.getMinutes().toString().padStart(2, '0')}`;
         
-        if (discount > 0) {
-          productsList += getMessage(language, 'products.productWithDiscount', {
-            number: index + 1,
-            price: product.price,
-            discount: discount
-          });
-        } else {
-          productsList += getMessage(language, 'products.productWithoutDiscount', {
-            number: index + 1,
-            price: product.price
-          });
-        }
+        productsList += getMessage(language, 'products.productItemWithBuy', {
+          number: index + 1,
+          id: product.id,
+          price: product.price,
+          description: product.description,
+          availableUntil: availableTime
+        });
       });
 
       ctx.session.selectedStoreId = storeId;
-      await ctx.reply(getMessage(language, 'stores.storeDetails', {
-        businessName: store.businessName,
-        businessType: store.businessType,
-        phoneNumber: store.phoneNumber,
-        hours: hours,
-        productsList: productsList
-      }), { reply_markup: getProductActionKeyboard(products[0].id, language) });
+      await ctx.reply(storeInfo + '\n\n' + productsList, { 
+        reply_markup: getProductListKeyboard(products, language) 
+      });
     } else {
-      await ctx.reply(getMessage(language, 'stores.storeDetails', {
-        businessName: store.businessName,
-        businessType: store.businessType,
-        phoneNumber: store.phoneNumber,
-        hours: hours,
-        productsList: getMessage(language, 'stores.noProductsAvailable')
-      }));
+      await ctx.reply(storeInfo + '\n\n' + getMessage(language, 'stores.noProductsAvailable'));
     }
   }
 
@@ -496,33 +872,15 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.productNotFound'));
     }
 
-    try {
-      const order = await this.ordersService.create({
-        userId: user.id,
-        productId: product.id
-      });
-
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'success.orderCreated', {
-        code: order.code,
-        price: product.price
-      }));
-      
-      // Send code to seller
-      const seller = await this.sellersService.findOne(product.seller.id);
-      if (seller) {
-        const sellerTexts = {
-          uz: `🆕 Yangi buyurtma!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${product.price} so'm\n👤 Mijoz: ${user.phoneNumber}`,
-          ru: `🆕 Новый заказ!\n\n📋 Код: ${order.code}\n💰 Цена: ${product.price} сум\n👤 Клиент: ${user.phoneNumber}`
-        };
-        
-        // Here you would send message to seller via bot
-        // ctx.telegram.sendMessage(seller.telegramId, sellerTexts[seller.language]);
-      }
-    } catch (error) {
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'error.orderCreationFailed'));
-    }
+    // Store selected product and show payment method selection
+    ctx.session.selectedProductId = productId;
+    ctx.session.action = 'selecting_payment';
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'purchase.selectPaymentMethod', {
+      productName: product.description,
+      price: product.price
+    }), { reply_markup: getPaymentMethodKeyboard(language) });
   }
 
   private async handleMyOrders(@Ctx() ctx: TelegramContext) {
@@ -557,38 +915,55 @@ export class BotUpdate {
   }
 
   private async handleAddProduct(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
+    console.log('Handling add product for telegramId:', telegramId);
+    
     const seller = await this.sellersService.findByTelegramId(telegramId);
+    console.log('Found seller:', seller);
     
     if (!seller) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.sellerNotFound'));
     }
 
-    if (seller.status !== 'approved') {
+    console.log('Seller status:', seller.status);
+    if (seller.status !== SellerStatus.APPROVED) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.sellerNotApproved'));
     }
 
-    if (ctx.scene) {
-      await ctx.scene.enter('product-creation');
-    }
+    console.log('Starting product creation flow...');
+    
+    // Start product creation flow without scenes
+    ctx.session.registrationStep = 'product_price';
+    ctx.session.productData = {};
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.priceRequest'));
   }
 
   private async handleMyProducts(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
+    console.log('Looking for products for seller with telegramId:', telegramId);
+    
     const seller = await this.sellersService.findByTelegramId(telegramId);
+    console.log('Found seller for my products:', seller);
     
     if (!seller) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.sellerNotFound'));
     }
 
+    console.log('Searching for products with sellerId:', seller.id);
     const products = await this.productsService.findBySeller(seller.id);
+    console.log('Found products:', products);
+    
     const language = ctx.session.language || 'uz';
 
     if (products.length === 0) {
@@ -609,7 +984,9 @@ export class BotUpdate {
 
   private async handleSupport(@Ctx() ctx: TelegramContext) {
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'support.support', { username: envVariables.SUPPORT_USERNAME }));
+    await ctx.reply(getMessage(language, 'support.support', { username: envVariables.SUPPORT_USERNAME }), {
+      reply_markup: getSupportKeyboard(language)
+    });
   }
 
   private async handleRateProduct(@Ctx() ctx: TelegramContext, rating: number) {
@@ -641,6 +1018,74 @@ export class BotUpdate {
     } catch (error) {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.ratingFailed'));
+    }
+  }
+
+  private isStoreOpen(opensAt: number, closesAt: number): boolean {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    return currentTime >= opensAt && currentTime <= closesAt;
+  }
+
+  private async handleCompletePurchase(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const user = await this.usersService.findByTelegramId(telegramId);
+    
+    if (!user) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.userNotFound'));
+    }
+
+    const productId = ctx.session.selectedProductId;
+    if (!productId) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.productNotSelected'));
+    }
+
+    const paymentMethod = ctx.session.selectedPaymentMethod;
+    if (!paymentMethod) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.paymentMethodNotSelected'));
+    }
+
+    try {
+      const product = await this.productsService.findOne(productId);
+      if (!product) {
+        const language = ctx.session.language || 'uz';
+        return ctx.reply(getMessage(language, 'error.productNotFound'));
+      }
+
+      const order = await this.ordersService.create({
+        userId: user.id,
+        productId: product.id
+      });
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.orderCreated', {
+        code: order.code,
+        price: product.price
+      }));
+      
+      // Send code to seller
+      const seller = await this.sellersService.findOne(product.seller.id);
+      if (seller) {
+        const sellerTexts = {
+          uz: `🆕 Yangi buyurtma!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${product.price} so'm\n👤 Mijoz: ${user.phoneNumber}`,
+          ru: `🆕 Новый заказ!\n\n📋 Код: ${order.code}\n💰 Цена: ${product.price} сум\n👤 Клиент: ${user.phoneNumber}`
+        };
+        
+        // Here you would send message to seller via bot
+        // ctx.telegram.sendMessage(seller.telegramId, sellerTexts[seller.language]);
+      }
+
+      // Clear session data
+      ctx.session.selectedProductId = undefined;
+      ctx.session.selectedPaymentMethod = undefined;
+    } catch (error) {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.orderCreationFailed'));
     }
   }
 }

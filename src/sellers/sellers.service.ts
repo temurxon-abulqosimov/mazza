@@ -14,11 +14,32 @@ export class SellersService {
   ) {}
 
   async create(createSellerDto: CreateSellerDto): Promise<Seller> {
-    const seller = this.sellersRepository.create({
-      ...createSellerDto,
-      location: createSellerDto.location,
-    });
-    return this.sellersRepository.save(seller);
+    // Convert DTO to entity-compatible object
+    const sellerData = {
+      telegramId: createSellerDto.telegramId,
+      phoneNumber: createSellerDto.phoneNumber,
+      businessName: createSellerDto.businessName,
+      businessType: createSellerDto.businessType,
+      location: createSellerDto.location ? {
+        latitude: createSellerDto.location.latitude,
+        longitude: createSellerDto.location.longitude
+      } : undefined,
+      opensAt: createSellerDto.opensAt,
+      closesAt: createSellerDto.closesAt,
+      status: createSellerDto.status,
+      language: createSellerDto.language
+    };
+    
+    const seller = this.sellersRepository.create(sellerData);
+    try {
+      return await this.sellersRepository.save(seller);
+    } catch (error) {
+      // Check if it's a unique constraint violation
+      if (error.code === '23505' && error.constraint === 'UQ_b3fd4e011b2ce0c0e33d5178f64') {
+        throw new Error('Seller already exists with this telegram ID');
+      }
+      throw error;
+    }
   }
 
   async findAll(): Promise<Seller[]> {
@@ -53,34 +74,41 @@ export class SellersService {
     userLon: number,
     limit: number = 10,
   ): Promise<Array<Seller & { distance: number; isOpen: boolean; averageRating: number }>> {
+    // First, get all approved sellers
     const sellers = await this.sellersRepository
       .createQueryBuilder('seller')
       .leftJoinAndSelect('seller.products', 'products')
       .where('seller.status = :status', { status: SellerStatus.APPROVED })
-      .andWhere('products.isActive = :isActive', { isActive: true })
-      .andWhere('products.availableUntil > :now', { now: new Date() })
       .getMany();
 
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
-    const sellersWithDistance = sellers.map(seller => {
-      const distance = calculateDistance(
-        userLat,
-        userLon,
-        seller.location.latitude,
-        seller.location.longitude,
-      );
+    const sellersWithDistance = sellers
+      .filter(seller => seller.location !== null && seller.location !== undefined) // Filter out sellers without location
+      .map(seller => {
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          seller.location!.latitude,
+          seller.location!.longitude,
+        );
 
-      const isOpen = currentTime >= seller.opensAt && currentTime <= seller.closesAt;
+        const isOpen = currentTime >= seller.opensAt && currentTime <= seller.closesAt;
 
-      return {
-        ...seller,
-        distance,
-        isOpen,
-        averageRating: 0, // Will be calculated separately
-      };
-    });
+        // Filter active products for this seller
+        const activeProducts = seller.products.filter(product => 
+          product.isActive && new Date(product.availableUntil) > now
+        );
+
+        return {
+          ...seller,
+          products: activeProducts, // Only include active products
+          distance,
+          isOpen,
+          averageRating: 0, // Will be calculated separately
+        };
+      });
 
     // Sort by distance and return top results
     return sellersWithDistance
