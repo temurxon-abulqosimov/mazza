@@ -244,7 +244,7 @@ npm run test:e2e
 ## License
 
 This project is licensed under the MIT License.
-
 ## Support
 
 For support and questions, contact: @temurxon_admin
+

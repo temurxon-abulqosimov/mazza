@@ -47,4 +47,8 @@ export class CreateSellerDto {
 
   @IsString()
   language: 'uz' | 'ru';
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

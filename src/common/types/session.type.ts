@@ -36,4 +36,17 @@ export interface SessionData {
   selectedStoreId?: number;
   selectedProductId?: number;
   selectedPaymentMethod?: string;
+  
+  // Admin panel properties
+  adminAction?: string;
+  adminCurrentPage?: number;
+  adminSearchQuery?: string;
+  
+  // Admin authentication properties
+  adminAuthenticated?: boolean;
+  adminLoginStep?: 'username' | 'password';
+  adminLoginData?: {
+    username?: string;
+    password?: string;
+  };
 } 

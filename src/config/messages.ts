@@ -6,10 +6,10 @@ export const messages = {
     languageSelected: '✅ Til tanlandi! Endi rolingizni tanlang:',
     
     // Role Selection
-    selectRole: '👤 Foydalanuvchi yoki sotuvchi sifatida ro\'yxatdan o\'ting',
+    selectRole: '👤 Rolingizni tanlang:',
     roleSelected: {
-      user: '👤 Foydalanuvchi sifatida ro\'yxatdan o\'tish',
-      seller: '🏪 Sotuvchi sifatida ro\'yxatdan o\'tish',
+      user: 'Mijoz',
+      seller: 'Sotuvchi',
       confirmation: '✅ {role} tanlandi! Ro\'yxatdan o\'tish jarayonini boshlaymiz...'
     },
     
@@ -18,6 +18,7 @@ export const messages = {
       phoneRequest: '📱 Iltimos, telefon raqamingizni yuboring:',
       phoneSuccess: '✅ Telefon raqam qabul qilindi! Ro\'yxatdan o\'tish yakunlandi.',
       phoneError: '❌ Telefon raqami topilmadi. Iltimos, qaytadan urinib ko\'ring.',
+      storeImageRequest: '📸 Iltimos, do\'koningizning suratini yuboring (ixtiyoriy):',
       locationRequest: '📍 Manzilingizni yuboring:',
       locationSuccess: '✅ Manzil qabul qilindi! Endi to\'lov usulini tanlang:',
       paymentRequest: '💳 To\'lov usulini tanlang:',
@@ -47,11 +48,13 @@ export const messages = {
     
     // Success Messages
     success: {
-      userRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Do\'konlarni topish uchun "Do\'konlarni topish" tugmasini bosing va manzilingizni yuboring.',
+      userRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Do\'konlarni topish uchun "Do\'konlarni topish" tugmasini bosing.',
       sellerRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Ma\'muriyat tasdiqlashini kutmoqda. Asosiy menyuga o\'tish uchun /start buyrug\'ini bosing.',
       productCreated: '✅ Mahsulot muvaffaqiyatli qo\'shildi!',
+      productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n⏰ Mavjud vaqti: {availableUntil}',
       orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n💰 Narxi: {price} so\'m\n\nBu kodni sotuvchiga ko\'rsating.',
-      ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5'
+      ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
+      storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
     },
     
     // Info Messages
@@ -72,13 +75,15 @@ export const messages = {
       productNotFound: '❌ Mahsulot topilmadi.',
       storeNotFound: '❌ Do\'kon topilmadi.',
       noStoresNearby: '😔 Yaqin atrofda do\'kon topilmadi. Boshqa joyda sinab ko\'ring yoki keyinroq qaytib keling.',
+      noStoresWithProducts: '😔 Hozirda mavjud mahsulotlari bo\'lgan do\'konlar yo\'q. Keyinroq qaytib keling.',
       noOrders: '📋 Sizda hali buyurtmalar yo\'q.',
       noProducts: '📦 Sizda hali mahsulotlar yo\'q.',
       orderCreationFailed: '❌ Buyurtma yaratishda xatolik yuz berdi.',
       productCreationFailed: '❌ Mahsulot qo\'shishda xatolik yuz berdi.',
       ratingFailed: '❌ Baho qo\'yishda xatolik yuz berdi.',
       productNotSelected: '❌ Mahsulot tanlanmagan.',
-      paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan.'
+      paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan.',
+      photoProcessingFailed: '❌ Surat qayta ishlashda xatolik yuz berdi.'
     },
     
     // Main Menu
@@ -97,10 +102,11 @@ export const messages = {
       nearbyStores: '🏪 Yaqin do\'konlar:\n\n{storeList}',
       storeDetails: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n\n{productsList}',
       storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
+      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
       noProductsAvailable: '😔 Hozirda mahsulot mavjud emas.',
       availableProducts: '📦 Mavjud mahsulotlar:\n{productsList}',
-      requestLocation: '📍 Do\'konlarni topish uchun hozirgi manzilingizni yuboring:\n\n💡 Manzilingiz ma\'lumotlar bazasida yangilanadi.',
-      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} km | {status}\n\n',
+      requestLocation: '📍 Do\'konlarni topish uchun hozirgi manzilingizni yuboring:',
+      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} | {status}\n\n',
       noProducts: 'Mahsulot yo\'q',
       openStatus: '🟢 Ochiq',
       closedStatus: '🔴 Yopiq'
@@ -117,7 +123,7 @@ export const messages = {
     products: {
       myProducts: '📦 Mening mahsulotlarim:\n\n{productsList}',
       productItem: '{number}. 💰 {price} so\'m\n   📅 {date}\n\n',
-      productItemWithBuy: '{number}. ID: {id} | 💰 {price} so\'m\n   📝 {description}\n   ⏰ Mavjud: {availableUntil}\n\n',
+      productItemWithBuy: '{number}. 🔢 Kod: {code} | 💰 {price} so\'m\n   📝 {description}\n   ⏰ Mavjud: {availableUntil}\n\n',
       noProducts: '📦 Sizda hali mahsulotlar yo\'q.',
       productWithDiscount: '{number}. {price} so\'m ({discount}% chegirma)\n',
       productWithoutDiscount: '{number}. {price} so\'m\n'
@@ -159,12 +165,54 @@ export const messages = {
       buy: '🛒 Sotib olish',
       back: '⬅️ Orqaga',
       backToMainMenu: '🏠 Asosiy menyu',
-      tryAgain: '🔄 Qaytadan urinish'
+      tryAgain: '🔄 Qaytadan urinish',
+      skip: '⏭️ O\'tkazib yuborish'
     },
 
     // Purchase
     purchase: {
       selectPaymentMethod: '🛒 {productName}\n💰 Narxi: {price} so\'m\n\n💳 To\'lov usulini tanlang:'
+    },
+
+    // Admin Panel
+    admin: {
+      welcome: '🔐 Admin paneliga xush kelibsiz!',
+      notAuthorized: '❌ Siz admin emassiz!',
+      mainMenu: '🔐 Admin paneli - Asosiy menyu:',
+      statistics: '📊 Statistika:\n\n👥 Jami foydalanuvchilar: {totalUsers}\n🏪 Jami do\'konlar: {totalSellers}\n⏳ Kutilayotgan: {pendingSellers}\n✅ Tasdiqlangan: {approvedSellers}\n❌ Rad etilgan: {rejectedSellers}\n🚫 Bloklangan: {blockedSellers}\n📦 Jami mahsulotlar: {totalProducts}\n📋 Jami buyurtmalar: {totalOrders}\n⭐ Jami baholar: {totalRatings}\n📊 O\'rtacha baho: {averageRating}/5',
+      allSellers: '🏪 Barcha do\'konlar ({count}):',
+      pendingSellers: '⏳ Kutilayotgan do\'konlar ({count}):',
+      approvedSellers: '✅ Tasdiqlangan do\'konlar ({count}):',
+      rejectedSellers: '❌ Rad etilgan do\'konlar ({count}):',
+      blockedSellers: '🚫 Bloklangan do\'konlar ({count}):',
+      sellerDetails: '🏪 Do\'kon ma\'lumotlari:\n\n📝 Nomi: {businessName}\n📍 Turi: {businessType}\n📞 Telefon: {phoneNumber}\n🕐 Ish vaqti: {hours}\n📍 Manzil: {location}\n📅 Ro\'yxatdan o\'tgan: {createdAt}\n📊 Status: {status}\n📦 Mahsulotlar: {productCount} ta\n📋 Buyurtmalar: {orderCount} ta\n⭐ Reyting: {rating}/5',
+      sellerNotFound: '❌ Do\'kon topilmadi!',
+      actionSuccess: '✅ Amal muvaffaqiyatli bajarildi!',
+      actionFailed: '❌ Amal bajarilmadi!',
+      confirmationRequired: '⚠️ Amalni tasdiqlash kerak: {action}',
+      searchResults: '🔍 Qidiruv natijalari ({count}):',
+      noSearchResults: '🔍 Hech narsa topilmadi.',
+      broadcastMessage: '📢 Xabar yuborish uchun matnni kiriting:',
+      broadcastSent: '✅ Xabar {count} ta foydalanuvchiga yuborildi!',
+      broadcastFailed: '❌ Xabar yuborilmadi!',
+      contactSeller: '📞 Do\'kon bilan bog\'lanish:\n\n📞 Telefon: {phoneNumber}\n🆔 Telegram ID: {telegramId}',
+      sellerProducts: '📦 Do\'kon mahsulotlari ({count}):',
+      sellerOrders: '📋 Do\'kon buyurtmalari ({count}):',
+      sellerRatings: '⭐ Do\'kon baholari ({count}):',
+      noProducts: '📦 Mahsulotlar yo\'q.',
+      noOrders: '📋 Buyurtmalar yo\'q.',
+      noRatings: '⭐ Baholar yo\'q.',
+      productItem: '{number}. 💰 {price} so\'m\n   📝 {description}\n   📅 {date}\n\n',
+      orderItem: '{number}. 📋 {code}\n   💰 {price} so\'m\n   👤 {user}\n   📅 {date}\n\n',
+      ratingItem: '{number}. ⭐ {rating}/5\n   👤 {user}\n   📅 {date}\n\n',
+      // Authentication messages
+      loginRequired: '🔐 Admin paneliga kirish uchun avtorizatsiya kerak.',
+      enterUsername: '👤 Foydalanuvchi nomini kiriting:',
+      enterPassword: '🔒 Parolni kiriting:',
+      loginSuccess: '✅ Muvaffaqiyatli kirildi! Admin paneliga xush kelibsiz.',
+      loginFailed: '❌ Noto\'g\'ri foydalanuvchi nomi yoki parol.',
+      logoutSuccess: '👋 Tizimdan chiqildi.',
+      sessionExpired: '⏰ Sessiya muddati tugadi. Qaytadan kirish kerak.'
     }
   },
   
@@ -175,10 +223,10 @@ export const messages = {
     languageSelected: '✅ Язык выбран! Теперь выберите вашу роль:',
     
     // Role Selection
-    selectRole: '👤 Зарегистрируйтесь как пользователь или продавец',
+    selectRole: '👤 Выберите вашу роль:',
     roleSelected: {
-      user: '👤 Регистрация как пользователь',
-      seller: '🏪 Регистрация как продавец',
+      user: 'Покупатель',
+      seller: 'Продавец',
       confirmation: '✅ {role} выбран! Начинаем процесс регистрации...'
     },
     
@@ -187,6 +235,7 @@ export const messages = {
       phoneRequest: '📱 Пожалуйста, отправьте ваш номер телефона:',
       phoneSuccess: '✅ Номер телефона принят! Регистрация завершена.',
       phoneError: '❌ Номер телефона не найден. Пожалуйста, попробуйте снова.',
+      storeImageRequest: '📸 Пожалуйста, отправьте фото вашего магазина (необязательно):',
       locationRequest: '📍 Отправьте местоположение:',
       locationSuccess: '✅ Местоположение принято! Теперь выберите способ оплаты:',
       paymentRequest: '💳 Выберите способ оплаты:',
@@ -216,11 +265,13 @@ export const messages = {
     
     // Success Messages
     success: {
-      userRegistration: '✅ Регистрация успешно завершена! Нажмите "Найти магазины" и отправьте ваше местоположение.',
+      userRegistration: '✅ Регистрация успешно завершена! Нажмите "Найти магазины" для поиска магазинов.',
       sellerRegistration: '✅ Регистрация успешно завершена! Ожидаем подтверждение администрации. Нажмите /start для перехода в главное меню.',
       productCreated: '✅ Товар успешно добавлен!',
+      productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n⏰ Доступно до: {availableUntil}',
       orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n💰 Цена: {price} сум\n\nПокажите этот код продавцу.',
-      ratingSubmitted: '⭐ Оценка поставлена: {rating}/5'
+      ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
+      storeImageUploaded: '✅ Фото магазина успешно загружено!'
     },
     
     // Info Messages
@@ -241,13 +292,15 @@ export const messages = {
       productNotFound: '❌ Товар не найден.',
       storeNotFound: '❌ Магазин не найден.',
       noStoresNearby: '😔 Поблизости магазинов не найдено. Попробуйте в другом месте или вернитесь позже.',
+      noStoresWithProducts: '😔 Сейчас нет магазинов с доступными товарами. Вернитесь позже.',
       noOrders: '📋 У вас пока нет заказов.',
       noProducts: '📦 У вас пока нет товаров.',
       orderCreationFailed: '❌ Ошибка при создании заказа.',
       productCreationFailed: '❌ Ошибка при добавлении товара.',
       ratingFailed: '❌ Ошибка при выставлении оценки.',
       productNotSelected: '❌ Товар не выбран.',
-      paymentMethodNotSelected: '❌ Способ оплаты не выбран.'
+      paymentMethodNotSelected: '❌ Способ оплаты не выбран.',
+      photoProcessingFailed: '❌ Ошибка при обработке фото.'
     },
     
     // Main Menu
@@ -266,10 +319,11 @@ export const messages = {
       nearbyStores: '🏪 Ближайшие магазины:\n\n{storeList}',
       storeDetails: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n\n{productsList}',
       storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
+      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
       noProductsAvailable: '😔 В данный момент товары недоступны.',
       availableProducts: '📦 Доступные товары:\n{productsList}',
-      requestLocation: '📍 Отправьте ваше текущее местоположение для поиска магазинов:\n\n💡 Ваше местоположение будет обновлено в базе данных.',
-      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} км | {status}\n\n',
+      requestLocation: '📍 Отправьте ваше текущее местоположение для поиска магазинов:',
+      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} | {status}\n\n',
       noProducts: 'Нет товаров',
       openStatus: '🟢 Открыт',
       closedStatus: '🔴 Закрыт'
@@ -286,7 +340,7 @@ export const messages = {
     products: {
       myProducts: '📦 Мои товары:\n\n{productsList}',
       productItem: '{number}. 💰 {price} сум\n   📅 {date}\n\n',
-      productItemWithBuy: '{number}. ID: {id} | 💰 {price} сум\n   📝 {description}\n   ⏰ Доступно до: {availableUntil}\n\n',
+      productItemWithBuy: '{number}. 🔢 Код: {code} | 💰 {price} сум\n   📝 {description}\n   ⏰ Доступно до: {availableUntil}\n\n',
       noProducts: '📦 У вас пока нет товаров.',
       productWithDiscount: '{number}. {price} сум ({discount}% скидка)\n',
       productWithoutDiscount: '{number}. {price} сум\n'
@@ -328,12 +382,54 @@ export const messages = {
       buy: '🛒 Купить',
       back: '⬅️ Назад',
       backToMainMenu: '🏠 Главное меню',
-      tryAgain: '🔄 Попробовать снова'
+      tryAgain: '🔄 Попробовать снова',
+      skip: '⏭️ Пропустить'
     },
 
     // Purchase
     purchase: {
       selectPaymentMethod: '🛒 {productName}\n💰 Цена: {price} сум\n\n💳 Выберите способ оплаты:'
+    },
+
+    // Admin Panel
+    admin: {
+      welcome: '🔐 Добро пожаловать в панель администратора!',
+      notAuthorized: '❌ Вы не администратор!',
+      mainMenu: '🔐 Панель администратора - Главное меню:',
+      statistics: '📊 Статистика:\n\n👥 Всего пользователей: {totalUsers}\n🏪 Всего магазинов: {totalSellers}\n⏳ Ожидающие: {pendingSellers}\n✅ Подтвержденные: {approvedSellers}\n❌ Отклоненные: {rejectedSellers}\n🚫 Заблокированные: {blockedSellers}\n📦 Всего товаров: {totalProducts}\n📋 Всего заказов: {totalOrders}\n⭐ Всего оценок: {totalRatings}\n📊 Средняя оценка: {averageRating}/5',
+      allSellers: '🏪 Все магазины ({count}):',
+      pendingSellers: '⏳ Ожидающие магазины ({count}):',
+      approvedSellers: '✅ Подтвержденные магазины ({count}):',
+      rejectedSellers: '❌ Отклоненные магазины ({count}):',
+      blockedSellers: '🚫 Заблокированные магазины ({count}):',
+      sellerDetails: '🏪 Информация о магазине:\n\n📝 Название: {businessName}\n📍 Тип: {businessType}\n📞 Телефон: {phoneNumber}\n🕐 Время работы: {hours}\n📍 Адрес: {location}\n📅 Зарегистрирован: {createdAt}\n📊 Статус: {status}\n📦 Товары: {productCount} шт\n📋 Заказы: {orderCount} шт\n⭐ Рейтинг: {rating}/5',
+      sellerNotFound: '❌ Магазин не найден!',
+      actionSuccess: '✅ Действие успешно выполнено!',
+      actionFailed: '❌ Действие не выполнено!',
+      confirmationRequired: '⚠️ Требуется подтверждение действия: {action}',
+      searchResults: '🔍 Результаты поиска ({count}):',
+      noSearchResults: '🔍 Ничего не найдено.',
+      broadcastMessage: '📢 Введите текст для рассылки:',
+      broadcastSent: '✅ Сообщение отправлено {count} пользователям!',
+      broadcastFailed: '❌ Сообщение не отправлено!',
+      contactSeller: '📞 Связаться с магазином:\n\n📞 Телефон: {phoneNumber}\n🆔 Telegram ID: {telegramId}',
+      sellerProducts: '📦 Товары магазина ({count}):',
+      sellerOrders: '📋 Заказы магазина ({count}):',
+      sellerRatings: '⭐ Оценки магазина ({count}):',
+      noProducts: '📦 Нет товаров.',
+      noOrders: '📋 Нет заказов.',
+      noRatings: '⭐ Нет оценок.',
+      productItem: '{number}. 💰 {price} сум\n   📝 {description}\n   📅 {date}\n\n',
+      orderItem: '{number}. 📋 {code}\n   💰 {price} сум\n   👤 {user}\n   📅 {date}\n\n',
+      ratingItem: '{number}. ⭐ {rating}/5\n   👤 {user}\n   📅 {date}\n\n',
+      // Authentication messages
+      loginRequired: '🔐 Для входа в панель администратора требуется авторизация.',
+      enterUsername: '👤 Введите имя пользователя:',
+      enterPassword: '🔒 Введите пароль:',
+      loginSuccess: '✅ Успешный вход! Добро пожаловать в панель администратора.',
+      loginFailed: '❌ Неправильное имя пользователя или пароль.',
+      logoutSuccess: '👋 Вы вышли из системы.',
+      sessionExpired: '⏰ Срок сессии истек. Требуется повторный вход.'
     }
   }
 };

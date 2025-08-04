@@ -10,6 +10,7 @@ import { ProductCreationScene } from './scenes/product-creation.scene';
 import { SessionProvider } from './providers/session.provider';
 import { UsersModule } from 'src/users/users.module';
 import { SellersModule } from 'src/sellers/sellers.module';
+import { AdminModule } from 'src/admin/admin.module';
 import { ProductsModule } from 'src/products/products.module';
 import { OrdersModule } from 'src/orders/orders.module';
 import { RatingsModule } from 'src/ratings/ratings.module';
@@ -22,6 +23,7 @@ import { envVariables } from 'src/config/env.variables';
     }),
     UsersModule,
     SellersModule,
+    AdminModule,
     ProductsModule,
     OrdersModule,
     RatingsModule,

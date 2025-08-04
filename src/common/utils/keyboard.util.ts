@@ -79,11 +79,17 @@ export function getPaymentMethodKeyboard(language: 'uz' | 'ru'): InlineKeyboardM
     keyboard.push(row);
   }
 
-  // Add back button
-  keyboard.push([{
-    text: getMessage(language, 'actions.back'),
-    callback_data: 'back_to_store'
-  }]);
+  // Add back buttons
+  keyboard.push([
+    {
+      text: getMessage(language, 'actions.back'),
+      callback_data: 'back_to_store'
+    },
+    {
+      text: getMessage(language, 'actions.backToMainMenu'),
+      callback_data: 'back_to_main_menu'
+    }
+  ]);
 
   return { inline_keyboard: keyboard };
 }
@@ -110,11 +116,12 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
 
 export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'seller'): any {
   if (role === 'seller') {
-    // Seller menu: My Products, Add Product, Support, Language
+    // Seller menu: My Products, Add Product, My Orders, Support, Language
     return {
       keyboard: [
         [getMessage(language, 'mainMenu.myProducts')],
         [getMessage(language, 'mainMenu.postProduct')],
+        [getMessage(language, 'mainMenu.myOrders')],
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
       resize_keyboard: true
@@ -250,6 +257,19 @@ export function getSupportKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup 
   };
 }
 
+export function getSkipImageKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: getMessage(language, 'actions.skip'),
+          callback_data: 'skip_image'
+        }
+      ]
+    ]
+  };
+}
+
 export function getRatingKeyboard(): InlineKeyboardMarkup {
   return {
     inline_keyboard: [
@@ -259,6 +279,181 @@ export function getRatingKeyboard(): InlineKeyboardMarkup {
         { text: '⭐⭐⭐', callback_data: 'rate_3' },
         { text: '⭐⭐⭐⭐', callback_data: 'rate_4' },
         { text: '⭐⭐⭐⭐⭐', callback_data: 'rate_5' }
+      ]
+    ]
+  };
+}
+
+// Admin Panel Keyboards
+export function getAdminMainKeyboard(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '🏪 Barcha do\'konlar', callback_data: 'admin_all_sellers' },
+        { text: '⏳ Kutilayotgan do\'konlar', callback_data: 'admin_pending_sellers' }
+      ],
+      [
+        { text: '✅ Tasdiqlangan do\'konlar', callback_data: 'admin_approved_sellers' },
+        { text: '❌ Rad etilgan do\'konlar', callback_data: 'admin_rejected_sellers' }
+      ],
+      [
+        { text: '📊 Statistika', callback_data: 'admin_statistics' },
+        { text: '🔍 Qidiruv', callback_data: 'admin_search' }
+      ],
+      [
+        { text: '📢 Xabar yuborish', callback_data: 'admin_broadcast' }
+      ]
+    ]
+  };
+}
+
+export function getAdminSellerActionKeyboard(sellerId: number): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '✅ Tasdiqlash', callback_data: `admin_approve_${sellerId}` },
+        { text: '❌ Rad etish', callback_data: `admin_reject_${sellerId}` }
+      ],
+      [
+        { text: '🚫 Bloklash', callback_data: `admin_block_${sellerId}` },
+        { text: '📞 Bog\'lanish', callback_data: `admin_contact_${sellerId}` }
+      ],
+      [
+        { text: '📋 Mahsulotlari', callback_data: `admin_seller_products_${sellerId}` },
+        { text: '📊 Reytingi', callback_data: `admin_seller_rating_${sellerId}` }
+      ],
+      [
+        { text: '⬅️ Orqaga', callback_data: 'admin_back_to_sellers' }
+      ]
+    ]
+  };
+}
+
+export function getAdminSellerDetailsKeyboard(sellerId: number): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '✅ Tasdiqlash', callback_data: `admin_approve_${sellerId}` },
+        { text: '❌ Rad etish', callback_data: `admin_reject_${sellerId}` }
+      ],
+      [
+        { text: '🚫 Bloklash', callback_data: `admin_block_${sellerId}` },
+        { text: '📞 Bog\'lanish', callback_data: `admin_contact_${sellerId}` }
+      ],
+      [
+        { text: '📋 Mahsulotlari', callback_data: `admin_seller_products_${sellerId}` },
+        { text: '📊 Reytingi', callback_data: `admin_seller_rating_${sellerId}` }
+      ],
+      [
+        { text: '⬅️ Orqaga', callback_data: 'admin_back_to_main' }
+      ]
+    ]
+  };
+}
+
+export function getAdminSellerListKeyboard(sellers: any[], currentPage: number, status?: string): InlineKeyboardMarkup {
+  const keyboard: any[][] = [];
+  const itemsPerPage = 5;
+  const startIndex = currentPage * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSellers = sellers.slice(startIndex, endIndex);
+
+  // Add seller buttons
+  currentSellers.forEach((seller, index) => {
+    const sellerNumber = startIndex + index + 1;
+    const statusEmoji = seller.status === 'pending' ? '⏳' : 
+                       seller.status === 'approved' ? '✅' : 
+                       seller.status === 'rejected' ? '❌' : '🚫';
+    
+    keyboard.push([{
+      text: `${statusEmoji} ${sellerNumber}. ${seller.businessName}`,
+      callback_data: `admin_seller_${seller.id}`
+    }]);
+  });
+
+  // Add pagination
+  const totalPages = Math.ceil(sellers.length / itemsPerPage);
+  const paginationRow: any[] = [];
+  
+  if (currentPage > 0) {
+    paginationRow.push({
+      text: '⬅️',
+      callback_data: `admin_page_${currentPage - 1}_${status || 'all'}`
+    });
+  }
+  
+  paginationRow.push({
+    text: `${currentPage + 1}/${totalPages}`,
+    callback_data: 'admin_current_page'
+  });
+  
+  if (currentPage < totalPages - 1) {
+    paginationRow.push({
+      text: '➡️',
+      callback_data: `admin_page_${currentPage + 1}_${status || 'all'}`
+    });
+  }
+  
+  if (paginationRow.length > 1) {
+    keyboard.push(paginationRow);
+  }
+
+  // Add back button
+  keyboard.push([{
+    text: '⬅️ Bosh menyuga qaytish',
+    callback_data: 'admin_back_to_main'
+  }]);
+
+  return { inline_keyboard: keyboard };
+}
+
+export function getAdminConfirmationKeyboard(action: string, sellerId: number): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '✅ Ha', callback_data: `admin_confirm_${action}_${sellerId}` },
+        { text: '❌ Yo\'q', callback_data: `admin_cancel_${action}_${sellerId}` }
+      ]
+    ]
+  };
+}
+
+export function getAdminBroadcastKeyboard(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '👥 Barcha foydalanuvchilar', callback_data: 'admin_broadcast_all' },
+        { text: '🏪 Barcha do\'konlar', callback_data: 'admin_broadcast_sellers' }
+      ],
+      [
+        { text: '👤 Oddiy foydalanuvchilar', callback_data: 'admin_broadcast_users' },
+        { text: '✅ Tasdiqlangan do\'konlar', callback_data: 'admin_broadcast_approved' }
+      ],
+      [
+        { text: '⬅️ Orqaga', callback_data: 'admin_back_to_main' }
+      ]
+    ]
+  };
+}
+
+export function getAdminLoginKeyboard(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '🔐 Kirish', callback_data: 'admin_login' }
+      ],
+      [
+        { text: '❌ Bekor qilish', callback_data: 'admin_cancel_login' }
+      ]
+    ]
+  };
+}
+
+export function getAdminLogoutKeyboard(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '👋 Chiqish', callback_data: 'admin_logout' }
       ]
     ]
   };

@@ -21,6 +21,9 @@ export class Product {
   @Column({ type: 'timestamp' })
   availableUntil: Date;
 
+  @Column({ unique: true, nullable: true })
+  code: string;
+
   @Column({ default: true })
   isActive: boolean;
 

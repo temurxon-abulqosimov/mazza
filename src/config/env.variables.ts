@@ -20,6 +20,11 @@ export const envVariables = {
     // Support Configuration
     SUPPORT_USERNAME: process.env.SUPPORT_USERNAME || '@avtemur',
     
+    // Admin Configuration
+    ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '5543081353',
+    ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123',
+    
     // Validation
     validate() {
         if (!this.TELEGRAM_BOT_TOKEN) {

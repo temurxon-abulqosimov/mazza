@@ -19,6 +19,10 @@ export class CreateProductDto {
   @IsString()
   availableUntil: string;
 
+  @IsOptional()
+  @IsString()
+  code?: string;
+
   @IsNumber()
   sellerId: number;
 }

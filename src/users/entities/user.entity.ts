@@ -21,44 +21,8 @@ export class User {
   @Column({ type: 'enum', enum: ['uz', 'ru'], default: 'uz' })
   language: 'uz' | 'ru';
 
-  @Column({ type: 'point', nullable: true, transformer: {
-    to: (value: { latitude: number; longitude: number } | undefined) => {
-      if (!value || !value.latitude || !value.longitude) {
-        return null;
-      }
-      return `(${value.longitude},${value.latitude})`;
-    },
-    from: (value: any) => {
-      if (!value) return null;
-      
-      // If it's already an object with latitude/longitude, return it
-      if (typeof value === 'object' && value.latitude && value.longitude) {
-        return value;
-      }
-      
-      // If it's a string, try to parse it
-      if (typeof value === 'string') {
-        const match = value.match(/\(([^,]+),([^)]+)\)/);
-        if (match) {
-          return {
-            latitude: parseFloat(match[2]),
-            longitude: parseFloat(match[1])
-          };
-        }
-      }
-      
-      // If it's an array [longitude, latitude], convert it
-      if (Array.isArray(value) && value.length === 2) {
-        return {
-          longitude: parseFloat(value[0]),
-          latitude: parseFloat(value[1])
-        };
-      }
-      
-      return null;
-    }
-  }})
-  location?: { latitude: number; longitude: number };
+  @Column('jsonb', { nullable: true })
+  location?: { latitude: number; longitude: number } | null;
 
   @CreateDateColumn()
   createdAt: Date;
