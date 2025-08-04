@@ -17,7 +17,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         
     - name: Install dependencies
@@ -36,13 +36,13 @@ jobs:
         script: |
           cd /opt/telegram-bot
           
-          # Backup current state
-          echo "📦 Creating backup..."
-          if [ -d "backup" ]; then
-            rm -rf backup
-          fi
-          mkdir -p backup
-          cp -r . backup/ || true
+          # Stop the bot first to avoid conflicts
+          echo "🛑 Stopping bot..."
+          pm2 stop telegram-bot || true
+          
+          # Stash any local changes to avoid merge conflicts
+          echo "📦 Stashing local changes..."
+          git stash || true
           
           # Pull latest changes
           echo "📥 Pulling latest changes..."
@@ -62,9 +62,9 @@ jobs:
             cp env.production.example .env || echo "No env.example found"
           fi
           
-          # Restart the bot
-          echo "🔄 Restarting bot..."
-          pm2 restart telegram-bot
+          # Start the bot
+          echo "🔄 Starting bot..."
+          pm2 start telegram-bot
           
           # Check if bot started successfully
           sleep 5
