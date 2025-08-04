@@ -102,9 +102,9 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
-    const isAdmin = await this.adminService.isAdmin(telegramId);
     
-    if (!isAdmin) {
+    // Simple direct check
+    if (telegramId !== envVariables.ADMIN_TELEGRAM_ID) {
       return ctx.reply('❌ You are not an admin!');
     }
     
@@ -115,20 +115,21 @@ export class BotUpdate {
   async debugCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin
-    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
-    if (!isAdmin) {
-      return;
+    const telegramId = ctx.from.id.toString();
+    
+    // Simple direct check
+    if (telegramId !== envVariables.ADMIN_TELEGRAM_ID) {
+      return ctx.reply('❌ You are not authorized as admin.');
     }
     
     console.log('=== ADMIN CONFIG DEBUG ===');
     console.log('Admin Telegram ID:', envVariables.ADMIN_TELEGRAM_ID);
     console.log('Admin Username:', envVariables.ADMIN_USERNAME);
     console.log('Admin Password:', envVariables.ADMIN_PASSWORD);
-    console.log('Current User ID:', ctx.from.id.toString());
-    console.log('Is Admin:', isAdmin);
+    console.log('Current User ID:', telegramId);
+    console.log('Is Admin:', true);
     
-    await ctx.reply(`🔍 Admin Configuration Debug:\n\n📱 Admin Telegram ID: ${envVariables.ADMIN_TELEGRAM_ID}\n👤 Admin Username: ${envVariables.ADMIN_USERNAME}\n🔐 Admin Password: ${envVariables.ADMIN_PASSWORD}\n👤 Current User ID: ${ctx.from.id.toString()}\n✅ Is Admin: ${isAdmin}`);
+    await ctx.reply(`🔍 Admin Configuration Debug:\n\n📱 Admin Telegram ID: ${envVariables.ADMIN_TELEGRAM_ID}\n👤 Admin Username: ${envVariables.ADMIN_USERNAME}\n🔐 Admin Password: ${envVariables.ADMIN_PASSWORD}\n👤 Current User ID: ${telegramId}\n✅ Is Admin: true`);
     
     try {
       // Create a test seller with location
@@ -814,13 +815,17 @@ export class BotUpdate {
 
   @Command('admin')
   async adminCommand(@Ctx() ctx: TelegramContext) {
-    const { isAdmin, language } = await this.checkAdminAuth(ctx);
+    if (!ctx.from) return;
     
-    if (!isAdmin) {
-      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    const telegramId = ctx.from.id.toString();
+    
+    // Simple direct check
+    if (telegramId !== envVariables.ADMIN_TELEGRAM_ID) {
+      return ctx.reply('❌ You are not authorized as admin.');
     }
     
     this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
     
     // Check if admin is already authenticated
     if (ctx.session.adminAuthenticated) {
@@ -832,10 +837,8 @@ export class BotUpdate {
       ctx.session.adminLoginStep = 'password';
       ctx.session.adminLoginData = {};
       
-      await ctx.reply(getMessage(language, 'admin.loginRequired'), {
-        reply_markup: getAdminLoginKeyboard()
-      });
-      await ctx.reply(getMessage(language, 'admin.enterPassword'));
+      await ctx.reply('🔐 Admin authentication required.');
+      await ctx.reply('Please enter the admin password:');
     }
   }
 
@@ -844,20 +847,18 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
-    const isAdmin = await this.adminService.isAdmin(telegramId);
     
-    if (!isAdmin) {
-      const language = ctx.session?.language || 'uz';
-      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    // Simple direct check
+    if (telegramId !== envVariables.ADMIN_TELEGRAM_ID) {
+      return ctx.reply('❌ You are not authorized as admin.');
     }
     
     this.initializeSession(ctx);
-    const language = ctx.session.language || 'uz';
     
     ctx.session.adminLoginStep = 'password';
     ctx.session.adminLoginData = {};
     
-    await ctx.reply(getMessage(language, 'admin.enterPassword'));
+    await ctx.reply('Please enter the admin password:');
   }
 
   @Action('admin_cancel_login')
@@ -905,15 +906,11 @@ export class BotUpdate {
     this.initializeSession(ctx);
     const telegramId = ctx.from.id.toString();
 
-    // Check if user is admin
-    const isAdmin = await this.adminService.isAdmin(telegramId);
-    
-    if (isAdmin) {
+    // Check if user is admin - SIMPLIFIED
+    if (telegramId === envVariables.ADMIN_TELEGRAM_ID) {
       // Admin flow - ask for password directly
       ctx.session.adminLoginStep = 'password';
-      const language = ctx.session.language || 'uz';
-      const message = getMessage(language, 'admin.enterPassword');
-      await ctx.reply(message);
+      await ctx.reply('🔐 Admin detected. Please enter the admin password:');
       return;
     }
 
@@ -1000,60 +997,37 @@ export class BotUpdate {
     console.log('Sanitized text:', text);
     console.log('Raw text:', rawText);
 
-    // Handle admin authentication - only password
-    if (ctx.session.adminLoginStep && !ctx.session.adminAuthenticated) {
+    // Handle admin authentication - SIMPLIFIED
+    if (ctx.session.adminLoginStep === 'password') {
       if (!ctx.from) return;
       
       const telegramId = ctx.from.id.toString();
-      const isAdmin = await this.adminService.isAdmin(telegramId);
       
-      if (!isAdmin) {
-        return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+      // Simple direct check - no complex logic
+      if (telegramId === envVariables.ADMIN_TELEGRAM_ID && rawText === envVariables.ADMIN_PASSWORD) {
+        // SUCCESS - Direct authentication
+        ctx.session.adminAuthenticated = true;
+        ctx.session.adminLoginStep = undefined;
+        ctx.session.adminLoginData = undefined;
+        
+        console.log('✅ ADMIN AUTHENTICATION SUCCESS');
+        console.log('Telegram ID:', telegramId);
+        console.log('Password match:', rawText === envVariables.ADMIN_PASSWORD);
+        
+        await ctx.reply('✅ Admin authentication successful!');
+        await ctx.reply(getMessage(language, 'admin.mainMenu'), {
+          reply_markup: getAdminMainKeyboard()
+        });
+      } else {
+        // FAILED - Simple failure
+        console.log('❌ ADMIN AUTHENTICATION FAILED');
+        console.log('Telegram ID:', telegramId, 'Expected:', envVariables.ADMIN_TELEGRAM_ID);
+        console.log('Password provided:', rawText, 'Expected:', envVariables.ADMIN_PASSWORD);
+        
+        await ctx.reply('❌ Incorrect password. Please try again.');
+        await ctx.reply(getMessage(language, 'admin.enterPassword'));
       }
-      
-      if (ctx.session.adminLoginStep === 'password') {
-        // Authenticate with password only - use raw text to avoid sanitization issues
-        try {
-          console.log('=== ADMIN AUTHENTICATION DEBUG ===');
-          console.log('Telegram ID:', telegramId);
-          console.log('Expected Telegram ID:', envVariables.ADMIN_TELEGRAM_ID);
-          console.log('Username:', envVariables.ADMIN_USERNAME);
-          console.log('Raw password provided:', rawText);
-          console.log('Expected password:', envVariables.ADMIN_PASSWORD);
-          console.log('Password match:', rawText === envVariables.ADMIN_PASSWORD);
-          
-          const admin = await this.adminService.authenticateAdmin(
-            telegramId,
-            envVariables.ADMIN_USERNAME, // Use environment variable
-            rawText // Use raw text instead of sanitized text
-          );
-          
-          if (admin) {
-            // Authentication successful
-            ctx.session.adminAuthenticated = true;
-            ctx.session.adminLoginStep = undefined;
-            ctx.session.adminLoginData = undefined;
-            
-            await ctx.reply(getMessage(language, 'admin.loginSuccess'));
-            await ctx.reply(getMessage(language, 'admin.mainMenu'), {
-              reply_markup: getAdminMainKeyboard()
-            });
-          } else {
-            // Authentication failed
-            ctx.session.adminLoginStep = 'password';
-            ctx.session.adminLoginData = {};
-            await ctx.reply(getMessage(language, 'admin.loginFailed'));
-            await ctx.reply(getMessage(language, 'admin.enterPassword'));
-          }
-        } catch (error) {
-          console.error('Admin authentication error:', error);
-          ctx.session.adminLoginStep = 'password';
-          ctx.session.adminLoginData = {};
-          await ctx.reply(getMessage(language, 'admin.loginFailed'));
-          await ctx.reply(getMessage(language, 'admin.enterPassword'));
-        }
-        return;
-      }
+      return;
     }
 
     // Handle admin search
