@@ -101,9 +101,9 @@ export class BotUpdate {
   async debugCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -203,7 +203,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -247,7 +247,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -276,7 +276,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -324,7 +324,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -364,7 +364,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -406,7 +406,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -448,7 +448,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -482,7 +482,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -530,7 +530,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -583,7 +583,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -618,7 +618,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -657,7 +657,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -716,7 +716,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -763,7 +763,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -804,7 +804,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -843,7 +843,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -1092,7 +1092,7 @@ export class BotUpdate {
         try {
           const admin = await this.adminService.authenticateAdmin(
             telegramId,
-            envVariables.ADMIN_USERNAME, // Use admin username from env
+            '@avtemur', // Use the actual admin username
             text
           );
           
@@ -2932,7 +2932,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3143,7 +3143,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    const adminTelegramIds = ['794464667']; // Add your telegram ID here
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3267,7 +3267,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3358,7 +3358,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3484,7 +3484,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3543,7 +3543,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3610,7 +3610,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
@@ -3647,7 +3647,7 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['5543081353'];
+    const adminTelegramIds = ['794464667'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
