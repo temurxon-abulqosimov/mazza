@@ -1,0 +1,93 @@
+name: Deploy Telegram Bot to EC2
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🚀 Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            # Navigate to project directory
+            cd /opt/telegram-bot
+            
+            # Pull latest changes
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+            
+            # Check if .env exists, if not run setup
+            if [ ! -f .env ]; then
+              echo "⚠️  .env file not found!"
+              echo "❌ Please run setup-env.sh first to configure environment variables"
+              echo "📋 Run: chmod +x setup-env.sh && ./setup-env.sh"
+              exit 1
+            fi
+            
+            # Install dependencies
+            echo "📦 Installing dependencies..."
+            npm install
+            
+            # Build the application
+            echo "🔨 Building application..."
+            npm run build
+            
+            # Stop existing PM2 process if running
+            echo "🛑 Stopping existing process..."
+            pm2 stop telegram-bot || true
+            pm2 delete telegram-bot || true
+            
+            # Start the application with PM2
+            echo "▶️ Starting application with PM2..."
+            pm2 start ecosystem.config.js
+            
+            # Save PM2 configuration
+            pm2 save
+            
+            # Check if application started successfully
+            echo "🔍 Checking application status..."
+            sleep 5
+            
+            if pm2 list | grep -q "telegram-bot.*online"; then
+              echo "✅ Deployment successful! Bot is running."
+              echo "📊 PM2 Status:"
+              pm2 status
+            else
+              echo "❌ Deployment failed! Bot is not running."
+              echo "📋 Recent logs:"
+              pm2 logs telegram-bot --lines 20
+              exit 1
+            fi
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: 📧 Notify Deployment Status
+        uses: appleboy/telegram-action@master
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN && secrets.TELEGRAM_CHAT_ID }}
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            🤖 Telegram Bot Deployment
+            
+            Status: ${{ needs.deploy.result == 'success' && '✅ Success' || '❌ Failed' }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            
+            ${{ needs.deploy.result == 'success' && '🎉 Bot is now live and running!' || '⚠️ Deployment failed. Check logs for details.' }} 
