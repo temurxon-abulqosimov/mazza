@@ -108,107 +108,6 @@ export class BotUpdate {
     }
     
     try {
-      const allUsers = await this.usersService.findAll();
-      const allSellers = await this.sellersService.findAll();
-      const allProducts = await this.productsService.findAll();
-      const approvedSellers = await this.sellersService.findApprovedSellers();
-      
-      console.log('=== DEBUG INFO ===');
-      console.log('Total users:', allUsers.length);
-      console.log('Total sellers:', allSellers.length);
-      console.log('Total products:', allProducts.length);
-      console.log('Approved sellers:', approvedSellers.length);
-      
-      // Check sellers with products
-      const sellersWithProducts = approvedSellers.filter(seller => seller.products && seller.products.length > 0);
-      console.log('Approved sellers with products:', sellersWithProducts.length);
-      
-      sellersWithProducts.forEach((seller, index) => {
-        console.log(`Seller ${index + 1}:`, {
-          id: seller.id,
-          name: seller.businessName,
-          status: seller.status,
-          products: seller.products.length,
-          location: seller.location,
-          locationType: typeof seller.location,
-          locationRaw: JSON.stringify(seller.location),
-          hasLatitude: seller.location?.latitude !== undefined,
-          hasLongitude: seller.location?.longitude !== undefined,
-          latitude: seller.location?.latitude,
-          longitude: seller.location?.longitude
-        });
-      });
-      
-      // Check active products
-      const now = new Date();
-      const activeProducts = allProducts.filter(product => 
-        product.isActive && new Date(product.availableUntil) > now
-      );
-      console.log('Active products:', activeProducts.length);
-      
-      // Check sellers with location
-      const sellersWithLocation = allSellers.filter(seller => seller.location && seller.location.latitude && seller.location.longitude);
-      console.log('Sellers with location:', sellersWithLocation.length);
-      
-      // Test distance calculation with first seller that has location
-      if (sellersWithLocation.length > 0) {
-        const testSeller = sellersWithLocation[0];
-        const testUserLat = 41.3111;
-        const testUserLon = 69.2797;
-        const { calculateDistance } = await import('src/common/utils/distance.util');
-        
-        if (testSeller.location) {
-          const testDistance = calculateDistance(
-            testUserLat, 
-            testUserLon, 
-            testSeller.location.latitude, 
-            testSeller.location.longitude
-          );
-          
-          console.log('Test distance calculation:', {
-            userLat: testUserLat,
-            userLon: testUserLon,
-            sellerLat: testSeller.location.latitude,
-            sellerLon: testSeller.location.longitude,
-            calculatedDistance: testDistance
-          });
-        }
-      }
-      
-      await ctx.reply(`🔍 Debug Info:\n\n👥 Users: ${allUsers.length}\n🏪 Total Sellers: ${allSellers.length}\n✅ Approved Sellers: ${approvedSellers.length}\n📦 Total Products: ${allProducts.length}\n🟢 Active Products: ${activeProducts.length}\n🏪 Sellers with Products: ${sellersWithProducts.length}\n📍 Sellers with Location: ${sellersWithLocation.length}\n\nCheck console for details.`);
-    } catch (error) {
-      console.error('Debug command error:', error);
-      await ctx.reply(`❌ Debug command failed: ${error.message}\n\nCheck console for error.`);
-    }
-  }
-
-  @Command('chatid')
-  async chatIdCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from || !ctx.chat) return;
-    
-    const chatInfo = {
-      chatId: ctx.chat.id,
-      chatType: ctx.chat.type,
-      fromId: ctx.from.id,
-      fromUsername: ctx.from.username,
-      fromFirstName: ctx.from.first_name,
-      fromLastName: ctx.from.last_name
-    };
-    
-    await ctx.reply(`📋 Chat Information:\n\n🆔 Chat ID: ${chatInfo.chatId}\n📝 Chat Type: ${chatInfo.chatType}\n👤 From ID: ${chatInfo.fromId}\n👤 Username: ${chatInfo.fromUsername || 'N/A'}\n👤 First Name: ${chatInfo.fromFirstName}\n👤 Last Name: ${chatInfo.fromLastName || 'N/A'}`);
-  }
-
-  @Command('teststore')
-  async testStoreCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
-      return;
-    }
-    
-    try {
       // Create a test seller with location
       const testSeller = await this.sellersService.create({
         telegramId: 'test_seller_' + Date.now(),
@@ -246,9 +145,9 @@ export class BotUpdate {
   async testDistanceCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -275,9 +174,9 @@ export class BotUpdate {
   async testFormulaCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -323,9 +222,9 @@ export class BotUpdate {
   async testDistanceFormatCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -363,9 +262,9 @@ export class BotUpdate {
   async forceLocationCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -405,9 +304,9 @@ export class BotUpdate {
   async fixNowCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -447,9 +346,9 @@ export class BotUpdate {
   async directFixCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -481,9 +380,9 @@ export class BotUpdate {
   async fixNullCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -530,8 +429,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -582,9 +481,9 @@ export class BotUpdate {
   async quickTestCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -617,9 +516,9 @@ export class BotUpdate {
   async testNowCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -656,9 +555,9 @@ export class BotUpdate {
   async validateAllCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -715,9 +614,9 @@ export class BotUpdate {
   async addLocationCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -762,9 +661,9 @@ export class BotUpdate {
   async checkDatabaseCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -803,9 +702,9 @@ export class BotUpdate {
   async fixLocationsCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -842,9 +741,9 @@ export class BotUpdate {
   async fixProductCodesCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -2931,9 +2830,9 @@ export class BotUpdate {
   async fixImageUrlsCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3142,9 +3041,9 @@ export class BotUpdate {
   async testOrderCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['794464667']; // Add your telegram ID here
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3267,8 +3166,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3358,8 +3257,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3484,8 +3383,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3543,8 +3442,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3610,8 +3509,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
@@ -3647,8 +3546,8 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     // Check if this is an admin
-    const adminTelegramIds = ['794464667'];
-    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
       return;
     }
     
