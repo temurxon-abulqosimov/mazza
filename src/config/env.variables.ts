@@ -21,7 +21,7 @@ export const envVariables = {
     SUPPORT_USERNAME: process.env.SUPPORT_USERNAME || '@avtemur',
     
     // Admin Configuration
-    ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || 794464667,
+    ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '794464667',
     ADMIN_USERNAME: process.env.ADMIN_USERNAME || '@avtemur',
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin',
     

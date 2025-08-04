@@ -35,10 +35,46 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /opt/telegram-bot
+          
+          # Backup current state
+          echo "📦 Creating backup..."
+          if [ -d "backup" ]; then
+            rm -rf backup
+          fi
+          mkdir -p backup
+          cp -r . backup/ || true
+          
+          # Pull latest changes
+          echo "📥 Pulling latest changes..."
           git pull origin main
+          
+          # Install dependencies
+          echo "📦 Installing dependencies..."
           npm ci
+          
+          # Build application
+          echo "🔨 Building application..."
           npm run build
+          
+          # Check if .env exists, if not create from example
+          if [ ! -f ".env" ]; then
+            echo "⚠️  .env file not found, creating from example..."
+            cp env.production.example .env || echo "No env.example found"
+          fi
+          
+          # Restart the bot
+          echo "🔄 Restarting bot..."
           pm2 restart telegram-bot
+          
+          # Check if bot started successfully
+          sleep 5
+          if pm2 status telegram-bot | grep -q "online"; then
+            echo "✅ Bot started successfully"
+          else
+            echo "❌ Bot failed to start, checking logs..."
+            pm2 logs telegram-bot --lines 10
+            exit 1
+          fi
           
     - name: Send Telegram notification
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -54,4 +90,9 @@ jobs:
           **Commit:** ${{ github.sha }}
           **Author:** ${{ github.actor }}
           
-          ✅ Bot has been deployed and restarted on EC2 server. 
+          ✅ Bot has been deployed and restarted on EC2 server.
+          
+          🔍 **Deployment Details:**
+          - Environment: Production
+          - Node.js: 18
+          - PM2 Status: Online 
