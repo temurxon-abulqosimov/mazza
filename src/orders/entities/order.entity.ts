@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { OrderStatus } from 'src/common/enums/order-status.enum';
@@ -24,8 +24,10 @@ export class Order {
   updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.orders)
+  @JoinColumn({ name: 'userId' })
   user: User;
 
   @ManyToOne(() => Product, (product) => product.orders)
+  @JoinColumn({ name: 'productId' })
   product: Product;
 } 

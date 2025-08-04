@@ -85,6 +85,9 @@ export class SellersService {
     userLon: number,
     limit: number = 50,
   ): Promise<Array<Seller & { distance: number | null; isOpen: boolean; averageRating: number }>> {
+    console.log('=== FIND NEARBY STORES START ===');
+    console.log('User location:', { latitude: userLat, longitude: userLon });
+    
     // Get all approved sellers with their products
     const sellers = await this.sellersRepository
       .createQueryBuilder('seller')
@@ -92,23 +95,18 @@ export class SellersService {
       .where('seller.status = :status', { status: SellerStatus.APPROVED })
       .getMany();
 
+    console.log(`Found ${sellers.length} approved sellers`);
+
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     const sellersWithDistance = sellers
       .map(seller => {
+        console.log(`\nProcessing seller: ${seller.businessName} (ID: ${seller.id})`);
+        console.log(`Total products for this seller: ${seller.products.length}`);
+        
         // Calculate distance if seller has location
         let distance: number | null = null;
-        
-        console.log(`Processing seller: ${seller.businessName}`, {
-          sellerId: seller.id,
-          hasLocation: !!seller.location,
-          locationType: typeof seller.location,
-          locationValue: seller.location,
-          locationRaw: JSON.stringify(seller.location),
-          userLat,
-          userLon
-        });
         
         // Robust location data extraction
         let sellerLat: number | null = null;
@@ -124,36 +122,37 @@ export class SellersService {
           
           sellerLat = seller.location.latitude;
           sellerLon = seller.location.longitude;
-          console.log(`Location data extracted successfully for ${seller.businessName}: ${sellerLat}, ${sellerLon}`);
+          console.log(`Location data extracted: ${sellerLat}, ${sellerLon}`);
         } else {
-          console.log(`Invalid or missing location data for ${seller.businessName}:`, seller.location);
+          console.log(`Invalid or missing location data:`, seller.location);
         }
         
         if (sellerLat !== null && sellerLon !== null) {
           try {
-            // Use only the accurate Haversine formula
             distance = calculateDistance(userLat, userLon, sellerLat, sellerLon);
-            
-            console.log(`Distance calculation for ${seller.businessName}:`, {
-              userLocation: { latitude: userLat, longitude: userLon },
-              sellerLocation: { latitude: sellerLat, longitude: sellerLon },
-              calculatedDistance: distance
-            });
+            console.log(`Distance calculated: ${distance} km`);
           } catch (error) {
-            console.error(`Distance calculation error for ${seller.businessName}:`, error);
+            console.error(`Distance calculation error:`, error);
             distance = null;
           }
         } else {
-          console.log(`No valid location for seller: ${seller.businessName} (ID: ${seller.id})`);
-          console.log('Seller location data:', seller.location);
+          console.log(`No valid location for seller`);
         }
 
         const isOpen = currentTime >= seller.opensAt && currentTime <= seller.closesAt;
+        console.log(`Store hours: ${seller.opensAt} - ${seller.closesAt}, Current time: ${currentTime}, Is open: ${isOpen}`);
 
         // Filter active products for this seller
-        const activeProducts = seller.products.filter(product => 
-          product.isActive && new Date(product.availableUntil) > now
-        );
+        const activeProducts = seller.products.filter(product => {
+          const isActive = product.isActive;
+          const isAvailable = new Date(product.availableUntil) > now;
+          
+          console.log(`Product ${product.id}: isActive=${isActive}, availableUntil=${product.availableUntil}, isAvailable=${isAvailable}`);
+          
+          return isActive && isAvailable;
+        });
+
+        console.log(`Active products for ${seller.businessName}: ${activeProducts.length}`);
 
         return {
           ...seller,
@@ -163,10 +162,16 @@ export class SellersService {
           averageRating: 0, // Will be calculated separately
         };
       })
-      .filter(seller => seller.products.length > 0); // Only include sellers with available products
+      .filter(seller => {
+        const hasProducts = seller.products.length > 0;
+        console.log(`Seller ${seller.businessName}: has products = ${hasProducts}`);
+        return hasProducts;
+      }); // Only include sellers with available products
+
+    console.log(`\nSellers with active products: ${sellersWithDistance.length}`);
 
     // Sort by distance (ascending) - sellers with distance first, then those without
-    return sellersWithDistance
+    const sortedSellers = sellersWithDistance
       .sort((a, b) => {
         // If both have distance, sort by distance
         if (a.distance !== null && b.distance !== null) {
@@ -184,6 +189,14 @@ export class SellersService {
         return 0;
       })
       .slice(0, limit);
+
+    console.log(`\nFinal result: ${sortedSellers.length} stores`);
+    sortedSellers.forEach((seller, index) => {
+      console.log(`Store ${index + 1}: ${seller.businessName} - ${seller.products.length} products - Distance: ${seller.distance} km`);
+    });
+
+    console.log('=== FIND NEARBY STORES END ===');
+    return sortedSellers;
   }
 
   async update(id: number, updateSellerDto: Partial<CreateSellerDto>): Promise<Seller | null> {

@@ -14,12 +14,40 @@ export class OrdersService {
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    const order = this.ordersRepository.create({
-      ...createOrderDto,
-      code: generateOrderCode(),
-      totalPrice: 0, // Will be set from product price
+    // First get the product to get its price
+    const product = await this.ordersRepository.manager.getRepository('product').findOne({
+      where: { id: createOrderDto.productId }
     });
-    return this.ordersRepository.save(order);
+    
+    if (!product) {
+      throw new Error('Product not found');
+    }
+    
+    // Get the user to ensure it exists
+    const user = await this.ordersRepository.manager.getRepository('user').findOne({
+      where: { id: createOrderDto.userId }
+    });
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const order = this.ordersRepository.create({
+      code: generateOrderCode(),
+      totalPrice: product.price, // Set the actual product price
+      user: { id: createOrderDto.userId }, // Set the user reference
+      product: { id: createOrderDto.productId } // Set the product reference
+    });
+    
+    const savedOrder = await this.ordersRepository.save(order);
+    
+    // Return the order with all relations loaded
+    const loadedOrder = await this.findOne(savedOrder.id);
+    if (!loadedOrder) {
+      throw new Error('Failed to load created order');
+    }
+    
+    return loadedOrder;
   }
 
   async findAll(): Promise<Order[]> {

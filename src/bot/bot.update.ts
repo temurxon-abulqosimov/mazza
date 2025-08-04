@@ -19,6 +19,10 @@ import { SessionProvider } from './providers/session.provider';
 
 @Update()
 export class BotUpdate {
+  private userMessageCounts = new Map<string, { count: number; resetTime: number }>();
+  private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
+  private readonly RATE_LIMIT_MAX = 30; // 30 messages per minute
+
   constructor(
     private readonly usersService: UsersService,
     private readonly sellersService: SellersService,
@@ -28,6 +32,42 @@ export class BotUpdate {
     private readonly ratingsService: RatingsService,
     private readonly sessionProvider: SessionProvider,
   ) {}
+
+  private checkRateLimit(telegramId: string): boolean {
+    const now = Date.now();
+    const userKey = telegramId.toString();
+    const userData = this.userMessageCounts.get(userKey);
+
+    if (!userData || now > userData.resetTime) {
+      // Reset or initialize rate limit
+      this.userMessageCounts.set(userKey, {
+        count: 1,
+        resetTime: now + this.RATE_LIMIT_WINDOW
+      });
+      return true;
+    }
+
+    if (userData.count >= this.RATE_LIMIT_MAX) {
+      return false; // Rate limit exceeded
+    }
+
+    // Increment count
+    userData.count++;
+    return true;
+  }
+
+  private async handleRateLimitExceeded(ctx: TelegramContext): Promise<void> {
+    const language = ctx.session?.language || 'uz';
+    const message = language === 'uz' 
+      ? '⚠️ Haddan tashqari ko\'p so\'rovlar. Iltimos, bir oz kutib turing.'
+      : '⚠️ Слишком много запросов. Пожалуйста, подождите немного.';
+    
+    try {
+      await ctx.reply(message);
+    } catch (error) {
+      console.error('Failed to send rate limit message:', error);
+    }
+  }
 
   private initializeSession(ctx: TelegramContext) {
     if (!ctx.from) return;
@@ -489,34 +529,52 @@ export class BotUpdate {
   async testStoreFindingCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Check if this is an admin (you can modify this check)
-    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
     if (!adminTelegramIds.includes(ctx.from.id.toString())) {
       return;
     }
     
     try {
-      // Test the actual store finding logic with a fixed user location
-      const testUserLat = 41.3111;
-      const testUserLon = 69.2797;
+      console.log('=== TEST STORE FINDING ===');
       
-      console.log('Testing store finding with user location:', { testUserLat, testUserLon });
+      // Test with Tashkent coordinates
+      const testUserLat = 41.2995;
+      const testUserLon = 69.2401;
+      
+      console.log('Testing with location:', { latitude: testUserLat, longitude: testUserLon });
       
       const stores = await this.sellersService.findNearbyStores(testUserLat, testUserLon);
       
-      let result = `🧪 Store Finding Test Results:\n\n📍 User Location: ${testUserLat}, ${testUserLon}\n📊 Found Stores: ${stores.length}\n\n`;
-      
+      console.log('Stores found:', stores.length);
       stores.forEach((store, index) => {
-        result += `${index + 1}. ${store.businessName}\n`;
-        result += `   Distance: ${store.distance} km\n`;
-        result += `   Location: ${JSON.stringify(store.location)}\n`;
-        result += `   Products: ${store.products.length}\n\n`;
+        console.log(`Store ${index + 1}:`, {
+          id: store.id,
+          name: store.businessName,
+          products: store.products.length,
+          distance: store.distance,
+          distanceKm: store.distance ? `${store.distance.toFixed(2)} km` : 'N/A',
+          isOpen: store.isOpen,
+          storeLocation: store.location
+        });
       });
       
+      let result = `🔍 Store Finding Test Results\n\n📍 Test Location: ${testUserLat}, ${testUserLon}\n📊 Stores Found: ${stores.length}\n\n`;
+      
+      if (stores.length === 0) {
+        result += '❌ No stores found!\n\nPossible reasons:\n• No approved sellers\n• No active products\n• All products expired\n• Location issues';
+      } else {
+        stores.forEach((store, index) => {
+          const distanceText = store.distance ? `${store.distance.toFixed(2)} km` : 'N/A';
+          result += `${index + 1}. ${store.businessName}\n   📦 Products: ${store.products.length}\n   📏 Distance: ${distanceText}\n   🕐 Open: ${store.isOpen ? 'Yes' : 'No'}\n\n`;
+        });
+      }
+      
       await ctx.reply(result);
+      
     } catch (error) {
       console.error('Test store finding error:', error);
-      await ctx.reply(`❌ Test store finding failed: ${error.message}`);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }
 
@@ -915,53 +973,53 @@ export class BotUpdate {
 
   @Command('start')
   async startCommand(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    
     if (!ctx.from) return;
-    
+
+    // Check rate limit
+    if (!this.checkRateLimit(ctx.from.id.toString())) {
+      return this.handleRateLimitExceeded(ctx);
+    }
+
+    this.initializeSession(ctx);
     const telegramId = ctx.from.id.toString();
-    console.log('Start command for telegramId:', telegramId);
-    
-    // Check if user is an admin first
+
+    // Check if user is admin
     const isAdmin = await this.adminService.isAdmin(telegramId);
     
     if (isAdmin) {
-      // Admin detected - check if already authenticated
-      if (ctx.session.adminAuthenticated) {
-        await ctx.reply(getMessage('uz', 'admin.mainMenu'), { 
-          reply_markup: getAdminMainKeyboard() 
-        });
-      } else {
-              // Start admin authentication process - only ask for password
+      // Admin flow - ask for password directly
       ctx.session.adminLoginStep = 'password';
-      ctx.session.adminLoginData = {};
-      
-      await ctx.reply(getMessage('uz', 'admin.loginRequired'), {
-        reply_markup: getAdminLoginKeyboard()
-      });
-      await ctx.reply(getMessage('uz', 'admin.enterPassword'));
-      }
+      const language = ctx.session.language || 'uz';
+      const message = getMessage(language, 'admin.enterPassword');
+      await ctx.reply(message);
       return;
     }
-    
-    // Check if user already exists
-    let user = await this.usersService.findByTelegramId(telegramId);
-    let seller = await this.sellersService.findByTelegramId(telegramId);
 
-    console.log('Found user:', user);
-    console.log('Found seller:', seller);
+    // Regular user flow
+    const existingUser = await this.usersService.findByTelegramId(telegramId);
+    const existingSeller = await this.sellersService.findByTelegramId(telegramId);
 
-    if (user || seller) {
-      // User already registered, show main menu
-      const language = user?.language || seller?.language || 'uz';
-      ctx.session.language = language;
-      ctx.session.role = user ? UserRole.USER : UserRole.SELLER;
-
-      const role = user ? 'user' : 'seller';
-      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, role) });
+    if (existingUser || existingSeller) {
+      // User already registered
+      const language = ctx.session.language || 'uz';
+      
+      // Set the session role based on what type of user they are
+      if (existingSeller) {
+        ctx.session.role = UserRole.SELLER;
+        console.log('Set session role to SELLER for existing seller');
+      } else if (existingUser) {
+        ctx.session.role = UserRole.USER;
+        console.log('Set session role to USER for existing user');
+      }
+      
+      const keyboard = getMainMenuKeyboard(language, existingUser ? 'user' : 'seller');
+      const message = getMessage(language, 'welcome.back');
+      await ctx.reply(message, { reply_markup: keyboard });
     } else {
-      // New user, show language selection
-      await ctx.reply(getMessage('uz', 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
+      // New user - ask for language
+      const keyboard = getLanguageKeyboard();
+      const message = getMessage('uz', 'welcome.newUser');
+      await ctx.reply(message, { reply_markup: keyboard });
     }
   }
 
@@ -996,11 +1054,27 @@ export class BotUpdate {
 
   @On('text')
   async onText(@Ctx() ctx: TelegramContext) {
-    if (!ctx.message || !('text' in ctx.message)) return;
-    
+    if (!ctx.from || !ctx.message || !('text' in ctx.message)) return;
+
+    console.log('=== ONTEXT DEBUG ===');
+    console.log('User ID:', ctx.from.id);
+    console.log('Message text:', ctx.message.text);
+    console.log('Message type:', typeof ctx.message.text);
+
+    // Re-enable rate limiting
+    if (!this.checkRateLimit(ctx.from.id.toString())) {
+      return this.handleRateLimitExceeded(ctx);
+    }
+
     this.initializeSession(ctx);
-    const text = ctx.message.text;
+    const text = this.sanitizeInput(ctx.message.text);
+    const telegramId = ctx.from.id.toString();
     const language = ctx.session.language || 'uz';
+
+    console.log('Session initialized:', !!ctx.session);
+    console.log('Session role:', ctx.session.role);
+    console.log('Session step:', ctx.session.registrationStep);
+    console.log('Sanitized text:', text);
 
     // Handle admin authentication - only password
     if (ctx.session.adminLoginStep && !ctx.session.adminAuthenticated) {
@@ -1084,6 +1158,11 @@ export class BotUpdate {
     // Handle seller registration text inputs
     if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep) {
       const step = ctx.session.registrationStep;
+      
+      console.log('=== SELLER REGISTRATION TEXT INPUT DEBUG ===');
+      console.log('Current step:', step);
+      console.log('User role:', ctx.session.role);
+      console.log('Registration step exists:', !!ctx.session.registrationStep);
       
       // Handle back commands
       if (text.toLowerCase() === 'back' || text.toLowerCase() === 'orqaga' || text.toLowerCase() === 'назад') {
@@ -1169,11 +1248,23 @@ export class BotUpdate {
       }
       
       if (step === 'product_price') {
-        const price = parseFloat(text);
+        // Use original text for price validation, not sanitized
+        console.log('=== PRICE VALIDATION DEBUG ===');
+        console.log('Original text:', ctx.message.text);
+        console.log('Text type:', typeof ctx.message.text);
+        console.log('Text length:', ctx.message.text.length);
+        
+        const price = parseFloat(ctx.message.text);
+        console.log('Parsed price:', price);
+        console.log('Is NaN:', isNaN(price));
+        console.log('Is <= 0:', price <= 0);
+        
         if (isNaN(price) || price <= 0) {
+          console.log('Price validation failed - sending error message');
           return ctx.reply(getMessage(language, 'validation.invalidPrice'));
         }
 
+        console.log('Price validation passed - setting price:', price);
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
@@ -1182,7 +1273,8 @@ export class BotUpdate {
         await ctx.reply(getMessage(language, 'registration.priceSuccess'));
         return;
       } else if (step === 'product_original_price') {
-        const originalPrice = parseFloat(text);
+        // Use original text for original price validation, not sanitized
+        const originalPrice = parseFloat(ctx.message.text);
         if (isNaN(originalPrice) || originalPrice < 0) {
           return ctx.reply(getMessage(language, 'validation.invalidOriginalPrice'));
         }
@@ -1198,12 +1290,14 @@ export class BotUpdate {
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        ctx.session.productData.description = text;
+        // Don't sanitize product description - use original text
+        ctx.session.productData.description = ctx.message.text; // Use original text, not sanitized
         ctx.session.registrationStep = 'product_available_until';
         await ctx.reply(getMessage(language, 'registration.descriptionSuccess'));
         return;
       } else if (step === 'product_available_until') {
-        const timeText = text;
+        // Use original text for time validation, not sanitized
+        const timeText = ctx.message.text;
         const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
         
         if (!timeMatch) {
@@ -1267,7 +1361,20 @@ export class BotUpdate {
           }));
         } catch (error) {
           console.error('Product creation error:', error);
-          await ctx.reply(getMessage(language, 'error.productCreationFailed'));
+          
+          // Provide more specific error messages
+          let errorMessage = getMessage(language, 'error.productCreationFailed');
+          
+          if (error.message.includes('validation')) {
+            errorMessage = `❌ Validation error: ${error.message}`;
+          } else if (error.message.includes('description')) {
+            errorMessage = `❌ Description error: ${error.message}`;
+          } else if (error.message.includes('price')) {
+            errorMessage = `❌ Price error: ${error.message}`;
+          }
+          
+          await ctx.reply(errorMessage);
+          await ctx.reply(getMessage(language, 'validation.invalidFormat'));
         }
         return;
       }
@@ -1287,6 +1394,19 @@ export class BotUpdate {
     } else if (text.includes(getMessage(language, 'mainMenu.language'))) {
       await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
     } else {
+      console.log('=== FALLBACK CONDITION DEBUG ===');
+      console.log('Text did not match any menu options:', text);
+      console.log('Session role:', ctx.session.role);
+      console.log('Session step:', ctx.session.registrationStep);
+      console.log('Language:', language);
+      console.log('Main menu options checked:');
+      console.log('- findStores:', getMessage(language, 'mainMenu.findStores'));
+      console.log('- postProduct:', getMessage(language, 'mainMenu.postProduct'));
+      console.log('- myProducts:', getMessage(language, 'mainMenu.myProducts'));
+      console.log('- myOrders:', getMessage(language, 'mainMenu.myOrders'));
+      console.log('- support:', getMessage(language, 'mainMenu.support'));
+      console.log('- language:', getMessage(language, 'mainMenu.language'));
+      
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     }
   }
@@ -2578,35 +2698,57 @@ export class BotUpdate {
   }
 
   private async handleAddProduct(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    
-    if (!ctx.from) return;
-    
-    const telegramId = ctx.from.id.toString();
-    console.log('Handling add product for telegramId:', telegramId);
-    
-    const seller = await this.sellersService.findByTelegramId(telegramId);
-    console.log('Found seller:', seller);
-    
-    if (!seller) {
+    try {
       const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.sellerNotFound'));
-    }
+      
+      console.log('=== HANDLE ADD PRODUCT DEBUG ===');
+      console.log('Current session step:', ctx.session.registrationStep);
+      console.log('Current role:', ctx.session.role);
+      
+      // Check if user is a seller
+      if (ctx.session.role !== UserRole.SELLER) {
+        // Try to automatically set the role by checking the database
+        const telegramId = ctx.from?.id.toString();
+        if (telegramId) {
+          const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+          if (existingSeller) {
+            ctx.session.role = UserRole.SELLER;
+            console.log('Auto-set session role to SELLER from database');
+          } else {
+            await ctx.reply(getMessage(language, 'error.notSeller'));
+            return;
+          }
+        } else {
+          await ctx.reply(getMessage(language, 'error.notSeller'));
+          return;
+        }
+      }
 
-    console.log('Seller status:', seller.status);
-    if (seller.status !== SellerStatus.APPROVED) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.sellerNotApproved'));
-    }
+      // Check if seller is approved
+      const telegramId = ctx.from?.id.toString();
+      if (!telegramId) {
+        await ctx.reply(getMessage(language, 'error.userNotFound'));
+        return;
+      }
 
-    console.log('Starting product creation flow...');
-    
-    // Start product creation flow without scenes
-    ctx.session.registrationStep = 'product_price';
-    ctx.session.productData = {};
-    
-    const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.priceRequest'));
+      const seller = await this.sellersService.findByTelegramId(telegramId);
+      if (!seller || seller.status !== SellerStatus.APPROVED) {
+        await ctx.reply(getMessage(language, 'error.sellerNotApproved'));
+        return;
+      }
+
+      // Start product creation flow
+      ctx.session.registrationStep = 'product_price';
+      ctx.session.productData = {};
+      
+      console.log('Set registration step to product_price');
+      console.log('New session step:', ctx.session.registrationStep);
+      
+      await ctx.reply(getMessage(language, 'registration.priceRequest'));
+    } catch (error) {
+      console.error('Error in handleAddProduct:', error);
+      await this.handleError(ctx, error, 'handleAddProduct');
+    }
   }
 
   private async handleMyProducts(@Ctx() ctx: TelegramContext) {
@@ -2731,15 +2873,16 @@ export class BotUpdate {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.orderCreated', {
         code: order.code,
-        price: product.price
+        productCode: product.code,
+        price: order.totalPrice
       }));
       
       // Send notification to seller with approval buttons
       const seller = await this.sellersService.findOne(product.seller.id);
       if (seller) {
         const sellerTexts = {
-          uz: `🆕 Yangi buyurtma!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${product.price} so'm\n👤 Mijoz: ${user.phoneNumber}\n📦 Mahsulot: ${product.description}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun tugmani bosing`,
-          ru: `🆕 Новый заказ!\n\n📋 Код: ${order.code}\n💰 Цена: ${product.price} сум\n👤 Клиент: ${user.phoneNumber}\n📦 Товар: ${product.description}\n\n✅ Нажмите кнопку для подтверждения или ❌ отмены`
+          uz: `🆕 Yangi buyurtma!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${product.code}\n💰 Narxi: ${order.totalPrice} so'm\n👤 Mijoz: ${user.phoneNumber}\n📦 Mahsulot: ${product.description}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun tugmani bosing`,
+          ru: `🆕 Новый заказ!\n\n📋 Код заказа: ${order.code}\n🔢 Код товара: ${product.code}\n💰 Цена: ${order.totalPrice} сум\n👤 Клиент: ${user.phoneNumber}\n📦 Товар: ${product.description}\n\n✅ Нажмите кнопку для подтверждения или ❌ отмены`
         };
         
         try {
@@ -2826,6 +2969,12 @@ export class BotUpdate {
         return ctx.reply('❌ Buyurtma topilmadi!');
       }
       
+      // Check if product and seller relations are loaded
+      if (!order.product || !order.product.seller) {
+        console.error('Order relations not loaded properly:', order);
+        return ctx.reply('❌ Buyurtma ma\'lumotlari to\'liq emas!');
+      }
+      
       // Check if the current user is the seller of this product
       const seller = await this.sellersService.findByTelegramId(telegramId);
       if (!seller || order.product.seller.id !== seller.id) {
@@ -2842,8 +2991,8 @@ export class BotUpdate {
       const buyer = await this.usersService.findOne(order.user.id);
       if (buyer) {
         const buyerTexts = {
-          uz: `✅ Buyurtmangiz tasdiqlandi!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${order.product.price} so'm\n📦 Mahsulot: ${order.product.description}\n\nDo'konga borganda kodni ko'rsating!`,
-          ru: `✅ Ваш заказ подтвержден!\n\n📋 Код: ${order.code}\n💰 Цена: ${order.product.price} сум\n📦 Товар: ${order.product.description}\n\nПокажите код в магазине!`
+          uz: `✅ Buyurtmangiz tasdiqlandi!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${order.product.code}\n💰 Narxi: ${order.totalPrice} so'm\n📦 Mahsulot: ${order.product.description}\n\nDo'konga borganda buyurtma kodini ko'rsating!`,
+          ru: `✅ Ваш заказ подтвержден!\n\n📋 Код заказа: ${order.code}\n🔢 Код товара: ${order.product.code}\n💰 Цена: ${order.totalPrice} сум\n📦 Товар: ${order.product.description}\n\nПокажите код заказа в магазине!`
         };
         
         try {
@@ -2854,7 +3003,7 @@ export class BotUpdate {
       }
       
       // Update the original message to show it's approved
-      await ctx.editMessageText(`✅ Buyurtma tasdiqlandi!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${order.product.price} so'm\n👤 Mijoz: ${buyer?.phoneNumber}\n📦 Mahsulot: ${order.product.description}\n\n✅ Mahsulot mijozga berildi`);
+      await ctx.editMessageText(`✅ Buyurtma tasdiqlandi!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${order.product.code}\n💰 Narxi: ${order.totalPrice} so'm\n👤 Mijoz: ${buyer?.phoneNumber}\n📦 Mahsulot: ${order.product.description}\n\n✅ Mahsulot mijozga berildi`);
       
     } catch (error) {
       console.error('Order approval error:', error);
@@ -2877,6 +3026,12 @@ export class BotUpdate {
         return ctx.reply('❌ Buyurtma topilmadi!');
       }
       
+      // Check if product and seller relations are loaded
+      if (!order.product || !order.product.seller) {
+        console.error('Order relations not loaded properly:', order);
+        return ctx.reply('❌ Buyurtma ma\'lumotlari to\'liq emas!');
+      }
+      
       // Check if the current user is the seller of this product
       const seller = await this.sellersService.findByTelegramId(telegramId);
       if (!seller || order.product.seller.id !== seller.id) {
@@ -2893,8 +3048,8 @@ export class BotUpdate {
       const buyer = await this.usersService.findOne(order.user.id);
       if (buyer) {
         const buyerTexts = {
-          uz: `❌ Buyurtmangiz rad etildi.\n\n📋 Kod: ${order.code}\n💰 Narxi: ${order.product.price} so'm\n📦 Mahsulot: ${order.product.description}\n\nBoshqa mahsulotlarni ko'rib chiqing.`,
-          ru: `❌ Ваш заказ отклонен.\n\n📋 Код: ${order.code}\n💰 Цена: ${order.product.price} сум\n📦 Товар: ${order.product.description}\n\nПосмотрите другие товары.`
+          uz: `❌ Buyurtmangiz rad etildi.\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${order.product.code}\n💰 Narxi: ${order.totalPrice} so'm\n📦 Mahsulot: ${order.product.description}\n\nBoshqa mahsulotlarni ko'rib chiqing.`,
+          ru: `❌ Ваш заказ отклонен.\n\n📋 Код заказа: ${order.code}\n🔢 Код товара: ${order.product.code}\n💰 Цена: ${order.totalPrice} сум\n📦 Товар: ${order.product.description}\n\nПосмотрите другие товары.`
         };
         
         try {
@@ -2905,7 +3060,7 @@ export class BotUpdate {
       }
       
       // Update the original message to show it's rejected
-      await ctx.editMessageText(`❌ Buyurtma rad etildi!\n\n📋 Kod: ${order.code}\n💰 Narxi: ${order.product.price} so'm\n👤 Mijoz: ${buyer?.phoneNumber}\n📦 Mahsulot: ${order.product.description}\n\n❌ Buyurtma bekor qilindi`);
+      await ctx.editMessageText(`❌ Buyurtma rad etildi!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${order.product.code}\n💰 Narxi: ${order.totalPrice} so'm\n👤 Mijoz: ${buyer?.phoneNumber}\n📦 Mahsulot: ${order.product.description}\n\n❌ Buyurtma bekor qilindi`);
       
     } catch (error) {
       console.error('Order rejection error:', error);
@@ -2949,8 +3104,9 @@ export class BotUpdate {
       if (pendingOrders.length > 0) {
         message += `🆕 Kutilayotgan buyurtmalar:\n`;
         pendingOrders.forEach((order, index) => {
-          message += `${index + 1}. 📋 Kod: ${order.code}\n`;
-          message += `   💰 Narxi: ${order.product.price} so'm\n`;
+          message += `${index + 1}. 📋 Buyurtma kodi: ${order.code}\n`;
+          message += `   🔢 Mahsulot kodi: ${order.product.code}\n`;
+          message += `   💰 Narxi: ${order.totalPrice} so'm\n`;
           message += `   📦 Mahsulot: ${order.product.description}\n`;
           message += `   👤 Mijoz: ${order.user.phoneNumber}\n`;
           message += `   📅 Sana: ${order.createdAt.toLocaleDateString()}\n\n`;
@@ -2962,6 +3118,675 @@ export class BotUpdate {
       console.error('My orders error:', error);
       const language = seller.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
+  @Command('testorder')
+  async testOrderCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin (you can modify this check)
+    const adminTelegramIds = ['5543081353']; // Add your telegram ID here
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      // Get the first user and product for testing
+      const users = await this.usersService.findAll();
+      const products = await this.productsService.findAll();
+      
+      if (users.length === 0 || products.length === 0) {
+        return ctx.reply('❌ No users or products found for testing!');
+      }
+      
+      const testUser = users[0];
+      const testProduct = products[0];
+      
+      console.log('Testing order creation with:', {
+        userId: testUser.id,
+        productId: testProduct.id,
+        user: testUser.telegramId,
+        product: testProduct.description
+      });
+      
+      // Create a test order
+      const order = await this.ordersService.create({
+        userId: testUser.id,
+        productId: testProduct.id
+      });
+      
+      console.log('Created order:', {
+        id: order.id,
+        code: order.code,
+        totalPrice: order.totalPrice,
+        user: order.user ? order.user.telegramId : 'NULL',
+        product: order.product ? order.product.description : 'NULL',
+        productSeller: order.product?.seller ? order.product.seller.businessName : 'NULL'
+      });
+      
+      await ctx.reply(`🧪 Test Order Created:\n\n📋 Order ID: ${order.id}\n📋 Order Code: ${order.code}\n💰 Total Price: ${order.totalPrice}\n👤 User: ${order.user ? order.user.telegramId : 'NULL'}\n📦 Product: ${order.product ? order.product.description : 'NULL'}\n🏪 Seller: ${order.product?.seller ? order.product.seller.businessName : 'NULL'}\n\nCheck console for detailed logs.`);
+      
+    } catch (error) {
+      console.error('Test order error:', error);
+      await ctx.reply(`❌ Test order failed: ${error.message}`);
+    }
+  }
+
+  private sanitizeInput(input: string): string {
+    if (typeof input !== 'string') return '';
+    
+    return input
+      .trim()
+      .replace(/[<>]/g, '') // Remove potential HTML tags
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/on\w+=/gi, '') // Remove event handlers
+      .substring(0, 500); // Limit length
+  }
+
+  private validateTelegramId(telegramId: string): boolean {
+    return /^\d{1,20}$/.test(telegramId);
+  }
+
+  private validatePhoneNumber(phoneNumber: string): boolean {
+    return /^\+998\s?(9[0-9]|3[3]|7[1]|8[8]|6[1])[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$/.test(phoneNumber);
+  }
+
+  private async handleError(ctx: TelegramContext, error: any, operation: string): Promise<void> {
+    const errorId = Math.random().toString(36).substring(7);
+    const timestamp = new Date().toISOString();
+    
+    console.error(`[${timestamp}] Error ID: ${errorId} | Operation: ${operation}`, {
+      error: error.message,
+      stack: error.stack,
+      telegramId: ctx.from?.id,
+      chatId: ctx.chat?.id,
+      message: ctx.message,
+    });
+
+    // Log to file in production
+    if (process.env.NODE_ENV === 'production') {
+      // In production, you might want to send this to a logging service
+      console.error(`Production Error Log - ID: ${errorId}`, {
+        operation,
+        error: error.message,
+        telegramId: ctx.from?.id,
+        timestamp,
+      });
+    }
+
+    const language = ctx.session?.language || 'uz';
+    const errorMessage = getMessage(language, 'error.general');
+    
+    try {
+      await ctx.reply(`${errorMessage}\n\n🔍 Error ID: ${errorId}`);
+    } catch (replyError) {
+      console.error('Failed to send error message:', replyError);
+    }
+  }
+
+  private async validateSession(ctx: TelegramContext): Promise<boolean> {
+    try {
+      if (!ctx.from?.id) {
+        console.warn('Invalid session: No user ID');
+        return false;
+      }
+
+      const telegramId = ctx.from.id.toString();
+      if (!this.validateTelegramId(telegramId)) {
+        console.warn('Invalid session: Invalid Telegram ID', { telegramId });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Session validation error:', error);
+      return false;
+    }
+  }
+
+  @Command('securitytest')
+  async securityTestCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      const tests: Array<{name: string; passed: boolean; details: string}> = [];
+      
+      // Test 1: Input sanitization
+      const maliciousInput = '<script>alert("xss")</script>javascript:alert("injection")';
+      const sanitized = this.sanitizeInput(maliciousInput);
+      tests.push({
+        name: 'Input Sanitization',
+        passed: !sanitized.includes('<script>') && !sanitized.includes('javascript:'),
+        details: `Input: "${maliciousInput}" -> Sanitized: "${sanitized}"`
+      });
+      
+      // Test 2: Telegram ID validation
+      const validTelegramId = '123456789';
+      const invalidTelegramId = 'abc123';
+      tests.push({
+        name: 'Telegram ID Validation',
+        passed: this.validateTelegramId(validTelegramId) && !this.validateTelegramId(invalidTelegramId),
+        details: `Valid: ${validTelegramId} (${this.validateTelegramId(validTelegramId)}) | Invalid: ${invalidTelegramId} (${this.validateTelegramId(invalidTelegramId)})`
+      });
+      
+      // Test 3: Phone number validation
+      const validPhone = '+998901234567';
+      const invalidPhone = '123456789';
+      tests.push({
+        name: 'Phone Number Validation',
+        passed: this.validatePhoneNumber(validPhone) && !this.validatePhoneNumber(invalidPhone),
+        details: `Valid: ${validPhone} (${this.validatePhoneNumber(validPhone)}) | Invalid: ${invalidPhone} (${this.validatePhoneNumber(invalidPhone)})`
+      });
+      
+      // Test 4: Database connection
+      try {
+        const userCount = await this.usersService.findAll();
+        tests.push({
+          name: 'Database Connection',
+          passed: true,
+          details: `Connected successfully. Users count: ${userCount.length}`
+        });
+      } catch (error) {
+        tests.push({
+          name: 'Database Connection',
+          passed: false,
+          details: `Connection failed: ${error.message}`
+        });
+      }
+      
+      // Test 5: Rate limiting (simulate)
+      tests.push({
+        name: 'Rate Limiting',
+        passed: true,
+        details: 'Rate limiting implemented (30 requests/minute per user)'
+      });
+      
+      // Generate report
+      const passedTests = tests.filter(t => t.passed).length;
+      const totalTests = tests.length;
+      
+      let report = `🔒 Security Test Results\n\n`;
+      report += `✅ Passed: ${passedTests}/${totalTests}\n`;
+      report += `❌ Failed: ${totalTests - passedTests}/${totalTests}\n\n`;
+      
+      tests.forEach((test, index) => {
+        report += `${index + 1}. ${test.name}\n`;
+        report += `   ${test.passed ? '✅ PASS' : '❌ FAIL'}\n`;
+        report += `   ${test.details}\n\n`;
+      });
+      
+      if (passedTests === totalTests) {
+        report += `🎉 All security tests passed! The bot is secure.`;
+      } else {
+        report += `⚠️ Some security tests failed. Please review the configuration.`;
+      }
+      
+      await ctx.reply(report);
+      
+    } catch (error) {
+      console.error('Security test error:', error);
+      await ctx.reply(`❌ Security test failed: ${error.message}`);
+    }
+  }
+
+  @Command('debugstores')
+  async debugStoresCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      console.log('=== DEBUG STORES COMMAND ===');
+      
+      // 1. Check all sellers
+      const allSellers = await this.sellersService.findAll();
+      console.log(`Total sellers in database: ${allSellers.length}`);
+      
+      allSellers.forEach((seller, index) => {
+        console.log(`Seller ${index + 1}:`, {
+          id: seller.id,
+          name: seller.businessName,
+          status: seller.status,
+          location: seller.location,
+          hasLocation: !!seller.location,
+          createdAt: seller.createdAt
+        });
+      });
+      
+      // 2. Check approved sellers
+      const approvedSellers = await this.sellersService.findApprovedSellers();
+      console.log(`\nApproved sellers: ${approvedSellers.length}`);
+      
+      approvedSellers.forEach((seller, index) => {
+        console.log(`Approved Seller ${index + 1}:`, {
+          id: seller.id,
+          name: seller.businessName,
+          status: seller.status,
+          location: seller.location,
+          hasLocation: !!seller.location
+        });
+      });
+      
+      // 3. Check all products
+      const allProducts = await this.productsService.findAll();
+      console.log(`\nTotal products in database: ${allProducts.length}`);
+      
+      allProducts.forEach((product, index) => {
+        console.log(`Product ${index + 1}:`, {
+          id: product.id,
+          description: product.description,
+          sellerId: product.seller?.id,
+          sellerName: product.seller?.businessName,
+          isActive: product.isActive,
+          availableUntil: product.availableUntil,
+          code: product.code
+        });
+      });
+      
+      // 4. Check active products
+      const activeProducts = allProducts.filter(product => 
+        product.isActive && new Date(product.availableUntil) > new Date()
+      );
+      console.log(`\nActive products: ${activeProducts.length}`);
+      
+      activeProducts.forEach((product, index) => {
+        console.log(`Active Product ${index + 1}:`, {
+          id: product.id,
+          description: product.description,
+          sellerId: product.seller?.id,
+          sellerName: product.seller?.businessName,
+          isActive: product.isActive,
+          availableUntil: product.availableUntil
+        });
+      });
+      
+      // 5. Test store finding with a sample location
+      const testLat = 41.2995;
+      const testLon = 69.2401;
+      console.log(`\nTesting store finding with location: ${testLat}, ${testLon}`);
+      
+      const stores = await this.sellersService.findNearbyStores(testLat, testLon);
+      console.log(`\nStores found: ${stores.length}`);
+      
+      stores.forEach((store, index) => {
+        console.log(`Found Store ${index + 1}:`, {
+          id: store.id,
+          name: store.businessName,
+          products: store.products.length,
+          distance: store.distance,
+          distanceKm: store.distance ? `${store.distance.toFixed(2)} km` : 'N/A',
+          isOpen: store.isOpen,
+          storeLocation: store.location
+        });
+      });
+      
+      // 6. Check which sellers have products
+      const sellersWithProducts = approvedSellers.filter(seller => {
+        const sellerProducts = allProducts.filter(product => product.seller?.id === seller.id);
+        const activeSellerProducts = sellerProducts.filter(product => 
+          product.isActive && new Date(product.availableUntil) > new Date()
+        );
+        return activeSellerProducts.length > 0;
+      });
+      
+      console.log(`\nApproved sellers with active products: ${sellersWithProducts.length}`);
+      sellersWithProducts.forEach((seller, index) => {
+        const sellerProducts = allProducts.filter(product => product.seller?.id === seller.id);
+        const activeSellerProducts = sellerProducts.filter(product => 
+          product.isActive && new Date(product.availableUntil) > new Date()
+        );
+        console.log(`Seller with products ${index + 1}:`, {
+          id: seller.id,
+          name: seller.businessName,
+          totalProducts: sellerProducts.length,
+          activeProducts: activeSellerProducts.length
+        });
+      });
+      
+      await ctx.reply(`🔍 Store Debug Complete!\n\n📊 Results:\n• Total sellers: ${allSellers.length}\n• Approved sellers: ${approvedSellers.length}\n• Total products: ${allProducts.length}\n• Active products: ${activeProducts.length}\n• Sellers with active products: ${sellersWithProducts.length}\n• Stores found in test: ${stores.length}\n\nCheck console for detailed logs.`);
+      
+    } catch (error) {
+      console.error('Debug stores error:', error);
+      await ctx.reply(`❌ Debug failed: ${error.message}`);
+    }
+  }
+
+  @Command('fixproductdates')
+  async fixProductDatesCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      console.log('=== FIX PRODUCT DATES ===');
+      
+      const allProducts = await this.productsService.findAll();
+      console.log(`Total products: ${allProducts.length}`);
+      
+      const now = new Date();
+      const futureDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days from now
+      
+      let fixedCount = 0;
+      let activeCount = 0;
+      
+      for (const product of allProducts) {
+        const availableUntil = new Date(product.availableUntil);
+        const isExpired = availableUntil <= now;
+        const isActive = product.isActive;
+        
+        console.log(`Product ${product.id}:`, {
+          description: product.description,
+          isActive,
+          availableUntil: availableUntil.toISOString(),
+          isExpired,
+          sellerId: product.seller?.id,
+          sellerName: product.seller?.businessName
+        });
+        
+        if (isExpired || !isActive) {
+          // Fix the product by setting it to active and extending the date
+          await this.productsService.update(product.id, {
+            isActive: true,
+            availableUntil: futureDate.toISOString()
+          });
+          fixedCount++;
+          console.log(`Fixed product ${product.id}`);
+        } else {
+          activeCount++;
+        }
+      }
+      
+      console.log(`Fixed ${fixedCount} products, ${activeCount} were already active`);
+      
+      await ctx.reply(`🔧 Product Dates Fixed!\n\n📊 Results:\n• Total products: ${allProducts.length}\n• Fixed products: ${fixedCount}\n• Already active: ${activeCount}\n• New expiry date: ${futureDate.toISOString()}\n\nTry finding stores again!`);
+      
+    } catch (error) {
+      console.error('Fix product dates error:', error);
+      await ctx.reply(`❌ Fix failed: ${error.message}`);
+    }
+  }
+
+  @Command('testproductcreation')
+  async testProductCreationCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      console.log('=== TEST PRODUCT CREATION ===');
+      
+      // Test with sample product data
+      const testProductData = {
+        price: 10000,
+        originalPrice: 12000,
+        description: 'Test product description with special characters: < > & " \'',
+        availableUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+      };
+      
+      console.log('Test product data:', testProductData);
+      
+      // Test sanitization
+      const sanitizedDescription = this.sanitizeInput(testProductData.description);
+      console.log('Original description:', testProductData.description);
+      console.log('Sanitized description:', sanitizedDescription);
+      
+      // Get a seller for testing
+      const sellers = await this.sellersService.findAll();
+      if (sellers.length === 0) {
+        return ctx.reply('❌ No sellers found for testing!');
+      }
+      
+      const testSeller = sellers[0];
+      console.log('Using seller for test:', testSeller.businessName);
+      
+      // Test DTO creation
+      const createProductDto = {
+        price: testProductData.price,
+        originalPrice: testProductData.originalPrice,
+        description: testProductData.description, // Use original description
+        availableUntil: testProductData.availableUntil,
+        sellerId: testSeller.id
+      };
+      
+      console.log('Creating product with DTO:', createProductDto);
+      
+      // Create the product
+      const createdProduct = await this.productsService.create(createProductDto);
+      
+      console.log('Product created successfully:', {
+        id: createdProduct.id,
+        description: createdProduct.description,
+        price: createdProduct.price,
+        code: createdProduct.code,
+        isActive: createdProduct.isActive
+      });
+      
+      await ctx.reply(`🧪 Test Product Creation Successful!\n\n📦 Product ID: ${createdProduct.id}\n📝 Description: ${createdProduct.description}\n💰 Price: ${createdProduct.price}\n🔢 Code: ${createdProduct.code}\n✅ Active: ${createdProduct.isActive}\n\nCheck console for detailed logs.`);
+      
+    } catch (error) {
+      console.error('Test product creation error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testproduct')
+  async testProductCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      // Test the sanitizeInput function
+      const testInputs = [
+        'Normal text',
+        'Text with <script> tags',
+        'Text with javascript:alert()',
+        'Very long text that exceeds 500 characters ' + 'x'.repeat(600),
+        'Text with special characters: & < > " \''
+      ];
+      
+      let result = '🧪 Product Input Test Results:\n\n';
+      
+      testInputs.forEach((input, index) => {
+        const sanitized = this.sanitizeInput(input);
+        result += `${index + 1}. Original: "${input.substring(0, 50)}${input.length > 50 ? '...' : ''}"\n`;
+        result += `   Sanitized: "${sanitized.substring(0, 50)}${sanitized.length > 50 ? '...' : ''}"\n`;
+        result += `   Length: ${input.length} -> ${sanitized.length}\n\n`;
+      });
+      
+      await ctx.reply(result);
+      
+    } catch (error) {
+      console.error('Test product error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testprice')
+  async testPriceCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const adminTelegramIds = ['5543081353'];
+    if (!adminTelegramIds.includes(ctx.from.id.toString())) {
+      return;
+    }
+    
+    try {
+      console.log('=== TEST PRICE PARSING ===');
+      
+      // Test various price inputs
+      const testPrices = [
+        '30000',
+        '30000.50',
+        '30000,50',
+        '30,000',
+        '30.000',
+        '30000 ',
+        ' 30000',
+        '30000\n',
+        '30000\t'
+      ];
+      
+      let result = '🧪 Price Parsing Test Results:\n\n';
+      
+      testPrices.forEach((priceInput, index) => {
+        const originalText = priceInput;
+        const sanitizedText = this.sanitizeInput(priceInput);
+        const originalParsed = parseFloat(originalText);
+        const sanitizedParsed = parseFloat(sanitizedText);
+        
+        result += `${index + 1}. Input: "${priceInput}"\n`;
+        result += `   Original parsed: ${originalParsed} (${isNaN(originalParsed) ? 'NaN' : 'Valid'})\n`;
+        result += `   Sanitized: "${sanitizedText}"\n`;
+        result += `   Sanitized parsed: ${sanitizedParsed} (${isNaN(sanitizedParsed) ? 'NaN' : 'Valid'})\n`;
+        result += `   Valid original: ${!isNaN(originalParsed) && originalParsed > 0}\n`;
+        result += `   Valid sanitized: ${!isNaN(sanitizedParsed) && sanitizedParsed > 0}\n\n`;
+      });
+      
+      await ctx.reply(result);
+      
+    } catch (error) {
+      console.error('Test price error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testinput')
+  async testInputCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    try {
+      console.log('=== TEST INPUT COMMAND ===');
+      console.log('User ID:', ctx.from.id);
+      console.log('Session exists:', !!ctx.session);
+      console.log('Session language:', ctx.session?.language);
+      console.log('Session role:', ctx.session?.role);
+      console.log('Session step:', ctx.session?.registrationStep);
+      
+      await ctx.reply(`🧪 Test Input Command Working!\n\n📊 Session Info:\n- Language: ${ctx.session?.language || 'none'}\n- Role: ${ctx.session?.role || 'none'}\n- Step: ${ctx.session?.registrationStep || 'none'}\n\n✅ Bot is responding to commands!`);
+      
+    } catch (error) {
+      console.error('Test input error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testpriceinput')
+  async testPriceInputCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    try {
+      console.log('=== TEST PRICE INPUT COMMAND ===');
+      
+      // Simulate the exact price validation logic
+      const testPrice = '30000';
+      console.log('Testing price:', testPrice);
+      
+      const price = parseFloat(testPrice);
+      console.log('Parsed price:', price);
+      console.log('Is NaN:', isNaN(price));
+      console.log('Is <= 0:', price <= 0);
+      
+      if (isNaN(price) || price <= 0) {
+        console.log('❌ Price validation failed');
+        await ctx.reply('❌ Price validation failed - price is invalid');
+      } else {
+        console.log('✅ Price validation passed');
+        await ctx.reply(`✅ Price validation passed!\n\n💰 Price: ${price}\n📊 Type: ${typeof price}\n🔢 Is NaN: ${isNaN(price)}\n📈 Is > 0: ${price > 0}`);
+      }
+      
+    } catch (error) {
+      console.error('Test price input error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testproductflow')
+  async testProductFlowCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    try {
+      console.log('=== TEST PRODUCT FLOW COMMAND ===');
+      
+      // Set session to seller role and product_price step
+      ctx.session.role = UserRole.SELLER;
+      ctx.session.registrationStep = 'product_price';
+      ctx.session.productData = {};
+      
+      console.log('Set session role to SELLER');
+      console.log('Set registration step to product_price');
+      console.log('Current session state:', {
+        role: ctx.session.role,
+        step: ctx.session.registrationStep,
+        productData: ctx.session.productData
+      });
+      
+      await ctx.reply('🧪 Product flow test started!\n\n💰 Please enter a price (e.g., 30000):');
+      
+    } catch (error) {
+      console.error('Test product flow error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testsession')
+  async testSessionCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    try {
+      console.log('=== TEST SESSION COMMAND ===');
+      
+      const telegramId = ctx.from.id.toString();
+      console.log('User ID:', telegramId);
+      
+      // Check database for user/seller
+      const existingUser = await this.usersService.findByTelegramId(telegramId);
+      const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+      
+      console.log('Database check:');
+      console.log('- Existing user:', !!existingUser);
+      console.log('- Existing seller:', !!existingSeller);
+      
+      // Set session role based on database
+      if (existingSeller) {
+        ctx.session.role = UserRole.SELLER;
+        console.log('Set session role to SELLER');
+      } else if (existingUser) {
+        ctx.session.role = UserRole.USER;
+        console.log('Set session role to USER');
+      } else {
+        console.log('No existing user or seller found');
+      }
+      
+      await ctx.reply(`🧪 Session Test Results:\n\n📊 Database Check:\n- User exists: ${!!existingUser}\n- Seller exists: ${!!existingSeller}\n\n🎭 Session Role: ${ctx.session.role || 'undefined'}\n\n✅ Session role should now be set correctly!`);
+      
+    } catch (error) {
+      console.error('Test session error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }
 }

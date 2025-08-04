@@ -1,7 +1,10 @@
 export const messages = {
   uz: {
     // Welcome and Language Selection
-    welcome: '🎉 Xush kelibsiz! Ulgurib Qol botiga xush kelibsiz!',
+    welcome: {
+      newUser: '👋 Xush kelibsiz! Iltimos, tilni tanlang:\n\nWelcome! Please select your language:',
+      back: '👋 Xush kelibsiz! Asosiy menyu:',
+    },
     selectLanguage: '🇺🇿 Tilni tanlang / 🇷🇺 Выберите язык\n\n🇺🇿 O\'zbekcha yoki rus tilini tanlang\n🇷🇺 Выберите узбекский или русский язык',
     languageSelected: '✅ Til tanlandi! Endi rolingizni tanlang:',
     
@@ -52,7 +55,7 @@ export const messages = {
       sellerRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Ma\'muriyat tasdiqlashini kutmoqda. Asosiy menyuga o\'tish uchun /start buyrug\'ini bosing.',
       productCreated: '✅ Mahsulot muvaffaqiyatli qo\'shildi!',
       productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n⏰ Mavjud vaqti: {availableUntil}',
-      orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n💰 Narxi: {price} so\'m\n\nBu kodni sotuvchiga ko\'rsating.',
+      orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n🔢 Mahsulot kodi: {productCode}\n💰 Narxi: {price} so\'m\n\nBuyurtma kodini sotuvchiga ko\'rsating.',
       ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
       storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
     },
@@ -218,7 +221,10 @@ export const messages = {
   
   ru: {
     // Welcome and Language Selection
-    welcome: '🎉 Добро пожаловать! Добро пожаловать в бот Ulgurib Qol!',
+    welcome: {
+      newUser: '👋 Добро пожаловать! Пожалуйста, выберите язык:\n\nWelcome! Please select your language:',
+      back: '👋 Добро пожаловать! Главное меню:',
+    },
     selectLanguage: '🇺🇿 Tilni tanlang / 🇷🇺 Выберите язык\n\n🇺🇿 O\'zbekcha yoki rus tilini tanlang\n🇷🇺 Выберите узбекский или русский язык',
     languageSelected: '✅ Язык выбран! Теперь выберите вашу роль:',
     
@@ -269,7 +275,7 @@ export const messages = {
       sellerRegistration: '✅ Регистрация успешно завершена! Ожидаем подтверждение администрации. Нажмите /start для перехода в главное меню.',
       productCreated: '✅ Товар успешно добавлен!',
       productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n⏰ Доступно до: {availableUntil}',
-      orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n💰 Цена: {price} сум\n\nПокажите этот код продавцу.',
+      orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n🔢 Код товара: {productCode}\n💰 Цена: {price} сум\n\nПокажите код заказа продавцу.',
       ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
       storeImageUploaded: '✅ Фото магазина успешно загружено!'
     },

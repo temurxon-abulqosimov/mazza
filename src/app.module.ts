@@ -30,6 +30,21 @@ import { Rating } from './ratings/entities/rating.entity';
       entities: [User, Seller, Admin, Product, Order, Rating],
       synchronize: envVariables.NODE_ENV === 'development',
       logging: envVariables.NODE_ENV === 'development',
+      // Connection pooling for high load
+      extra: {
+        max: 20, // Maximum number of connections in the pool
+        min: 5,  // Minimum number of connections in the pool
+        acquire: 30000, // Maximum time (ms) to acquire a connection
+        idle: 10000, // Maximum time (ms) a connection can be idle
+        evict: 60000, // How often (ms) to run eviction checks
+        handleDisconnects: true,
+      },
+      // Performance optimizations
+      cache: {
+        duration: 30000, // 30 seconds cache
+      },
+      // SSL configuration for production
+      ssl: envVariables.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     }),
     BotModule,
     UsersModule,
