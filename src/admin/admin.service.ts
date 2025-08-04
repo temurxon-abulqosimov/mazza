@@ -36,6 +36,21 @@ export class AdminService {
   private adminSessions = new Map<string, { lastLogin: Date; isAuthenticated: boolean }>();
 
   async authenticateAdmin(telegramId: string, username: string, password: string): Promise<Admin | null> {
+    console.log('=== ADMIN SERVICE AUTHENTICATION DEBUG ===');
+    console.log('Received telegramId:', telegramId);
+    console.log('Received username:', username);
+    console.log('Received password:', password);
+    console.log('Expected telegramId:', envVariables.ADMIN_TELEGRAM_ID);
+    console.log('Expected username:', envVariables.ADMIN_USERNAME);
+    console.log('Expected password:', envVariables.ADMIN_PASSWORD);
+    console.log('TelegramId match:', telegramId === envVariables.ADMIN_TELEGRAM_ID);
+    console.log('Username match:', username === envVariables.ADMIN_USERNAME);
+    console.log('Password match:', password === envVariables.ADMIN_PASSWORD);
+    console.log('Password length:', password.length);
+    console.log('Expected password length:', envVariables.ADMIN_PASSWORD.length);
+    console.log('Password char codes:', Array.from(password).map(c => c.charCodeAt(0)));
+    console.log('Expected password char codes:', Array.from(envVariables.ADMIN_PASSWORD).map(c => c.charCodeAt(0)));
+    
     // Check against environment variables
     if (telegramId === envVariables.ADMIN_TELEGRAM_ID && 
         username === envVariables.ADMIN_USERNAME && 

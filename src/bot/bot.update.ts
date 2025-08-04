@@ -107,6 +107,15 @@ export class BotUpdate {
       return;
     }
     
+    console.log('=== ADMIN CONFIG DEBUG ===');
+    console.log('Admin Telegram ID:', envVariables.ADMIN_TELEGRAM_ID);
+    console.log('Admin Username:', envVariables.ADMIN_USERNAME);
+    console.log('Admin Password:', envVariables.ADMIN_PASSWORD);
+    console.log('Current User ID:', ctx.from.id.toString());
+    console.log('Is Admin:', isAdmin);
+    
+    await ctx.reply(`🔍 Admin Configuration Debug:\n\n📱 Admin Telegram ID: ${envVariables.ADMIN_TELEGRAM_ID}\n👤 Admin Username: ${envVariables.ADMIN_USERNAME}\n🔐 Admin Password: ${envVariables.ADMIN_PASSWORD}\n👤 Current User ID: ${ctx.from.id.toString()}\n✅ Is Admin: ${isAdmin}`);
+    
     try {
       // Create a test seller with location
       const testSeller = await this.sellersService.create({
@@ -989,9 +998,17 @@ export class BotUpdate {
       if (ctx.session.adminLoginStep === 'password') {
         // Authenticate with password only
         try {
+          console.log('=== ADMIN AUTHENTICATION DEBUG ===');
+          console.log('Telegram ID:', telegramId);
+          console.log('Expected Telegram ID:', envVariables.ADMIN_TELEGRAM_ID);
+          console.log('Username:', envVariables.ADMIN_USERNAME);
+          console.log('Password provided:', text);
+          console.log('Expected password:', envVariables.ADMIN_PASSWORD);
+          console.log('Password match:', text === envVariables.ADMIN_PASSWORD);
+          
           const admin = await this.adminService.authenticateAdmin(
             telegramId,
-            '@avtemur', // Use the actual admin username
+            envVariables.ADMIN_USERNAME, // Use environment variable
             text
           );
           
