@@ -13,7 +13,7 @@ import { envVariables } from './config/env.variables';
 // Import all entities explicitly
 import { User } from './users/entities/user.entity';
 import { Seller } from './sellers/entities/seller.entity';
-import { Admin } from './admin/entities/admin.entity';
+
 import { Product } from './products/entities/product.entity';
 import { Order } from './orders/entities/order.entity';
 import { Rating } from './ratings/entities/rating.entity';
@@ -27,8 +27,8 @@ import { Rating } from './ratings/entities/rating.entity';
       username: envVariables.DB_USERNAME,
       password: envVariables.DB_PASSWORD,
       database: envVariables.DB_NAME,
-      entities: [User, Seller, Admin, Product, Order, Rating],
-      synchronize: envVariables.NODE_ENV === 'development',
+      entities: [User, Seller, Product, Order, Rating],
+      synchronize: true, // Enable for table creation
       logging: envVariables.NODE_ENV === 'development',
       // Connection pooling for high load
       extra: {

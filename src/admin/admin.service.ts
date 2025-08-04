@@ -30,51 +30,59 @@ export class AdminService {
   ) {}
 
   async initializeAdmin(): Promise<void> {
-    // Check if admin exists, if not create from environment variables
-    const existingAdmin = await this.adminRepository.findOne({
-      where: { telegramId: envVariables.ADMIN_TELEGRAM_ID }
-    });
-
-    if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash(envVariables.ADMIN_PASSWORD, 10);
-      
-      await this.adminRepository.save({
-        telegramId: envVariables.ADMIN_TELEGRAM_ID,
-        username: envVariables.ADMIN_USERNAME,
-        password: hashedPassword,
-        isActive: true
-      });
-      
-      console.log('Admin account created from environment variables');
-    }
+    console.log('✅ Admin account initialized from environment variables');
   }
 
+  private adminSessions = new Map<string, { lastLogin: Date; isAuthenticated: boolean }>();
+
   async authenticateAdmin(telegramId: string, username: string, password: string): Promise<Admin | null> {
-    const admin = await this.adminRepository.findOne({
-      where: { telegramId, username, isActive: true }
-    });
-
-    if (!admin) {
-      return null;
+    // Check against environment variables
+    if (telegramId === envVariables.ADMIN_TELEGRAM_ID && 
+        username === envVariables.ADMIN_USERNAME && 
+        password === envVariables.ADMIN_PASSWORD) {
+      
+      // Store session
+      this.adminSessions.set(telegramId, {
+        lastLogin: new Date(),
+        isAuthenticated: true
+      });
+      
+      return {
+        id: 1,
+        telegramId: envVariables.ADMIN_TELEGRAM_ID,
+        username: envVariables.ADMIN_USERNAME,
+        password: envVariables.ADMIN_PASSWORD,
+        isActive: true,
+        lastLoginAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      } as Admin;
     }
+    return null;
+  }
 
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
-    if (!isPasswordValid) {
-      return null;
+  async isAdminAuthenticated(telegramId: string): Promise<boolean> {
+    const session = this.adminSessions.get(telegramId);
+    if (!session) return false;
+    
+    // Check if session is still valid (24 hours)
+    const sessionAge = Date.now() - session.lastLogin.getTime();
+    const maxSessionAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    if (sessionAge > maxSessionAge) {
+      this.adminSessions.delete(telegramId);
+      return false;
     }
+    
+    return session.isAuthenticated;
+  }
 
-    // Update last login time
-    admin.lastLoginAt = new Date();
-    await this.adminRepository.save(admin);
-
-    return admin;
+  async logoutAdmin(telegramId: string): Promise<void> {
+    this.adminSessions.delete(telegramId);
   }
 
   async isAdmin(telegramId: string): Promise<boolean> {
-    const admin = await this.adminRepository.findOne({
-      where: { telegramId, isActive: true }
-    });
-    return !!admin;
+    return telegramId === envVariables.ADMIN_TELEGRAM_ID;
   }
 
   async getAdminByTelegramId(telegramId: string): Promise<Admin | null> {
