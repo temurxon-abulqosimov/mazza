@@ -2556,6 +2556,14 @@ export class BotUpdate {
     const isOpen = this.isStoreOpen(store.opensAt, store.closesAt);
     const status = isOpen ? getMessage(language, 'stores.openStatus') : getMessage(language, 'stores.closedStatus');
 
+    // Add location link if available
+    let locationLink = '';
+    if (store.location && store.location.latitude && store.location.longitude) {
+      const mapUrl = `https://maps.google.com/?q=${store.location.latitude},${store.location.longitude}`;
+      const locationText = language === 'ru' ? 'Посмотреть на карте' : 'Xaritada ko\'rish';
+      locationLink = `\n🗺️ <a href="${mapUrl}">${locationText}</a>`;
+    }
+
     // Store information
     let storeInfo = getMessage(language, 'stores.storeDetailsHeader', {
       businessName: store.businessName,
@@ -2563,7 +2571,7 @@ export class BotUpdate {
       phoneNumber: store.phoneNumber,
       hours: hours,
       status: status
-    });
+    }) + locationLink;
 
     // Send store image if available
     if (store.imageUrl && store.imageUrl.trim() !== '') {
@@ -2582,34 +2590,43 @@ export class BotUpdate {
           if (imageUrl.includes('api.telegram.org')) {
             try {
               // Try to send as URL first
-              await ctx.replyWithPhoto(imageUrl, { caption: storeInfo });
+              await ctx.replyWithPhoto(imageUrl, { 
+                caption: storeInfo,
+                parse_mode: 'HTML'
+              });
             } catch (telegramError) {
               console.log('Telegram file URL expired or invalid, sending text only:', telegramError.message);
-              await ctx.reply(storeInfo);
+              await ctx.reply(storeInfo, { parse_mode: 'HTML' });
             }
           } else {
             // For external URLs, try to send as photo
-            await ctx.replyWithPhoto(imageUrl, { caption: storeInfo });
+            await ctx.replyWithPhoto(imageUrl, { 
+              caption: storeInfo,
+              parse_mode: 'HTML'
+            });
           }
         } else if (imageUrl.length > 20 && !imageUrl.includes('http')) {
           // This might be a file_id, try to send it directly
           try {
-            await ctx.replyWithPhoto(imageUrl, { caption: storeInfo });
+            await ctx.replyWithPhoto(imageUrl, { 
+              caption: storeInfo,
+              parse_mode: 'HTML'
+            });
           } catch (fileIdError) {
             console.log('File ID invalid, sending text only:', fileIdError.message);
-            await ctx.reply(storeInfo);
+            await ctx.reply(storeInfo, { parse_mode: 'HTML' });
           }
         } else {
           console.log('Invalid image URL format:', imageUrl);
-          await ctx.reply(storeInfo);
+          await ctx.reply(storeInfo, { parse_mode: 'HTML' });
         }
       } catch (error) {
         console.error('Error sending store image:', error);
         // If image fails, just send the text info
-        await ctx.reply(storeInfo);
+        await ctx.reply(storeInfo, { parse_mode: 'HTML' });
       }
     } else {
-      await ctx.reply(storeInfo);
+      await ctx.reply(storeInfo, { parse_mode: 'HTML' });
     }
 
     if (products.length > 0) {
