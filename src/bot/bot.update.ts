@@ -97,6 +97,20 @@ export class BotUpdate {
     return { isAuthenticated, language };
   }
 
+  @Command('admintest')
+  async adminTestCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      return ctx.reply('❌ You are not an admin!');
+    }
+    
+    await ctx.reply(`✅ Admin Test Successful!\n\n📱 Your Telegram ID: ${telegramId}\n👤 Expected Admin ID: ${envVariables.ADMIN_TELEGRAM_ID}\n🔐 Admin Password: ${envVariables.ADMIN_PASSWORD}\n\nYou can now use /admin to access the admin panel.`);
+  }
+
   @Command('debug')
   async debugCommand(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
@@ -976,6 +990,7 @@ export class BotUpdate {
 
     this.initializeSession(ctx);
     const text = this.sanitizeInput(ctx.message.text);
+    const rawText = ctx.message.text; // Keep raw text for admin authentication
     const telegramId = ctx.from.id.toString();
     const language = ctx.session.language || 'uz';
 
@@ -983,6 +998,7 @@ export class BotUpdate {
     console.log('Session role:', ctx.session.role);
     console.log('Session step:', ctx.session.registrationStep);
     console.log('Sanitized text:', text);
+    console.log('Raw text:', rawText);
 
     // Handle admin authentication - only password
     if (ctx.session.adminLoginStep && !ctx.session.adminAuthenticated) {
@@ -996,20 +1012,20 @@ export class BotUpdate {
       }
       
       if (ctx.session.adminLoginStep === 'password') {
-        // Authenticate with password only
+        // Authenticate with password only - use raw text to avoid sanitization issues
         try {
           console.log('=== ADMIN AUTHENTICATION DEBUG ===');
           console.log('Telegram ID:', telegramId);
           console.log('Expected Telegram ID:', envVariables.ADMIN_TELEGRAM_ID);
           console.log('Username:', envVariables.ADMIN_USERNAME);
-          console.log('Password provided:', text);
+          console.log('Raw password provided:', rawText);
           console.log('Expected password:', envVariables.ADMIN_PASSWORD);
-          console.log('Password match:', text === envVariables.ADMIN_PASSWORD);
+          console.log('Password match:', rawText === envVariables.ADMIN_PASSWORD);
           
           const admin = await this.adminService.authenticateAdmin(
             telegramId,
             envVariables.ADMIN_USERNAME, // Use environment variable
-            text
+            rawText // Use raw text instead of sanitized text
           );
           
           if (admin) {
