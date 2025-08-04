@@ -1030,6 +1030,31 @@ export class BotUpdate {
       return;
     }
 
+    // Handle when someone types "admin" as text - start admin authentication
+    if (text.toLowerCase() === 'admin' || rawText.toLowerCase() === 'admin') {
+      if (!ctx.from) return;
+      
+      const telegramId = ctx.from.id.toString();
+      
+      // Check if this user is the admin
+      if (telegramId === envVariables.ADMIN_TELEGRAM_ID) {
+        console.log('🔐 ADMIN TEXT DETECTED - Starting authentication');
+        console.log('Telegram ID:', telegramId, 'Expected:', envVariables.ADMIN_TELEGRAM_ID);
+        
+        // Start admin authentication process
+        ctx.session.adminLoginStep = 'password';
+        ctx.session.adminLoginData = {};
+        
+        await ctx.reply('🔐 Admin detected. Please enter the admin password:');
+        return;
+      } else {
+        console.log('❌ NON-ADMIN TRYING TO ACCESS ADMIN');
+        console.log('Telegram ID:', telegramId, 'Expected:', envVariables.ADMIN_TELEGRAM_ID);
+        await ctx.reply('❌ You are not authorized as admin.');
+        return;
+      }
+    }
+
     // Handle admin search
     if (ctx.session.adminAction === 'searching') {
       if (!ctx.from) return;
