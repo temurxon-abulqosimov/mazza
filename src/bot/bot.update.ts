@@ -3,6 +3,7 @@ import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegra
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
 import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
+import { isStoreOpen } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
 import { SellersService } from 'src/sellers/sellers.service';
 import { AdminService } from 'src/admin/admin.service';
@@ -2775,9 +2776,7 @@ export class BotUpdate {
   }
 
   private isStoreOpen(opensAt: number, closesAt: number): boolean {
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    return currentTime >= opensAt && currentTime <= closesAt;
+    return isStoreOpen(opensAt, closesAt);
   }
 
   private async handleCompletePurchase(@Ctx() ctx: TelegramContext) {

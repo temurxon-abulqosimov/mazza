@@ -6,6 +6,7 @@ import { CreateSellerDto } from './dto/create-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { calculateDistance, calculateDistanceFromLocations, calculateDistanceSimple, formatDistance } from 'src/common/utils/distance.util';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
+import { isStoreOpen } from 'src/common/utils/store-hours.util';
 
 @Injectable()
 export class SellersService {
@@ -98,7 +99,6 @@ export class SellersService {
     console.log(`Found ${sellers.length} approved sellers`);
 
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
 
     const sellersWithDistance = sellers
       .map(seller => {
@@ -139,8 +139,8 @@ export class SellersService {
           console.log(`No valid location for seller`);
         }
 
-        const isOpen = currentTime >= seller.opensAt && currentTime <= seller.closesAt;
-        console.log(`Store hours: ${seller.opensAt} - ${seller.closesAt}, Current time: ${currentTime}, Is open: ${isOpen}`);
+        const isOpen = isStoreOpen(seller.opensAt, seller.closesAt);
+        console.log(`Store hours: ${seller.opensAt} - ${seller.closesAt}, Is open: ${isOpen}`);
 
         // Filter active products for this seller
         const activeProducts = seller.products.filter(product => {

@@ -23,7 +23,7 @@ export const envVariables = {
     // Admin Configuration
     ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '794464667',
     ADMIN_USERNAME: process.env.ADMIN_USERNAME || '@avtemur',
-    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin',
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
     
     // Validation
     validate() {
@@ -35,6 +35,9 @@ export const envVariables = {
         }
         if (!this.DB_PASSWORD) {
             throw new Error('DB_PASSWORD is required');
+        }
+        if (!this.ADMIN_PASSWORD) {
+            throw new Error('ADMIN_PASSWORD is required');
         }
     }
 };
