@@ -19,7 +19,7 @@ export const messages = {
     // Registration Steps
     registration: {
       phoneRequest: '📱 Iltimos, telefon raqamingizni yuboring:',
-      phoneSuccess: '✅ Telefon raqam qabul qilindi! Ro\'yxatdan o\'tish yakunlandi.',
+      phoneSuccess: '✅ Telefon raqam qabul qilindi! Endi to\'lov usulini tanlang:',
       phoneError: '❌ Telefon raqami topilmadi. Iltimos, qaytadan urinib ko\'ring.',
       storeImageRequest: '📸 Iltimos, do\'koningizning suratini yuboring (ixtiyoriy):',
       locationRequest: '📍 Manzilingizni yuboring:',
@@ -51,11 +51,11 @@ export const messages = {
     
     // Success Messages
     success: {
-      userRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Do\'konlarni topish uchun "Do\'konlarni topish" tugmasini bosing.',
+      userRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Do\'konlarni topish uchun "Do\'konlarni topish" tugmasini bosing. Manzilingizni faqat do\'konlarni qidirayotganda yuborishingiz kerak.',
       sellerRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Ma\'muriyat tasdiqlashini kutmoqda. Asosiy menyuga o\'tish uchun /start buyrug\'ini bosing.',
       productCreated: '✅ Mahsulot muvaffaqiyatli qo\'shildi!',
       productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n⏰ Mavjud vaqti: {availableUntil}',
-      orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n🔢 Mahsulot kodi: {productCode}\n💰 Narxi: {price} so\'m\n\nBuyurtma kodini sotuvchiga ko\'rsating.',
+      orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n🔢 Mahsulot kodi: {productCode}\n💰 Narxi: {price} so\'m\n\nBuyurtma kodini sotuvchiga ko\'rsating. To\'lov usuli sotuvchi bilan kelishiladi.',
       ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
       storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
     },
@@ -70,7 +70,7 @@ export const messages = {
       general: '❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.',
       userNotFound: '❌ Avval ro\'yxatdan o\'ting.',
       userAlreadyExists: '❌ Siz allaqachon ro\'yxatdan o\'tgansiz.',
-      locationNotFound: '❌ Manzil topilmadi. Iltimos, qaytadan ro\'yxatdan o\'ting.',
+      locationNotFound: '❌ Manzil topilmadi. Iltimos, do\'konlarni qidirayotganda manzilingizni yuboring.',
       sellerNotFound: '❌ Siz sotuvchi emassiz.',
       sellerAlreadyExists: '❌ Siz allaqachon sotuvchi sifatida ro\'yxatdan o\'tgansiz.',
       sellerNotApproved: '❌ Sizning akkauntingiz hali tasdiqlanmagan.',
@@ -85,7 +85,7 @@ export const messages = {
       productCreationFailed: '❌ Mahsulot qo\'shishda xatolik yuz berdi.',
       ratingFailed: '❌ Baho qo\'yishda xatolik yuz berdi.',
       productNotSelected: '❌ Mahsulot tanlanmagan.',
-      paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan.',
+      paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan. (Bu xabar endi ko\'rsatilmaydi)',
       photoProcessingFailed: '❌ Surat qayta ishlashda xatolik yuz berdi.'
     },
     
@@ -174,7 +174,8 @@ export const messages = {
 
     // Purchase
     purchase: {
-      selectPaymentMethod: '🛒 {productName}\n💰 Narxi: {price} so\'m\n\n💳 To\'lov usulini tanlang:'
+      selectPaymentMethod: '🛒 {productName}\n💰 Narxi: {price} so\'m\n\n💳 To\'lov usulini tanlang:',
+      paymentMethodNotNeeded: '💳 To\'lov usuli endi avtomatik tanlanadi. Buyurtma to\'g\'ridan-to\'g\'ri yaratiladi.'
     },
 
     // Admin Panel
@@ -239,7 +240,7 @@ export const messages = {
     // Registration Steps
     registration: {
       phoneRequest: '📱 Пожалуйста, отправьте ваш номер телефона:',
-      phoneSuccess: '✅ Номер телефона принят! Регистрация завершена.',
+      phoneSuccess: '✅ Номер телефона принят! Теперь выберите способ оплаты:',
       phoneError: '❌ Номер телефона не найден. Пожалуйста, попробуйте снова.',
       storeImageRequest: '📸 Пожалуйста, отправьте фото вашего магазина (необязательно):',
       locationRequest: '📍 Отправьте местоположение:',
@@ -271,11 +272,11 @@ export const messages = {
     
     // Success Messages
     success: {
-      userRegistration: '✅ Регистрация успешно завершена! Нажмите "Найти магазины" для поиска магазинов.',
+      userRegistration: '✅ Регистрация успешно завершена! Нажмите "Найти магазины" для поиска магазинов. Ваше местоположение потребуется только при поиске магазинов.',
       sellerRegistration: '✅ Регистрация успешно завершена! Ожидаем подтверждение администрации. Нажмите /start для перехода в главное меню.',
       productCreated: '✅ Товар успешно добавлен!',
       productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n⏰ Доступно до: {availableUntil}',
-      orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n🔢 Код товара: {productCode}\n💰 Цена: {price} сум\n\nПокажите код заказа продавцу.',
+      orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n🔢 Код товара: {productCode}\n💰 Цена: {price} сум\n\nПокажите код заказа продавцу. Способ оплаты обсудите с продавцом.',
       ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
       storeImageUploaded: '✅ Фото магазина успешно загружено!'
     },
@@ -290,7 +291,7 @@ export const messages = {
       general: '❌ Произошла ошибка. Пожалуйста, попробуйте снова.',
       userNotFound: '❌ Сначала зарегистрируйтесь.',
       userAlreadyExists: '❌ Вы уже зарегистрированы.',
-      locationNotFound: '❌ Местоположение не найдено. Пожалуйста, зарегистрируйтесь заново.',
+      locationNotFound: '❌ Местоположение не найдено. Пожалуйста, отправьте ваше местоположение при поиске магазинов.',
       sellerNotFound: '❌ Вы не продавец.',
       sellerAlreadyExists: '❌ Вы уже зарегистрированы как продавец.',
       sellerNotApproved: '❌ Ваш аккаунт еще не подтвержден.',
@@ -305,7 +306,7 @@ export const messages = {
       productCreationFailed: '❌ Ошибка при добавлении товара.',
       ratingFailed: '❌ Ошибка при выставлении оценки.',
       productNotSelected: '❌ Товар не выбран.',
-      paymentMethodNotSelected: '❌ Способ оплаты не выбран.',
+      paymentMethodNotSelected: '❌ Способ оплаты не выбран. (Это сообщение больше не показывается)',
       photoProcessingFailed: '❌ Ошибка при обработке фото.'
     },
     
@@ -394,7 +395,8 @@ export const messages = {
 
     // Purchase
     purchase: {
-      selectPaymentMethod: '🛒 {productName}\n💰 Цена: {price} сум\n\n💳 Выберите способ оплаты:'
+      selectPaymentMethod: '🛒 {productName}\n💰 Цена: {price} сум\n\n💳 Выберите способ оплаты:',
+      paymentMethodNotNeeded: '💳 Способ оплаты теперь выбирается автоматически. Заказ создается напрямую.'
     },
 
     // Admin Panel

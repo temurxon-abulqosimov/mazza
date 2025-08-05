@@ -1361,8 +1361,8 @@ export class BotUpdate {
     if (ctx.session.role === UserRole.USER) {
       // User registration - complete after phone number
       ctx.session.userData = { phoneNumber: contact.phone_number };
-      ctx.session.registrationStep = 'location';
-      await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getLocationKeyboard(language) });
+      ctx.session.registrationStep = 'payment';
+      await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getPaymentMethodKeyboard(language) });
     } else if (ctx.session.role === UserRole.SELLER) {
       // Seller registration
       ctx.session.sellerData = { phoneNumber: contact.phone_number };
@@ -1436,56 +1436,10 @@ export class BotUpdate {
       return;
     }
     
-    // Handle registration location step
+    // Handle registration location step (only for sellers)
     if (ctx.session.registrationStep !== 'location') return;
     
-    if (ctx.session.role === UserRole.USER) {
-      // User registration - location step
-      if (!ctx.session.userData) {
-        ctx.session.userData = {};
-      }
-      ctx.session.userData.location = {
-        latitude: location.latitude,
-        longitude: location.longitude
-      };
-      
-      // Complete user registration
-      try {
-        if (!ctx.from) throw new Error('User not found');
-        if (!ctx.session.userData.phoneNumber || !ctx.session.userData.location) {
-          throw new Error('Missing user data');
-        }
-
-        // Check if user already exists
-        const existingUser = await this.usersService.findByTelegramId(ctx.from.id.toString());
-        if (existingUser) {
-          await ctx.reply(getMessage(language, 'error.userAlreadyExists'));
-          return;
-        }
-
-        const createUserDto = {
-          telegramId: ctx.from.id.toString(),
-          phoneNumber: ctx.session.userData.phoneNumber,
-          location: ctx.session.userData.location,
-          paymentMethod: undefined, // Payment method will be set during purchase
-          language: ctx.session.language
-        };
-
-        console.log('Creating user with DTO:', createUserDto);
-        const createdUser = await this.usersService.create(createUserDto);
-        console.log('User created successfully:', createdUser);
-        
-        await ctx.reply(getMessage(language, 'success.userRegistration'));
-        await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'user') });
-      } catch (error) {
-        console.error('User registration error:', error);
-        if (error.message === 'User already exists with this telegram ID') {
-          await ctx.reply(getMessage(language, 'error.userAlreadyExists'));
-        } else {
-          await ctx.reply(`❌ Registration failed: ${error.message}`);
-        }
-      }
-    } else if (ctx.session.role === UserRole.SELLER) {
+    if (ctx.session.role === UserRole.SELLER) {
       // Seller registration - location step
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
@@ -1702,24 +1656,14 @@ export class BotUpdate {
     const paymentMethod = ctx.match[1];
     const language = ctx.session.language || 'uz';
     
-    // Handle payment method selection during purchase
-    if (ctx.session.action === 'selecting_payment') {
-      ctx.session.selectedPaymentMethod = paymentMethod;
-      ctx.session.action = undefined;
-      
-      // Complete the purchase
-      await this.handleCompletePurchase(ctx);
-      return;
-    }
+    // Payment method selection is now only used during user registration
+    // Purchase flow no longer requires payment method selection
+    await ctx.reply(getMessage(language, 'purchase.paymentMethodNotNeeded'));
   }
 
   @Action('back_to_store')
   async onBackToStore(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
-    
-    // Clear payment method selection
-    ctx.session.selectedPaymentMethod = undefined;
-    ctx.session.action = undefined;
     
     // Go back to store details
     if (ctx.session.selectedStoreId) {
@@ -2604,15 +2548,11 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.productNotFound'));
     }
 
-    // Store selected product and show payment method selection
+    // Store selected product and directly complete purchase
     ctx.session.selectedProductId = productId;
-    ctx.session.action = 'selecting_payment';
     
-    const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'purchase.selectPaymentMethod', {
-      productName: product.description,
-      price: product.price
-    }), { reply_markup: getPaymentMethodKeyboard(language) });
+    // Directly complete the purchase without payment method selection
+    await this.handleCompletePurchase(ctx);
   }
 
   private async handleMyOrders(@Ctx() ctx: TelegramContext) {
@@ -2796,11 +2736,8 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.productNotSelected'));
     }
 
-    const paymentMethod = ctx.session.selectedPaymentMethod;
-    if (!paymentMethod) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.paymentMethodNotSelected'));
-    }
+    // Payment method is no longer required for purchase
+    // Users can discuss payment method directly with the seller
 
     try {
       const product = await this.productsService.findOne(productId);
@@ -2850,7 +2787,6 @@ export class BotUpdate {
 
       // Clear session data
       ctx.session.selectedProductId = undefined;
-      ctx.session.selectedPaymentMethod = undefined;
     } catch (error) {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.orderCreationFailed'));

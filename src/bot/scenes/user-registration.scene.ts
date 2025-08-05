@@ -1,7 +1,7 @@
 // src/bot/scenes/user-registration.scene.ts
 import { Ctx, Scene, SceneEnter, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getLocationKeyboard, getPaymentMethodKeyboard } from 'src/common/utils/keyboard.util';
+import { getPaymentMethodKeyboard } from 'src/common/utils/keyboard.util';
 import { UsersService } from 'src/users/users.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { PaymentMethod } from 'src/common/enums/payment-method.enum';
@@ -42,29 +42,10 @@ export class UserRegistrationScene {
     }
 
     ctx.session.userData = { phoneNumber: contact.phone_number };
-    ctx.session.registrationStep = 'location';
-
-    const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getLocationKeyboard(language) });
-  }
-
-  @On('location')
-  async onLocation(@Ctx() ctx: TelegramContext) {
-    if (ctx.session.registrationStep !== 'location') return;
-    if (!ctx.message || !('location' in ctx.message)) return;
-
-    const location = ctx.message.location;
-    if (!ctx.session.userData) {
-      ctx.session.userData = {};
-    }
-    ctx.session.userData.location = {
-      latitude: location.latitude,
-      longitude: location.longitude
-    };
     ctx.session.registrationStep = 'payment';
 
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.locationSuccess'), { reply_markup: getPaymentMethodKeyboard(language) });
+    await ctx.reply(getMessage(language, 'registration.phoneSuccess'), { reply_markup: getPaymentMethodKeyboard(language) });
   }
 
   @Action(/payment_(cash|card|click|payme)/)
@@ -81,14 +62,13 @@ export class UserRegistrationScene {
     // Create user
     try {
       if (!ctx.from) throw new Error('User not found');
-      if (!ctx.session.userData.phoneNumber || !ctx.session.userData.location || !ctx.session.userData.paymentMethod) {
+      if (!ctx.session.userData.phoneNumber || !ctx.session.userData.paymentMethod) {
         throw new Error('Missing user data');
       }
 
       const createUserDto: CreateUserDto = {
         telegramId: ctx.from.id.toString(),
         phoneNumber: ctx.session.userData.phoneNumber,
-        location: ctx.session.userData.location,
         paymentMethod: ctx.session.userData.paymentMethod,
         language: ctx.session.language
       };
