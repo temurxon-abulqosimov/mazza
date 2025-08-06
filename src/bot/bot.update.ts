@@ -2440,8 +2440,8 @@ export class BotUpdate {
       // Format distance - if distance is null, show "N/A", otherwise format properly
       const distanceText = distance === null ? 'N/A' : formatDistance(distance);
       
-      // Get average rating for the store
-      const averageRating = await this.ratingsService.getAverageRatingBySeller(store.id);
+      // Use the average rating that's already calculated in the sellers service
+      const averageRating = store.averageRating || 0;
       const ratingCount = await this.ratingsService.getSellerRatingCount(store.id);
       
       // Format rating display
@@ -4015,6 +4015,20 @@ export class BotUpdate {
       }
       
       const testSeller = sellers[0];
+      const telegramId = ctx.from.id.toString();
+      const user = await this.usersService.findByTelegramId(telegramId);
+      
+      if (!user) {
+        return ctx.reply('❌ User not found for testing!');
+      }
+      
+      // Test creating a rating
+      const testRating = await this.ratingsService.create({
+        rating: 5,
+        type: 'seller',
+        userId: user.id,
+        sellerId: testSeller.id
+      });
       
       // Test store rating functionality
       const averageRating = await this.ratingsService.getAverageRatingBySeller(testSeller.id);
@@ -4023,7 +4037,8 @@ export class BotUpdate {
       const result = `🧪 Store Rating Test Results:\n\n` +
         `🏪 Store: ${testSeller.businessName}\n` +
         `⭐ Average Rating: ${averageRating.toFixed(1)}/5\n` +
-        `📊 Rating Count: ${ratingCount}\n\n` +
+        `📊 Rating Count: ${ratingCount}\n` +
+        `✅ Test Rating Created: ${testRating.id}\n\n` +
         `✅ Store rating system is working!`;
       
       await ctx.reply(result);
@@ -4067,6 +4082,115 @@ export class BotUpdate {
       await ctx.reply(`🔍 Pending rating for seller: ${pendingSellerId || 'None'}`);
       
     } catch (error) {
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('teststoresearch')
+  async testStoreSearchCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    try {
+      // Get all sellers
+      const sellers = await this.sellersService.findAll();
+      
+      if (sellers.length === 0) {
+        return ctx.reply('❌ No sellers found!');
+      }
+      
+      let result = `🧪 Store Search Test Results:\n\n`;
+      
+      for (const seller of sellers.slice(0, 5)) { // Show first 5 sellers
+        const averageRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+        const ratingCount = await this.ratingsService.getSellerRatingCount(seller.id);
+        
+        let ratingDisplay = '';
+        if (averageRating > 0) {
+          const stars = '⭐'.repeat(Math.round(averageRating));
+          ratingDisplay = ` ${stars} (${averageRating.toFixed(1)}) (${ratingCount} baho)`;
+        }
+        
+        result += `🏪 ${seller.businessName}${ratingDisplay}\n`;
+      }
+      
+      await ctx.reply(result);
+      
+    } catch (error) {
+      console.error('Test store search error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testratingcomplete')
+  async testRatingCompleteCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    try {
+      const telegramId = ctx.from.id.toString();
+      const user = await this.usersService.findByTelegramId(telegramId);
+      
+      if (!user) {
+        return ctx.reply('❌ User not found for testing!');
+      }
+      
+      // Get the first seller for testing
+      const sellers = await this.sellersService.findAll();
+      
+      if (sellers.length === 0) {
+        return ctx.reply('❌ No sellers found for testing!');
+      }
+      
+      const testSeller = sellers[0];
+      
+      // Test 1: Create a rating
+      const testRating = await this.ratingsService.create({
+        rating: 4,
+        type: 'seller',
+        userId: user.id,
+        sellerId: testSeller.id
+      });
+      
+      // Test 2: Check if rating was created
+      const averageRating = await this.ratingsService.getAverageRatingBySeller(testSeller.id);
+      const ratingCount = await this.ratingsService.getSellerRatingCount(testSeller.id);
+      const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, testSeller.id);
+      
+      // Test 3: Test nearby stores with ratings
+      const nearbyStores = await this.sellersService.findNearbyStores(41.2995, 69.2401, 10); // Tashkent coordinates
+      
+      let result = `🧪 Complete Rating Test Results:\n\n`;
+      result += `✅ Test Rating Created: ID ${testRating.id}\n`;
+      result += `⭐ Average Rating: ${averageRating.toFixed(1)}/5\n`;
+      result += `📊 Rating Count: ${ratingCount}\n`;
+      result += `🔍 User Has Rated: ${hasRated ? 'Yes' : 'No'}\n\n`;
+      result += `🏪 Nearby Stores with Ratings:\n`;
+      
+      for (const store of nearbyStores.slice(0, 3)) {
+        const storeRatingCount = await this.ratingsService.getSellerRatingCount(store.id);
+        let ratingDisplay = '';
+        if (store.averageRating > 0) {
+          const stars = '⭐'.repeat(Math.round(store.averageRating));
+          ratingDisplay = ` ${stars} (${store.averageRating.toFixed(1)}) (${storeRatingCount} baho)`;
+        }
+        result += `• ${store.businessName}${ratingDisplay}\n`;
+      }
+      
+      await ctx.reply(result);
+      
+    } catch (error) {
+      console.error('Complete rating test error:', error);
       await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }

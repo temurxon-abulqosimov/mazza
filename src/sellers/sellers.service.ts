@@ -7,12 +7,14 @@ import { UpdateSellerDto } from './dto/update-seller.dto';
 import { calculateDistance, calculateDistanceFromLocations, calculateDistanceSimple, formatDistance } from 'src/common/utils/distance.util';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
 import { isStoreOpen } from 'src/common/utils/store-hours.util';
+import { RatingsService } from 'src/ratings/ratings.service';
 
 @Injectable()
 export class SellersService {
   constructor(
     @InjectRepository(Seller)
     private sellersRepository: Repository<Seller>,
+    private ratingsService: RatingsService,
   ) {}
 
   async create(createSellerDto: CreateSellerDto): Promise<Seller> {
@@ -159,7 +161,7 @@ export class SellersService {
           products: activeProducts, // Only include active products
           distance,
           isOpen,
-          averageRating: 0, // Will be calculated separately
+          averageRating: 0, // Will be calculated in the next step
         };
       })
       .filter(seller => {
@@ -170,8 +172,20 @@ export class SellersService {
 
     console.log(`\nSellers with active products: ${sellersWithDistance.length}`);
 
+    // Calculate average ratings for each seller
+    const sellersWithRatings = await Promise.all(
+      sellersWithDistance.map(async (seller) => {
+        const averageRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+        console.log(`Seller ${seller.businessName}: Average rating = ${averageRating}`);
+        return {
+          ...seller,
+          averageRating
+        };
+      })
+    );
+
     // Sort by distance (ascending) - sellers with distance first, then those without
-    const sortedSellers = sellersWithDistance
+    const sortedSellers = sellersWithRatings
       .sort((a, b) => {
         // If both have distance, sort by distance
         if (a.distance !== null && b.distance !== null) {

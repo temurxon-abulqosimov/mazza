@@ -12,8 +12,34 @@ export class RatingsService {
   ) {}
 
   async create(createRatingDto: CreateRatingDto): Promise<Rating> {
-    const rating = this.ratingsRepository.create(createRatingDto);
-    return this.ratingsRepository.save(rating);
+    console.log('Creating rating with DTO:', createRatingDto);
+    
+    // Create the rating entity with proper relationships
+    const ratingData: any = {
+      rating: createRatingDto.rating,
+      type: createRatingDto.type,
+      user: { id: createRatingDto.userId }
+    };
+
+    if (createRatingDto.comment) {
+      ratingData.comment = createRatingDto.comment;
+    }
+
+    if (createRatingDto.productId) {
+      ratingData.product = { id: createRatingDto.productId };
+    }
+
+    if (createRatingDto.sellerId) {
+      ratingData.seller = { id: createRatingDto.sellerId };
+    }
+
+    console.log('Rating data to save:', ratingData);
+    
+    const rating = this.ratingsRepository.create(ratingData);
+    const savedRating = await this.ratingsRepository.save(rating);
+    
+    console.log('Rating saved successfully:', savedRating);
+    return savedRating;
   }
 
   async findAll(): Promise<Rating[]> {
@@ -65,6 +91,8 @@ export class RatingsService {
   }
 
   async getAverageRatingBySeller(sellerId: number): Promise<number> {
+    console.log('Getting average rating for seller:', sellerId);
+    
     const result = await this.ratingsRepository
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
@@ -72,16 +100,25 @@ export class RatingsService {
       .andWhere('rating.type = :type', { type: 'seller' })
       .getRawOne();
 
-    return result?.average ? parseFloat(result.average) : 0;
+    const average = result?.average ? parseFloat(result.average) : 0;
+    console.log('Average rating result:', average);
+    return average;
   }
 
   async getSellerRatingCount(sellerId: number): Promise<number> {
-    return this.ratingsRepository.count({
+    console.log('Getting rating count for seller:', sellerId);
+    
+    const count = await this.ratingsRepository.count({
       where: { seller: { id: sellerId }, type: 'seller' }
     });
+    
+    console.log('Rating count result:', count);
+    return count;
   }
 
   async hasUserRatedSeller(userId: number, sellerId: number): Promise<boolean> {
+    console.log('Checking if user has rated seller:', { userId, sellerId });
+    
     const count = await this.ratingsRepository.count({
       where: { 
         user: { id: userId }, 
@@ -89,7 +126,10 @@ export class RatingsService {
         type: 'seller' 
       }
     });
-    return count > 0;
+    
+    const hasRated = count > 0;
+    console.log('User has rated seller:', hasRated);
+    return hasRated;
   }
 
   async update(id: number, updateRatingDto: Partial<CreateRatingDto>): Promise<Rating | null> {
