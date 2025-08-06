@@ -278,8 +278,8 @@ export class AdminService {
 
   async getSellerRatings(sellerId: number): Promise<Rating[]> {
     return this.ratingsRepository.find({
-      relations: ['user', 'product'],
-      where: { product: { seller: { id: sellerId } } },
+      relations: ['user', 'seller'],
+      where: { seller: { id: sellerId }, type: 'seller' },
       order: { createdAt: 'DESC' }
     });
   }

@@ -1,6 +1,7 @@
 // src/sellers/entities/seller.entity.ts
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Product } from 'src/products/entities/product.entity';
+import { Rating } from 'src/ratings/entities/rating.entity';
 import { BusinessType } from 'src/common/enums/business-type.enum';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
 
@@ -47,4 +48,7 @@ export class Seller {
 
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
+
+  @OneToMany(() => Rating, (rating) => rating.seller)
+  ratings: Rating[];
 }

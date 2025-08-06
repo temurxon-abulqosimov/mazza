@@ -284,6 +284,22 @@ export function getRatingKeyboard(): InlineKeyboardMarkup {
   };
 }
 
+export function getStoreRatingKeyboard(): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '⭐ 1 yulduz', callback_data: 'rate_store_1' },
+        { text: '⭐⭐ 2 yulduz', callback_data: 'rate_store_2' },
+        { text: '⭐⭐⭐ 3 yulduz', callback_data: 'rate_store_3' }
+      ],
+      [
+        { text: '⭐⭐⭐⭐ 4 yulduz', callback_data: 'rate_store_4' },
+        { text: '⭐⭐⭐⭐⭐ 5 yulduz', callback_data: 'rate_store_5' }
+      ]
+    ]
+  };
+}
+
 // Admin Panel Keyboards
 export function getAdminMainKeyboard(): InlineKeyboardMarkup {
   return {

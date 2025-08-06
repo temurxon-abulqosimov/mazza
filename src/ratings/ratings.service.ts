@@ -18,20 +18,28 @@ export class RatingsService {
 
   async findAll(): Promise<Rating[]> {
     return this.ratingsRepository.find({
-      relations: ['user', 'product'],
+      relations: ['user', 'product', 'seller'],
     });
   }
 
   async findOne(id: number): Promise<Rating | null> {
     return this.ratingsRepository.findOne({
       where: { id },
-      relations: ['user', 'product'],
+      relations: ['user', 'product', 'seller'],
     });
   }
 
   async findByProduct(productId: number): Promise<Rating[]> {
     return this.ratingsRepository.find({
-      where: { product: { id: productId } },
+      where: { product: { id: productId }, type: 'product' },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findBySeller(sellerId: number): Promise<Rating[]> {
+    return this.ratingsRepository.find({
+      where: { seller: { id: sellerId }, type: 'seller' },
       relations: ['user'],
       order: { createdAt: 'DESC' },
     });
@@ -40,7 +48,7 @@ export class RatingsService {
   async findByUser(userId: number): Promise<Rating[]> {
     return this.ratingsRepository.find({
       where: { user: { id: userId } },
-      relations: ['product'],
+      relations: ['product', 'seller'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -50,6 +58,7 @@ export class RatingsService {
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
       .where('rating.product.id = :productId', { productId })
+      .andWhere('rating.type = :type', { type: 'product' })
       .getRawOne();
 
     return result?.average ? parseFloat(result.average) : 0;
@@ -58,13 +67,29 @@ export class RatingsService {
   async getAverageRatingBySeller(sellerId: number): Promise<number> {
     const result = await this.ratingsRepository
       .createQueryBuilder('rating')
-      .leftJoin('rating.product', 'product')
-      .leftJoin('product.seller', 'seller')
       .select('AVG(rating.rating)', 'average')
-      .where('seller.id = :sellerId', { sellerId })
+      .where('rating.seller.id = :sellerId', { sellerId })
+      .andWhere('rating.type = :type', { type: 'seller' })
       .getRawOne();
 
     return result?.average ? parseFloat(result.average) : 0;
+  }
+
+  async getSellerRatingCount(sellerId: number): Promise<number> {
+    return this.ratingsRepository.count({
+      where: { seller: { id: sellerId }, type: 'seller' }
+    });
+  }
+
+  async hasUserRatedSeller(userId: number, sellerId: number): Promise<boolean> {
+    const count = await this.ratingsRepository.count({
+      where: { 
+        user: { id: userId }, 
+        seller: { id: sellerId }, 
+        type: 'seller' 
+      }
+    });
+    return count > 0;
   }
 
   async update(id: number, updateRatingDto: Partial<CreateRatingDto>): Promise<Rating | null> {

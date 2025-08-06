@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Max, Min, IsEnum } from 'class-validator';
 
 export class CreateRatingDto {
   @IsNumber()
@@ -10,9 +10,17 @@ export class CreateRatingDto {
   @IsString()
   comment?: string;
 
+  @IsEnum(['product', 'seller'])
+  type: 'product' | 'seller';
+
   @IsNumber()
   userId: number;
 
+  @IsOptional()
   @IsNumber()
-  productId: number;
+  productId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sellerId?: number;
 } 
