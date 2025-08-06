@@ -3,6 +3,41 @@
  */
 
 /**
+ * Validates and parses time input in various formats
+ * 
+ * @param timeText - Time input text (e.g., "9:00", "22:30", "09:00")
+ * @returns object with parsed hours/minutes and validation result
+ */
+export function validateAndParseTime(timeText: string): { hours: number | null; minutes: number | null; isValid: boolean; error?: string } {
+  if (!timeText || typeof timeText !== 'string') {
+    return { hours: null, minutes: null, isValid: false, error: 'Time text is required' };
+  }
+
+  // More flexible regex that accepts various formats
+  // Accepts: 9:00, 09:00, 22:30, 0:00, 23:59, etc.
+  const timeMatch = timeText.trim().match(/^(\d{1,2}):(\d{1,2})$/);
+  
+  if (!timeMatch) {
+    return { hours: null, minutes: null, isValid: false, error: 'Invalid time format. Use HH:MM or H:MM (e.g., 9:00, 22:30)' };
+  }
+
+  const hours = parseInt(timeMatch[1], 10);
+  const minutes = parseInt(timeMatch[2], 10);
+
+  // Validate hours (0-23)
+  if (hours < 0 || hours > 23) {
+    return { hours: null, minutes: null, isValid: false, error: 'Hours must be between 0 and 23' };
+  }
+
+  // Validate minutes (0-59)
+  if (minutes < 0 || minutes > 59) {
+    return { hours: null, minutes: null, isValid: false, error: 'Minutes must be between 0 and 59' };
+  }
+
+  return { hours, minutes, isValid: true };
+}
+
+/**
  * Determines if a store is currently open based on its opening and closing hours
  * Handles cases where stores operate across midnight (e.g., 22:00 - 06:00)
  * 
@@ -12,17 +47,30 @@
  */
 export function isStoreOpen(opensAt: number, closesAt: number): boolean {
   const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes from midnight
+  
+  // Get current time in Uzbekistan timezone (UTC+5)
+  const uzbekistanTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // UTC+5
+  const currentTime = uzbekistanTime.getHours() * 60 + uzbekistanTime.getMinutes(); // Convert to minutes from midnight
+  
+  console.log(`=== STORE HOURS CHECK ===`);
+  console.log(`UTC time: ${now.toISOString()}`);
+  console.log(`Uzbekistan time: ${uzbekistanTime.toISOString()}`);
+  console.log(`Store hours: ${opensAt} - ${closesAt} (${Math.floor(opensAt/60)}:${(opensAt%60).toString().padStart(2,'0')} - ${Math.floor(closesAt/60)}:${(closesAt%60).toString().padStart(2,'0')})`);
+  console.log(`Current time in minutes: ${currentTime} (${uzbekistanTime.getHours()}:${uzbekistanTime.getMinutes().toString().padStart(2,'0')})`);
   
   // Handle stores that operate across midnight
   if (opensAt > closesAt) {
     // Store operates across midnight (e.g., 22:00 - 06:00)
     // Store is open if current time is after opening OR before closing
-    return currentTime >= opensAt || currentTime <= closesAt;
+    const isOpen = currentTime >= opensAt || currentTime <= closesAt;
+    console.log(`Cross-midnight store: isOpen=${isOpen} (current >= opensAt: ${currentTime >= opensAt}, current <= closesAt: ${currentTime <= closesAt})`);
+    return isOpen;
   } else {
     // Store operates within the same day (e.g., 09:00 - 18:00)
     // Store is open if current time is between opening and closing
-    return currentTime >= opensAt && currentTime <= closesAt;
+    const isOpen = currentTime >= opensAt && currentTime <= closesAt;
+    console.log(`Same-day store: isOpen=${isOpen} (current >= opensAt: ${currentTime >= opensAt}, current <= closesAt: ${currentTime <= closesAt})`);
+    return isOpen;
   }
 }
 
@@ -41,6 +89,67 @@ export function formatStoreHours(opensAt: number, closesAt: number): string {
   };
   
   return `${formatTime(opensAt)} - ${formatTime(closesAt)}`;
+}
+
+/**
+ * Formats a date in DD/MM/YYYY HH:MM format (24-hour)
+ * 
+ * @param date - Date to format
+ * @returns formatted date string (e.g., "25/12/2024 14:30")
+ */
+export function formatDateForDisplay(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  // Get date in Uzbekistan timezone (UTC+5)
+  const uzbekistanTime = new Date(dateObj.getTime() + (5 * 60 * 60 * 1000)); // UTC+5
+  
+  const day = uzbekistanTime.getDate().toString().padStart(2, '0');
+  const month = (uzbekistanTime.getMonth() + 1).toString().padStart(2, '0');
+  const year = uzbekistanTime.getFullYear();
+  const hours = uzbekistanTime.getHours().toString().padStart(2, '0');
+  const minutes = uzbekistanTime.getMinutes().toString().padStart(2, '0');
+  
+  console.log(`=== DATE FORMATTING ===`);
+  console.log(`Original date: ${dateObj.toISOString()}`);
+  console.log(`Uzbekistan time: ${uzbekistanTime.toISOString()}`);
+  console.log(`Formatted: ${day}/${month}/${year} ${hours}:${minutes}`);
+  
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+/**
+ * Cleans and validates price input, removing common formatting mistakes
+ * 
+ * @param priceText - Raw price input text
+ * @returns object with cleaned price number and validation result
+ */
+export function cleanAndValidatePrice(priceText: string): { price: number | null; isValid: boolean; error?: string } {
+  if (!priceText || typeof priceText !== 'string') {
+    return { price: null, isValid: false, error: 'Price text is required' };
+  }
+
+  // Remove all spaces, commas, and other common separators
+  let cleanedText = priceText.trim()
+    .replace(/\s+/g, '') // Remove all spaces
+    .replace(/,/g, '') // Remove commas
+    .replace(/\./g, '') // Remove dots (treat as thousand separators)
+    .replace(/[^\d]/g, ''); // Remove all non-digit characters
+
+  if (!cleanedText) {
+    return { price: null, isValid: false, error: 'No valid digits found' };
+  }
+
+  const price = parseInt(cleanedText, 10);
+  
+  if (isNaN(price) || price <= 0) {
+    return { price: null, isValid: false, error: 'Price must be a positive number' };
+  }
+
+  if (price > 1000000000) { // 1 billion max
+    return { price: null, isValid: false, error: 'Price is too high' };
+  }
+
+  return { price, isValid: true };
 }
 
 /**

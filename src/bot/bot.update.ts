@@ -3,7 +3,7 @@ import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegra
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
 import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
-import { isStoreOpen } from 'src/common/utils/store-hours.util';
+import { isStoreOpen, formatDateForDisplay, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
 import { SellersService } from 'src/sellers/sellers.service';
 import { AdminService } from 'src/admin/admin.service';
@@ -1186,35 +1186,33 @@ export class BotUpdate {
         console.log('Text type:', typeof ctx.message.text);
         console.log('Text length:', ctx.message.text.length);
         
-        const price = parseFloat(ctx.message.text);
-        console.log('Parsed price:', price);
-        console.log('Is NaN:', isNaN(price));
-        console.log('Is <= 0:', price <= 0);
+        const priceValidation = cleanAndValidatePrice(ctx.message.text);
+        console.log('Price validation result:', priceValidation);
         
-        if (isNaN(price) || price <= 0) {
+        if (!priceValidation.isValid) {
           console.log('Price validation failed - sending error message');
           return ctx.reply(getMessage(language, 'validation.invalidPrice'));
         }
 
-        console.log('Price validation passed - setting price:', price);
+        console.log('Price validation passed - setting price:', priceValidation.price);
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        ctx.session.productData.price = price;
+        ctx.session.productData.price = priceValidation.price!; // We know it's not null because isValid is true
         ctx.session.registrationStep = 'product_original_price';
         await ctx.reply(getMessage(language, 'registration.priceSuccess'));
         return;
       } else if (step === 'product_original_price') {
         // Use original text for original price validation, not sanitized
-        const originalPrice = parseFloat(ctx.message.text);
-        if (isNaN(originalPrice) || originalPrice < 0) {
+        const originalPriceValidation = cleanAndValidatePrice(ctx.message.text);
+        if (!originalPriceValidation.isValid) {
           return ctx.reply(getMessage(language, 'validation.invalidOriginalPrice'));
         }
 
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        ctx.session.productData.originalPrice = originalPrice > 0 ? originalPrice : undefined;
+        ctx.session.productData.originalPrice = originalPriceValidation.price! > 0 ? originalPriceValidation.price! : undefined;
         ctx.session.registrationStep = 'product_description';
         await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
         return;
@@ -1229,15 +1227,14 @@ export class BotUpdate {
         return;
       } else if (step === 'product_available_until') {
         // Use original text for time validation, not sanitized
-        const timeText = ctx.message.text;
-        const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+        const timeValidation = validateAndParseTime(ctx.message.text);
         
-        if (!timeMatch) {
+        if (!timeValidation.isValid) {
           return ctx.reply(getMessage(language, 'validation.invalidTime'));
         }
 
-        const hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
+        const hours = timeValidation.hours!;
+        const minutes = timeValidation.minutes!;
         
         // Create available until date (today at specified time)
         const availableUntil = new Date();
@@ -1289,7 +1286,7 @@ export class BotUpdate {
             code: createdProduct.code,
             description: createdProduct.description,
             price: createdProduct.price,
-            availableUntil: new Date(createdProduct.availableUntil).toLocaleString()
+            availableUntil: formatDateForDisplay(createdProduct.availableUntil)
           }));
         } catch (error) {
           console.error('Product creation error:', error);
@@ -1514,7 +1511,7 @@ export class BotUpdate {
     const storeId = parseInt(ctx.match[1]);
     await this.handleStoreDetails(ctx, storeId);
   }
-
+  
   @Action(/buy_(\d+)/)
   async onBuyProduct(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
@@ -2509,8 +2506,7 @@ export class BotUpdate {
       // Add products list with buy buttons
       let productsList = '';
       products.forEach((product, index) => {
-        const availableUntil = new Date(product.availableUntil);
-        const availableTime = `${availableUntil.getHours()}:${availableUntil.getMinutes().toString().padStart(2, '0')}`;
+        const formattedDate = formatDateForDisplay(product.availableUntil);
         
         productsList += getMessage(language, 'products.productItemWithBuy', {
           number: index + 1,
@@ -2518,7 +2514,7 @@ export class BotUpdate {
           code: product.code,
           price: product.price,
           description: product.description,
-          availableUntil: availableTime
+          availableUntil: formattedDate
         });
       });
 
@@ -3670,6 +3666,138 @@ export class BotUpdate {
     } catch (error) {
       console.error('Test session error:', error);
       await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('teststorehours')
+  async testStoreHoursCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    try {
+      const { isStoreOpen, formatDateForDisplay } = await import('src/common/utils/store-hours.util');
+      
+      // Test different store hours scenarios
+      const testCases = [
+        { opensAt: 540, closesAt: 1080, name: '9:00 - 18:00 (same day)' },
+        { opensAt: 1320, closesAt: 360, name: '22:00 - 6:00 (cross midnight)' },
+        { opensAt: 0, closesAt: 1440, name: '0:00 - 24:00 (24 hours)' },
+        { opensAt: 600, closesAt: 1200, name: '10:00 - 20:00 (same day)' },
+        { opensAt: 1200, closesAt: 600, name: '20:00 - 10:00 (cross midnight)' }
+      ];
+      
+      let result = `🧪 Store Hours Test Results:\n\n`;
+      
+      testCases.forEach((testCase, index) => {
+        const isOpen = isStoreOpen(testCase.opensAt, testCase.closesAt);
+        result += `${index + 1}. ${testCase.name}\n   Hours: ${Math.floor(testCase.opensAt/60)}:${(testCase.opensAt%60).toString().padStart(2,'0')} - ${Math.floor(testCase.closesAt/60)}:${(testCase.closesAt%60).toString().padStart(2,'0')}\n   Status: ${isOpen ? '🟢 Open' : '🔴 Closed'}\n\n`;
+      });
+      
+      // Test date formatting
+      const now = new Date();
+      const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
+      const formattedDate = formatDateForDisplay(futureDate);
+      
+      result += `📅 Date Formatting Test:\n`;
+      result += `Original: ${futureDate.toISOString()}\n`;
+      result += `Formatted: ${formattedDate}\n`;
+      
+      await ctx.reply(result);
+    } catch (error) {
+      console.error('Store hours test error:', error);
+      await ctx.reply(`❌ Store hours test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testpricevalidation')
+  async testPriceValidationCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    try {
+      const { cleanAndValidatePrice } = await import('src/common/utils/store-hours.util');
+      
+      // Test different price input formats
+      const testCases = [
+        '50000',
+        '50,000',
+        '50 000',
+        '50.000',
+        '50,000.00',
+        '50 000.00',
+        'abc',
+        '0',
+        '-1000',
+        '1000000000',
+        '1,000,000',
+        '1 000 000'
+      ];
+      
+      let result = `🧪 Price Validation Test Results:\n\n`;
+      
+      testCases.forEach((testCase, index) => {
+        const validation = cleanAndValidatePrice(testCase);
+        result += `${index + 1}. Input: "${testCase}"\n   Valid: ${validation.isValid ? '✅ Yes' : '❌ No'}\n   Price: ${validation.price || 'N/A'}\n   Error: ${validation.error || 'None'}\n\n`;
+      });
+      
+      await ctx.reply(result);
+    } catch (error) {
+      console.error('Price validation test error:', error);
+      await ctx.reply(`❌ Price validation test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testtimevalidation')
+  async testTimeValidationCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    try {
+      const { validateAndParseTime } = await import('src/common/utils/store-hours.util');
+      
+      // Test different time input formats
+      const testCases = [
+        '9:00',
+        '09:00',
+        '22:30',
+        '0:00',
+        '23:59',
+        '12:30',
+        '1:45',
+        'abc',
+        '25:00',
+        '12:60',
+        '9:0',
+        '9:',
+        ':30'
+      ];
+      
+      let result = `🧪 Time Validation Test Results:\n\n`;
+      
+      testCases.forEach((testCase, index) => {
+        const validation = validateAndParseTime(testCase);
+        result += `${index + 1}. Input: "${testCase}"\n   Valid: ${validation.isValid ? '✅ Yes' : '❌ No'}\n   Hours: ${validation.hours || 'N/A'}\n   Minutes: ${validation.minutes || 'N/A'}\n   Error: ${validation.error || 'None'}\n\n`;
+      });
+      
+      await ctx.reply(result);
+    } catch (error) {
+      console.error('Time validation test error:', error);
+      await ctx.reply(`❌ Time validation test failed: ${error.message}`);
     }
   }
 }

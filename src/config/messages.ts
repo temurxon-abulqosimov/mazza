@@ -28,11 +28,11 @@ export const messages = {
       businessNameRequest: '✅ Telefon raqam qabul qilindi! Endi biznes nomingizni kiriting:',
       businessNameSuccess: '✅ Biznes nomi qabul qilindi! Endi biznes turini tanlang:',
       businessTypeRequest: '✅ Biznes turi qabul qilindi! Endi ochilish vaqtini kiriting (HH:MM formatida):',
-      opensAtRequest: '🕐 Do\'kon ochilish vaqtini kiriting (masalan: 08:00):',
-      opensAtSuccess: '✅ Ochiq vaqti qabul qilindi! Endi yopilish vaqtini kiriting (HH:MM):',
-      closesAtRequest: '🕐 Do\'kon yopilish vaqtini kiriting (masalan: 20:00):',
+      opensAtRequest: '🕐 Do\'kon ochilish vaqtini kiriting (masalan: 09:00):',
+      opensAtSuccess: '✅ Ochiq vaqti qabul qilindi! Endi yopilish vaqtini kiriting (masalan: 22:00):',
+      closesAtRequest: '🕐 Do\'kon yopilish vaqtini kiriting (masalan: 22:00):',
       closesAtSuccess: '✅ Yopilish vaqti qabul qilindi! Endi manzilingizni yuboring:',
-      priceRequest: '💰 Mahsulot narxini kiriting (so\'mda):',
+      priceRequest: '💰 Mahsulot narxini kiriting (masalan: 50000):',
       priceSuccess: '✅ Narx qabul qilindi! Asl narxni kiriting (agar chegirma bo\'lsa, aks holda 0):',
       originalPriceSuccess: '✅ Asl narx qabul qilindi! Mahsulot haqida qisqacha ma\'lumot kiriting:',
       descriptionSuccess: '✅ Ma\'lumot qabul qilindi! Mahsulot mavjud bo\'lish vaqtini kiriting (HH:MM):',
@@ -41,9 +41,9 @@ export const messages = {
     
     // Validation Messages
     validation: {
-      invalidPrice: '❌ Noto\'g\'ri narx. Iltimos, musbat son kiriting:',
-      invalidOriginalPrice: '❌ Noto\'g\'ri narx. Iltimos, 0 yoki musbat son kiriting:',
-      invalidTime: '❌ Noto\'g\'ri format. Iltimos, HH:MM formatida kiriting (masalan: 09:00):',
+      invalidPrice: '❌ Noto\'g\'ri narx. Iltimos, musbat son kiriting (masalan: 50000):',
+      invalidOriginalPrice: '❌ Noto\'g\'ri narx. Iltimos, 0 yoki musbat son kiriting (masalan: 50000):',
+      invalidTime: '❌ Noto\'g\'ri format. Iltimos, HH:MM yoki H:MM formatida kiriting (masalan: 9:00, 22:30):',
       invalidFormat: '❌ Iltimos, to\'g\'ri formatda ma\'lumot yuboring.',
       phoneFormat: 'Telefon raqami O\'zbekiston formati bo\'lishi kerak (masalan: +998 90 123 45 67)',
       businessNameFormat: 'Biznes nomi faqat harflar, raqamlar va bo\'shliqlardan iborat bo\'lishi kerak'
@@ -249,11 +249,11 @@ export const messages = {
       businessNameRequest: '✅ Номер телефона принят! Теперь введите название вашего бизнеса:',
       businessNameSuccess: '✅ Название бизнеса принято! Теперь выберите тип бизнеса:',
       businessTypeRequest: '✅ Тип бизнеса принят! Теперь введите время открытия (в формате ЧЧ:ММ):',
-      opensAtRequest: '🕐 Введите время открытия магазина (например: 08:00):',
-      opensAtSuccess: '✅ Время открытия принято! Теперь введите время закрытия (ЧЧ:ММ):',
-      closesAtRequest: '🕐 Введите время закрытия магазина (например: 20:00):',
+      opensAtRequest: '🕐 Введите время открытия магазина (например: 09:00):',
+      opensAtSuccess: '✅ Время открытия принято! Теперь введите время закрытия (например: 22:00):',
+      closesAtRequest: '🕐 Введите время закрытия магазина (например: 22:00):',
       closesAtSuccess: '✅ Время закрытия принято! Теперь отправьте ваше местоположение:',
-      priceRequest: '💰 Введите цену товара (в сумах):',
+      priceRequest: '💰 Введите цену товара (например: 50000):',
       priceSuccess: '✅ Цена принята! Введите оригинальную цену (если есть скидка, иначе 0):',
       originalPriceSuccess: '✅ Оригинальная цена принята! Введите краткую информацию о товаре:',
       descriptionSuccess: '✅ Информация принята! Введите время доступности товара (ЧЧ:ММ):',
@@ -262,9 +262,9 @@ export const messages = {
     
     // Validation Messages
     validation: {
-      invalidPrice: '❌ Неправильная цена. Пожалуйста, введите положительное число:',
-      invalidOriginalPrice: '❌ Неправильная цена. Пожалуйста, введите 0 или положительное число:',
-      invalidTime: '❌ Неправильный формат. Пожалуйста, введите в формате ЧЧ:ММ (например: 09:00):',
+      invalidPrice: '❌ Неправильная цена. Пожалуйста, введите положительное число (например: 50000):',
+      invalidOriginalPrice: '❌ Неправильная цена. Пожалуйста, введите 0 или положительное число (например: 50000):',
+      invalidTime: '❌ Неправильный формат. Пожалуйста, введите в формате ЧЧ:ММ или Ч:ММ (например: 9:00, 22:30):',
       invalidFormat: '❌ Пожалуйста, отправьте информацию в правильном формате.',
       phoneFormat: 'Номер телефона должен быть в формате Узбекистана (например: +998 90 123 45 67)',
       businessNameFormat: 'Название бизнеса должно содержать только буквы, цифры и пробелы'

@@ -4,6 +4,7 @@ import { ProductsService } from 'src/products/products.service';
 import { SellersService } from 'src/sellers/sellers.service';
 import { CreateProductDto } from 'src/products/dto/create-product.dto';
 import { getMessage } from 'src/config/messages';
+import { cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 
 @Scene('product-creation')
 export class ProductCreationScene {
@@ -27,28 +28,28 @@ export class ProductCreationScene {
     if (!ctx.message || !('text' in ctx.message)) return;
 
     if (step === 'price') {
-      const price = parseFloat(ctx.message.text);
-      if (isNaN(price) || price <= 0) {
+      const priceValidation = cleanAndValidatePrice(ctx.message.text);
+      if (!priceValidation.isValid) {
         return ctx.reply(getMessage(language, 'validation.invalidPrice'));
       }
 
       if (!ctx.session.productData) {
         ctx.session.productData = {};
       }
-      ctx.session.productData.price = price;
+      ctx.session.productData.price = priceValidation.price!;
       ctx.session.registrationStep = 'original_price';
 
       await ctx.reply(getMessage(language, 'registration.priceSuccess'));
     } else if (step === 'original_price') {
-      const originalPrice = parseFloat(ctx.message.text);
-      if (isNaN(originalPrice) || originalPrice < 0) {
+      const originalPriceValidation = cleanAndValidatePrice(ctx.message.text);
+      if (!originalPriceValidation.isValid) {
         return ctx.reply(getMessage(language, 'validation.invalidOriginalPrice'));
       }
 
       if (!ctx.session.productData) {
         ctx.session.productData = {};
       }
-      ctx.session.productData.originalPrice = originalPrice > 0 ? originalPrice : undefined;
+      ctx.session.productData.originalPrice = originalPriceValidation.price! > 0 ? originalPriceValidation.price! : undefined;
       ctx.session.registrationStep = 'description';
 
       await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
@@ -61,15 +62,14 @@ export class ProductCreationScene {
 
       await ctx.reply(getMessage(language, 'registration.descriptionSuccess'));
     } else if (step === 'available_until') {
-      const timeText = ctx.message.text;
-      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+      const timeValidation = validateAndParseTime(ctx.message.text);
       
-      if (!timeMatch) {
+      if (!timeValidation.isValid) {
         return ctx.reply(getMessage(language, 'validation.invalidTime'));
       }
 
-      const hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
+      const hours = timeValidation.hours!;
+      const minutes = timeValidation.minutes!;
       
       // Create available until date (today at specified time)
       const availableUntil = new Date();

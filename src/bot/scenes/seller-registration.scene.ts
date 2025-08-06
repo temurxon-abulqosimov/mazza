@@ -8,6 +8,7 @@ import { BusinessType } from 'src/common/enums/business-type.enum';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
 import { getMessage } from 'src/config/messages';
 import { SessionProvider } from '../providers/session.provider';
+import { validateAndParseTime } from 'src/common/utils/store-hours.util';
 
 @Scene('seller-registration')
 export class SellerRegistrationScene {
@@ -64,15 +65,14 @@ export class SellerRegistrationScene {
 
       await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { reply_markup: getBusinessTypeKeyboard(language) });
     } else if (step === 'opens_at') {
-      const timeText = ctx.message.text;
-      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+      const timeValidation = validateAndParseTime(ctx.message.text);
       
-      if (!timeMatch) {
+      if (!timeValidation.isValid) {
         return ctx.reply(getMessage(language, 'validation.invalidTime'));
       }
 
-      const hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
+      const hours = timeValidation.hours!;
+      const minutes = timeValidation.minutes!;
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
       }
@@ -81,15 +81,14 @@ export class SellerRegistrationScene {
 
       await ctx.reply(getMessage(language, 'registration.opensAtSuccess'));
     } else if (step === 'closes_at') {
-      const timeText = ctx.message.text;
-      const timeMatch = timeText.match(/^(\d{1,2}):(\d{2})$/);
+      const timeValidation = validateAndParseTime(ctx.message.text);
       
-      if (!timeMatch) {
+      if (!timeValidation.isValid) {
         return ctx.reply(getMessage(language, 'validation.invalidTime'));
       }
 
-      const hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
+      const hours = timeValidation.hours!;
+      const minutes = timeValidation.minutes!;
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
       }
