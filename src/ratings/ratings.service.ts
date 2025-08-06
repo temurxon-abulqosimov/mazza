@@ -18,10 +18,17 @@ export class RatingsService {
     const rating = new Rating();
     rating.rating = createRatingDto.rating;
     rating.user = { id: createRatingDto.userId } as any;
-    rating.product = { id: createRatingDto.productId } as any;
+    rating.type = createRatingDto.type || 'product';
 
     if (createRatingDto.comment) {
       rating.comment = createRatingDto.comment;
+    }
+
+    // Set product or seller based on type
+    if (createRatingDto.type === 'seller' && createRatingDto.sellerId) {
+      rating.seller = { id: createRatingDto.sellerId } as any;
+    } else if (createRatingDto.productId) {
+      rating.product = { id: createRatingDto.productId } as any;
     }
 
     console.log('Rating entity to save:', rating);
@@ -58,6 +65,14 @@ export class RatingsService {
     return this.ratingsRepository.find({
       where: { user: { id: userId } },
       relations: ['product', 'seller'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findBySeller(sellerId: number): Promise<Rating[]> {
+    return this.ratingsRepository.find({
+      where: { seller: { id: sellerId } },
+      relations: ['user'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -104,13 +119,30 @@ export class RatingsService {
     return count;
   }
 
+  async hasUserRatedSeller(userId: number, sellerId: number): Promise<boolean> {
+    console.log('Checking if user has rated seller:', { userId, sellerId });
+    
+    const count = await this.ratingsRepository.count({
+      where: { 
+        user: { id: userId }, 
+        seller: { id: sellerId },
+        type: 'seller'
+      }
+    });
+    
+    const hasRated = count > 0;
+    console.log('User has rated seller:', hasRated);
+    return hasRated;
+  }
+
   async hasUserRatedProduct(userId: number, productId: number): Promise<boolean> {
     console.log('Checking if user has rated product:', { userId, productId });
     
     const count = await this.ratingsRepository.count({
       where: { 
         user: { id: userId }, 
-        product: { id: productId }
+        product: { id: productId },
+        type: 'product'
       }
     });
     

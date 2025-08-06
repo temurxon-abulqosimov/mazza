@@ -35,6 +35,7 @@ export interface SessionData {
   currentPage?: number;
   selectedStoreId?: number;
   selectedProductId?: number;
+  selectedSellerId?: number;
   selectedPaymentMethod?: string;
   
   // Admin panel properties

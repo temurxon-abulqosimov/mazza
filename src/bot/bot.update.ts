@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
@@ -1558,6 +1558,14 @@ export class BotUpdate {
     await this.handleRateProduct(ctx, rating);
   }
 
+  @Action(/rate_store_(\d+)/)
+  async onRateStore(@Ctx() ctx: TelegramContext) {
+    if (!ctx.match) return;
+    this.initializeSession(ctx);
+    const rating = parseInt(ctx.match[1]);
+    await this.handleRateStore(ctx, rating);
+  }
+
   @Action(/page_(\d+)/)
   async onPageChange(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
@@ -2745,22 +2753,88 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.userNotFound'));
     }
 
-    const productId = ctx.session.selectedProductId;
+    // Check for product ID in both session and pending ratings
+    let productId = ctx.session.selectedProductId;
+    
+    // If not in session, check pending ratings
+    if (!productId) {
+      productId = this.pendingRatings.get(telegramId);
+    }
+    
     if (!productId) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.productNotSelected'));
     }
 
     try {
+      // Check if user has already rated this product
+      const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, productId);
+      if (hasRated) {
+        const language = ctx.session.language || 'uz';
+        return ctx.reply(getMessage(language, 'error.alreadyRated'));
+      }
+
       await this.ratingsService.create({
         rating,
         userId: user.id,
-        productId
+        productId,
+        type: 'product'
       });
+
+      // Clear the pending rating after successful submission
+      this.pendingRatings.delete(telegramId);
+      ctx.session.selectedProductId = undefined;
 
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.productRatingSubmitted', { rating }));
     } catch (error) {
+      console.error('Rating creation error:', error);
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.ratingFailed'));
+    }
+  }
+
+  private async handleRateStore(@Ctx() ctx: TelegramContext, rating: number) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const user = await this.usersService.findByTelegramId(telegramId);
+    
+    if (!user) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.userNotFound'));
+    }
+
+    // Check for seller ID in session
+    const sellerId = ctx.session.selectedSellerId;
+    
+    if (!sellerId) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.storeNotSelected'));
+    }
+
+    try {
+      // Check if user has already rated this seller
+      const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, sellerId);
+      if (hasRated) {
+        const language = ctx.session.language || 'uz';
+        return ctx.reply(getMessage(language, 'error.alreadyRated'));
+      }
+
+      await this.ratingsService.create({
+        rating,
+        userId: user.id,
+        sellerId,
+        type: 'seller'
+      });
+
+      // Clear the selected seller after successful submission
+      ctx.session.selectedSellerId = undefined;
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.storeRatingSubmitted', { rating }));
+    } catch (error) {
+      console.error('Store rating creation error:', error);
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.ratingFailed'));
     }
@@ -4065,57 +4139,62 @@ export class BotUpdate {
         return ctx.reply('❌ User not found for testing!');
       }
       
-      // Get the first seller for testing
+      // Test the rating system
+      await ctx.reply('🧪 Testing Rating System...');
+      
+      // Test 1: Check if pending ratings work
+      const pendingProductId = this.pendingRatings.get(telegramId);
+      await ctx.reply(`📋 Pending product rating: ${pendingProductId || 'None'}`);
+      
+      // Test 2: Check user's existing ratings
+      const userRatings = await this.ratingsService.findByUser(user.id);
+      await ctx.reply(`⭐ User has ${userRatings.length} ratings`);
+      
+      // Test 3: Test product rating creation
       const sellers = await this.sellersService.findAll();
-      
-      if (sellers.length === 0) {
-        return ctx.reply('❌ No sellers found for testing!');
-      }
-      
-      const testSeller = sellers[0];
-      
-      // Test 1: Create a rating for the first product of the seller
-      const sellerProducts = await this.productsService.findBySeller(testSeller.id);
-      if (sellerProducts.length === 0) {
-        return ctx.reply('❌ No products found for testing!');
-      }
-      
-      const testProduct = sellerProducts[0];
-      const testRating = await this.ratingsService.create({
-        rating: 4,
-        userId: user.id,
-        productId: testProduct.id
-      });
-      
-      // Test 2: Check if rating was created
-      const averageRating = await this.ratingsService.getAverageRatingBySeller(testSeller.id);
-      const ratingCount = await this.ratingsService.getSellerRatingCount(testSeller.id);
-      const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, testProduct.id);
-      
-      // Test 3: Test nearby stores with ratings
-      const nearbyStores = await this.sellersService.findNearbyStores(41.2995, 69.2401, 10); // Tashkent coordinates
-      
-      let result = `🧪 Complete Rating Test Results:\n\n`;
-      result += `✅ Test Rating Created: ID ${testRating.id}\n`;
-      result += `⭐ Average Rating: ${averageRating.toFixed(1)}/5\n`;
-      result += `📊 Rating Count: ${ratingCount}\n`;
-      result += `🔍 User Has Rated: ${hasRated ? 'Yes' : 'No'}\n\n`;
-      result += `🏪 Nearby Stores with Ratings:\n`;
-      
-      for (const store of nearbyStores.slice(0, 3)) {
-        const storeRatingCount = await this.ratingsService.getSellerRatingCount(store.id);
-        let ratingDisplay = '';
-        if (store.averageRating > 0) {
-          const stars = '⭐'.repeat(Math.round(store.averageRating));
-          ratingDisplay = ` ${stars} (${store.averageRating.toFixed(1)}) (${storeRatingCount} baho)`;
+      if (sellers.length > 0) {
+        const testSeller = sellers[0];
+        const sellerProducts = await this.productsService.findBySeller(testSeller.id);
+        
+        if (sellerProducts.length > 0) {
+          const testProduct = sellerProducts[0];
+          
+          // Check if user has already rated this product
+          const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, testProduct.id);
+          await ctx.reply(`🔍 User has rated product ${testProduct.id}: ${hasRated}`);
+          
+          if (!hasRated) {
+            // Create a test rating
+            const testRating = await this.ratingsService.create({
+              rating: 4,
+              userId: user.id,
+              productId: testProduct.id,
+              type: 'product'
+            });
+            await ctx.reply(`✅ Test product rating created: ${testRating.id}`);
+          }
+          
+          // Test seller rating
+          const hasRatedSeller = await this.ratingsService.hasUserRatedSeller(user.id, testSeller.id);
+          await ctx.reply(`🔍 User has rated seller ${testSeller.id}: ${hasRatedSeller}`);
+          
+          if (!hasRatedSeller) {
+            // Create a test seller rating
+            const testSellerRating = await this.ratingsService.create({
+              rating: 5,
+              userId: user.id,
+              sellerId: testSeller.id,
+              type: 'seller'
+            });
+            await ctx.reply(`✅ Test seller rating created: ${testSellerRating.id}`);
+          }
         }
-        result += `• ${store.businessName}${ratingDisplay}\n`;
       }
       
-      await ctx.reply(result);
+      await ctx.reply('✅ Rating system test completed!');
       
     } catch (error) {
-      console.error('Complete rating test error:', error);
+      console.error('Test rating complete error:', error);
       await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }

@@ -59,6 +59,8 @@ export const messages = {
       ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
       productRatingSubmitted: '✅ Bahoyingiz uchun rahmat! Mahsulot bahosi: {rating}/5',
       productRatingRequest: '⭐ Mahsulotni olganingizdan so\'ng uni baholang:',
+      storeRatingSubmitted: '✅ Bahoyingiz uchun rahmat! Do\'kon bahosi: {rating}/5',
+      storeRatingRequest: '⭐ Do\'konni baholang:',
       storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
     },
     
@@ -88,6 +90,7 @@ export const messages = {
       ratingFailed: '❌ Baho qo\'yishda xatolik yuz berdi.',
       alreadyRated: '❌ Siz allaqachon bu do\'konni baholagansiz.',
       productNotSelected: '❌ Mahsulot tanlanmagan.',
+      storeNotSelected: '❌ Do\'kon tanlanmagan.',
       paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan. (Bu xabar endi ko\'rsatilmaydi)',
       photoProcessingFailed: '❌ Surat qayta ishlashda xatolik yuz berdi.'
     },
