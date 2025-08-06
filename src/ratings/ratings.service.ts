@@ -39,7 +39,9 @@ export class RatingsService {
     const savedRating = await this.ratingsRepository.save(rating);
     
     console.log('Rating saved successfully:', savedRating);
-    return savedRating;
+    
+    // Return the saved rating with proper type
+    return savedRating as Rating;
   }
 
   async findAll(): Promise<Rating[]> {
