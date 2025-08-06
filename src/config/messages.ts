@@ -57,7 +57,7 @@ export const messages = {
       productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n⏰ Mavjud vaqti: {availableUntil}',
       orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n🔢 Mahsulot kodi: {productCode}\n💰 Narxi: {price} so\'m\n\nBuyurtma kodini sotuvchiga ko\'rsating. To\'lov usuli sotuvchi bilan kelishiladi.',
       ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
-      storeRatingSubmitted: '⭐ Do\'kon bahosi qo\'yildi: {rating}/5',
+      storeRatingSubmitted: '✅ Bahoyingiz uchun rahmat! Do\'kon bahosi: {rating}/5',
       storeRatingRequest: '⭐ Mahsulotni olganingizdan so\'ng do\'kon xizmatini baholang:',
       storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
     },
@@ -281,7 +281,7 @@ export const messages = {
       productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n⏰ Доступно до: {availableUntil}',
       orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n🔢 Код товара: {productCode}\n💰 Цена: {price} сум\n\nПокажите код заказа продавцу. Способ оплаты обсудите с продавцом.',
       ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
-      storeRatingSubmitted: '⭐ Оценка магазина поставлена: {rating}/5',
+      storeRatingSubmitted: '✅ Спасибо за вашу оценку! Оценка магазина: {rating}/5',
       storeRatingRequest: '⭐ Оцените услуги магазина после получения товара:',
       storeImageUploaded: '✅ Фото магазина успешно загружено!'
     },

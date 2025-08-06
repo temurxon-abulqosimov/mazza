@@ -21,6 +21,7 @@ import { SessionProvider } from './providers/session.provider';
 @Update()
 export class BotUpdate {
   private userMessageCounts = new Map<string, { count: number; resetTime: number }>();
+  private pendingRatings = new Map<string, number>(); // Store seller IDs for pending ratings
   private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
   private readonly RATE_LIMIT_MAX = 30; // 30 messages per minute
 
@@ -2430,7 +2431,7 @@ export class BotUpdate {
     const endIndex = startIndex + itemsPerPage;
     const currentStores = stores.slice(startIndex, endIndex);
 
-    currentStores.forEach((store, index) => {
+    for (const [index, store] of currentStores.entries()) {
       const storeNumber = startIndex + index + 1;
       const distance = store.distance;
       const isOpen = store.isOpen;
@@ -2439,14 +2440,28 @@ export class BotUpdate {
       // Format distance - if distance is null, show "N/A", otherwise format properly
       const distanceText = distance === null ? 'N/A' : formatDistance(distance);
       
+      // Get average rating for the store
+      const averageRating = await this.ratingsService.getAverageRatingBySeller(store.id);
+      const ratingCount = await this.ratingsService.getSellerRatingCount(store.id);
+      
+      // Format rating display
+      let ratingDisplay = '';
+      if (averageRating > 0) {
+        const stars = '⭐'.repeat(Math.round(averageRating));
+        ratingDisplay = ` ${stars} (${averageRating.toFixed(1)})`;
+        if (ratingCount > 0) {
+          ratingDisplay += ` (${ratingCount} baho)`;
+        }
+      }
+      
       storeList += getMessage(language, 'stores.storeItem', {
         number: storeNumber,
         businessName: store.businessName,
         businessType: store.businessType,
         distance: distanceText,
         status: status
-      });
-    });
+      }) + ratingDisplay + '\n';
+    }
 
     await ctx.reply(getMessage(language, 'stores.nearbyStores', { storeList }), { reply_markup: getStoreListKeyboard(stores, currentPage, language) });
   }
@@ -2774,9 +2789,26 @@ export class BotUpdate {
     // Try to get seller ID from session first
     let sellerId = ctx.session.selectedStoreId;
     
-    // If not in session, try to find from recent confirmed orders
+    // If not in session, try to get from pending ratings
+    if (!sellerId) {
+      sellerId = this.pendingRatings.get(telegramId);
+      if (sellerId) {
+        console.log('Found seller ID from pending ratings:', sellerId);
+        // Remove from pending ratings after use
+        this.pendingRatings.delete(telegramId);
+      }
+    }
+    
+    // If still not found, try to find from recent confirmed orders
     if (!sellerId) {
       const recentOrders = await this.ordersService.findByUser(user.id);
+      console.log('Recent orders for user:', recentOrders.map(o => ({ 
+        id: o.id, 
+        status: o.status, 
+        productId: o.product?.id,
+        sellerId: o.product?.seller?.id 
+      })));
+      
       const confirmedOrder = recentOrders.find(order => 
         order.status === OrderStatus.CONFIRMED && 
         order.product && 
@@ -2785,6 +2817,7 @@ export class BotUpdate {
       
       if (confirmedOrder && confirmedOrder.product.seller) {
         sellerId = confirmedOrder.product.seller.id;
+        console.log('Found seller ID from confirmed order:', sellerId);
       }
     }
 
@@ -2801,16 +2834,19 @@ export class BotUpdate {
     }
 
     try {
-      await this.ratingsService.create({
+      const createdRating = await this.ratingsService.create({
         rating,
         type: 'seller',
         userId: user.id,
         sellerId
       });
 
+      console.log('Rating created successfully:', createdRating);
+
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.storeRatingSubmitted', { rating }));
     } catch (error) {
+      console.error('Error creating rating:', error);
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.ratingFailed'));
     }
@@ -2856,9 +2892,12 @@ export class BotUpdate {
         reply_markup: getStoreRatingKeyboard()
       });
 
-      // Store the seller ID in user's session for rating
-      // We'll need to handle this differently since we don't have direct access to user's session
-      // For now, we'll store it in a temporary way or handle it in the rating handler
+      // Store the seller ID in a temporary storage for this user
+      // We'll use a simple in-memory storage for now
+      if (!this.pendingRatings) {
+        this.pendingRatings = new Map();
+      }
+      this.pendingRatings.set(buyerTelegramId, sellerId);
     } catch (error) {
       console.error('Failed to request store rating after approval:', error);
     }
@@ -3991,6 +4030,43 @@ export class BotUpdate {
       
     } catch (error) {
       console.error('Test store rating error:', error);
+      await ctx.reply(`❌ Test failed: ${error.message}`);
+    }
+  }
+
+  @Command('testratingflow')
+  async testRatingFlowCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    // Check if this is an admin
+    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
+    if (!isAdmin) {
+      return;
+    }
+    
+    const telegramId = ctx.from.id.toString();
+    const user = await this.usersService.findByTelegramId(telegramId);
+    
+    if (!user) {
+      return ctx.reply('❌ User not found');
+    }
+
+    // Test the rating flow
+    try {
+      // Get recent orders
+      const recentOrders = await this.ordersService.findByUser(user.id);
+      await ctx.reply(`📋 Found ${recentOrders.length} orders for user`);
+      
+      // Show order details
+      for (const order of recentOrders.slice(0, 3)) {
+        await ctx.reply(`Order ${order.id}: Status=${order.status}, Product=${order.product?.id}, Seller=${order.product?.seller?.id}`);
+      }
+      
+      // Test pending ratings
+      const pendingSellerId = this.pendingRatings.get(telegramId);
+      await ctx.reply(`🔍 Pending rating for seller: ${pendingSellerId || 'None'}`);
+      
+    } catch (error) {
       await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }
