@@ -2771,7 +2771,23 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.userNotFound'));
     }
 
-    const sellerId = ctx.session.selectedStoreId;
+    // Try to get seller ID from session first
+    let sellerId = ctx.session.selectedStoreId;
+    
+    // If not in session, try to find from recent confirmed orders
+    if (!sellerId) {
+      const recentOrders = await this.ordersService.findByUser(user.id);
+      const confirmedOrder = recentOrders.find(order => 
+        order.status === OrderStatus.CONFIRMED && 
+        order.product && 
+        order.product.seller
+      );
+      
+      if (confirmedOrder && confirmedOrder.product.seller) {
+        sellerId = confirmedOrder.product.seller.id;
+      }
+    }
+
     if (!sellerId) {
       const language = ctx.session.language || 'uz';
       return ctx.reply(getMessage(language, 'error.storeNotFound'));
@@ -2819,6 +2835,33 @@ export class BotUpdate {
     await ctx.reply(getMessage(language, 'success.storeRatingRequest'), {
       reply_markup: getStoreRatingKeyboard()
     });
+  }
+
+  private async requestStoreRatingAfterApproval(telegram: any, buyerTelegramId: string, sellerId: number, language: 'uz' | 'ru') {
+    try {
+      // Get the user by telegram ID
+      const user = await this.usersService.findByTelegramId(buyerTelegramId);
+      if (!user) return;
+
+      // Check if user has already rated this store
+      const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, sellerId);
+      if (hasRated) return; // Don't ask for rating if already rated
+
+      // Send rating request message to the buyer
+      const ratingMessage = language === 'ru' ? 
+        '⭐ Оцените услуги магазина после получения товара:' :
+        '⭐ Mahsulotni olganingizdan so\'ng do\'kon xizmatini baholang:';
+
+      await telegram.sendMessage(buyerTelegramId, ratingMessage, {
+        reply_markup: getStoreRatingKeyboard()
+      });
+
+      // Store the seller ID in user's session for rating
+      // We'll need to handle this differently since we don't have direct access to user's session
+      // For now, we'll store it in a temporary way or handle it in the rating handler
+    } catch (error) {
+      console.error('Failed to request store rating after approval:', error);
+    }
   }
 
   private isStoreOpen(opensAt: number, closesAt: number): boolean {
@@ -2890,9 +2933,6 @@ export class BotUpdate {
           console.error('Failed to send order notification to seller:', error);
         }
       }
-
-      // Request store rating after successful purchase
-      await this.requestStoreRating(ctx, product.seller.id);
 
       // Clear session data
       ctx.session.selectedProductId = undefined;
@@ -2989,6 +3029,9 @@ export class BotUpdate {
         
         try {
           await ctx.telegram.sendMessage(buyer.telegramId, buyerTexts[buyer.language]);
+          
+          // Request store rating after seller approves the purchase
+          await this.requestStoreRatingAfterApproval(ctx.telegram, buyer.telegramId, order.product.seller.id, buyer.language);
         } catch (error) {
           console.error('Failed to notify buyer:', error);
         }

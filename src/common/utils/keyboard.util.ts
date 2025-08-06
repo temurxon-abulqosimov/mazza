@@ -288,13 +288,11 @@ export function getStoreRatingKeyboard(): InlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: '⭐ 1 yulduz', callback_data: 'rate_store_1' },
-        { text: '⭐⭐ 2 yulduz', callback_data: 'rate_store_2' },
-        { text: '⭐⭐⭐ 3 yulduz', callback_data: 'rate_store_3' }
-      ],
-      [
-        { text: '⭐⭐⭐⭐ 4 yulduz', callback_data: 'rate_store_4' },
-        { text: '⭐⭐⭐⭐⭐ 5 yulduz', callback_data: 'rate_store_5' }
+        { text: '1⭐️', callback_data: 'rate_store_1' },
+        { text: '2⭐️', callback_data: 'rate_store_2' },
+        { text: '3⭐️', callback_data: 'rate_store_3' },
+        { text: '4⭐️', callback_data: 'rate_store_4' },
+        { text: '5⭐️', callback_data: 'rate_store_5' }
       ]
     ]
   };
