@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
@@ -21,7 +21,7 @@ import { SessionProvider } from './providers/session.provider';
 @Update()
 export class BotUpdate {
   private userMessageCounts = new Map<string, { count: number; resetTime: number }>();
-  private pendingRatings = new Map<string, number>(); // Store seller IDs for pending ratings
+  private pendingRatings = new Map<string, number>(); // Store product IDs for pending ratings
   private readonly RATE_LIMIT_WINDOW = 60000; // 1 minute
   private readonly RATE_LIMIT_MAX = 30; // 30 messages per minute
 
@@ -1550,14 +1550,6 @@ export class BotUpdate {
     await this.handleBuyProduct(ctx, productId);
   }
 
-  @Action(/rate_(\d+)/)
-  async onRateProduct(@Ctx() ctx: TelegramContext) {
-    if (!ctx.match) return;
-    this.initializeSession(ctx);
-    const rating = parseInt(ctx.match[1]);
-    await this.handleRateProduct(ctx, rating);
-  }
-
   @Action(/rate_product_(\d+)/)
   async onRateProduct(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
@@ -2245,7 +2237,7 @@ export class BotUpdate {
     const sellerId = parseInt(ctx.match[1]);
     
     try {
-      const ratings = await this.ratingsService.findBySeller(sellerId);
+      const ratings = await this.adminService.getSellerRatings(sellerId);
       
       if (ratings.length === 0) {
         return ctx.reply(getMessage(language, 'admin.noRatings'));
@@ -2762,97 +2754,21 @@ export class BotUpdate {
     try {
       await this.ratingsService.create({
         rating,
-        type: 'product',
         userId: user.id,
         productId
       });
 
       const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'success.ratingSubmitted', { rating }));
+      await ctx.reply(getMessage(language, 'success.productRatingSubmitted', { rating }));
     } catch (error) {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.ratingFailed'));
     }
   }
 
-  private async handleRateStore(@Ctx() ctx: TelegramContext, rating: number) {
-    if (!ctx.from) return;
-    
-    const telegramId = ctx.from.id.toString();
-    const user = await this.usersService.findByTelegramId(telegramId);
-    
-    if (!user) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.userNotFound'));
-    }
 
-    // Try to get seller ID from session first
-    let sellerId = ctx.session.selectedStoreId;
-    
-    // If not in session, try to get from pending ratings
-    if (!sellerId) {
-      sellerId = this.pendingRatings.get(telegramId);
-      if (sellerId) {
-        console.log('Found seller ID from pending ratings:', sellerId);
-        // Remove from pending ratings after use
-        this.pendingRatings.delete(telegramId);
-      }
-    }
-    
-    // If still not found, try to find from recent confirmed orders
-    if (!sellerId) {
-      const recentOrders = await this.ordersService.findByUser(user.id);
-      console.log('Recent orders for user:', recentOrders.map(o => ({ 
-        id: o.id, 
-        status: o.status, 
-        productId: o.product?.id,
-        sellerId: o.product?.seller?.id 
-      })));
-      
-      const confirmedOrder = recentOrders.find(order => 
-        order.status === OrderStatus.CONFIRMED && 
-        order.product && 
-        order.product.seller
-      );
-      
-      if (confirmedOrder && confirmedOrder.product.seller) {
-        sellerId = confirmedOrder.product.seller.id;
-        console.log('Found seller ID from confirmed order:', sellerId);
-      }
-    }
 
-    if (!sellerId) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.storeNotFound'));
-    }
-
-    // Check if user has already rated this store
-    const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, sellerId);
-    if (hasRated) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'error.alreadyRated'));
-    }
-
-    try {
-      const createdRating = await this.ratingsService.create({
-        rating,
-        type: 'seller',
-        userId: user.id,
-        sellerId
-      });
-
-      console.log('Rating created successfully:', createdRating);
-
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'success.storeRatingSubmitted', { rating }));
-    } catch (error) {
-      console.error('Error creating rating:', error);
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'error.ratingFailed'));
-    }
-  }
-
-  private async requestStoreRating(@Ctx() ctx: TelegramContext, sellerId: number) {
+  private async requestProductRating(@Ctx() ctx: TelegramContext, productId: number) {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
@@ -2860,46 +2776,45 @@ export class BotUpdate {
     
     if (!user) return;
 
-    // Check if user has already rated this store
-    const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, sellerId);
+    // Check if user has already rated this product
+    const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, productId);
     if (hasRated) return; // Don't ask for rating if already rated
 
-    // Set the selected store ID for rating
-    ctx.session.selectedStoreId = sellerId;
+    // Set the selected product ID for rating
+    ctx.session.selectedProductId = productId;
 
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'success.storeRatingRequest'), {
-      reply_markup: getStoreRatingKeyboard()
+    await ctx.reply(getMessage(language, 'success.productRatingRequest'), {
+      reply_markup: getProductRatingKeyboard()
     });
   }
 
-  private async requestStoreRatingAfterApproval(telegram: any, buyerTelegramId: string, sellerId: number, language: 'uz' | 'ru') {
+  private async requestProductRatingAfterApproval(telegram: any, buyerTelegramId: string, productId: number, language: 'uz' | 'ru') {
     try {
       // Get the user by telegram ID
       const user = await this.usersService.findByTelegramId(buyerTelegramId);
       if (!user) return;
 
-      // Check if user has already rated this store
-      const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, sellerId);
+      // Check if user has already rated this product
+      const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, productId);
       if (hasRated) return; // Don't ask for rating if already rated
 
       // Send rating request message to the buyer
       const ratingMessage = language === 'ru' ? 
-        '⭐ Оцените услуги магазина после получения товара:' :
-        '⭐ Mahsulotni olganingizdan so\'ng do\'kon xizmatini baholang:';
+        '⭐ Оцените товар после получения:' :
+        '⭐ Mahsulotni olganingizdan so\'ng uni baholang:';
 
       await telegram.sendMessage(buyerTelegramId, ratingMessage, {
-        reply_markup: getStoreRatingKeyboard()
+        reply_markup: getProductRatingKeyboard()
       });
 
-      // Store the seller ID in a temporary storage for this user
-      // We'll use a simple in-memory storage for now
+      // Store the product ID in a temporary storage for this user
       if (!this.pendingRatings) {
         this.pendingRatings = new Map();
       }
-      this.pendingRatings.set(buyerTelegramId, sellerId);
+      this.pendingRatings.set(buyerTelegramId, productId);
     } catch (error) {
-      console.error('Failed to request store rating after approval:', error);
+      console.error('Failed to request product rating after approval:', error);
     }
   }
 
@@ -3069,8 +2984,8 @@ export class BotUpdate {
         try {
           await ctx.telegram.sendMessage(buyer.telegramId, buyerTexts[buyer.language]);
           
-          // Request store rating after seller approves the purchase
-          await this.requestStoreRatingAfterApproval(ctx.telegram, buyer.telegramId, order.product.seller.id, buyer.language);
+          // Request product rating after seller approves the purchase
+          await this.requestProductRatingAfterApproval(ctx.telegram, buyer.telegramId, order.product.id, buyer.language);
         } catch (error) {
           console.error('Failed to notify buyer:', error);
         }
@@ -4022,12 +3937,17 @@ export class BotUpdate {
         return ctx.reply('❌ User not found for testing!');
       }
       
-      // Test creating a rating
+      // Test creating a rating for the first product of the seller
+      const sellerProducts = await this.productsService.findBySeller(testSeller.id);
+      if (sellerProducts.length === 0) {
+        return ctx.reply('❌ No products found for testing!');
+      }
+      
+      const testProduct = sellerProducts[0];
       const testRating = await this.ratingsService.create({
         rating: 5,
-        type: 'seller',
         userId: user.id,
-        sellerId: testSeller.id
+        productId: testProduct.id
       });
       
       // Test store rating functionality
@@ -4154,18 +4074,23 @@ export class BotUpdate {
       
       const testSeller = sellers[0];
       
-      // Test 1: Create a rating
+      // Test 1: Create a rating for the first product of the seller
+      const sellerProducts = await this.productsService.findBySeller(testSeller.id);
+      if (sellerProducts.length === 0) {
+        return ctx.reply('❌ No products found for testing!');
+      }
+      
+      const testProduct = sellerProducts[0];
       const testRating = await this.ratingsService.create({
         rating: 4,
-        type: 'seller',
         userId: user.id,
-        sellerId: testSeller.id
+        productId: testProduct.id
       });
       
       // Test 2: Check if rating was created
       const averageRating = await this.ratingsService.getAverageRatingBySeller(testSeller.id);
       const ratingCount = await this.ratingsService.getSellerRatingCount(testSeller.id);
-      const hasRated = await this.ratingsService.hasUserRatedSeller(user.id, testSeller.id);
+      const hasRated = await this.ratingsService.hasUserRatedProduct(user.id, testProduct.id);
       
       // Test 3: Test nearby stores with ratings
       const nearbyStores = await this.sellersService.findNearbyStores(41.2995, 69.2401, 10); // Tashkent coordinates

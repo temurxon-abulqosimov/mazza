@@ -49,6 +49,6 @@ export class Seller {
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
 
-  @OneToMany(() => Rating, (rating) => rating.seller)
-  ratings: Rating[];
+  // Ratings are now calculated from product ratings
+  // No direct relationship needed
 }

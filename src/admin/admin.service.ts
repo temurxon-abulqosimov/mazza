@@ -277,11 +277,14 @@ export class AdminService {
   }
 
   async getSellerRatings(sellerId: number): Promise<Rating[]> {
-    return this.ratingsRepository.find({
-      relations: ['user', 'seller'],
-      where: { seller: { id: sellerId }, type: 'seller' },
-      order: { createdAt: 'DESC' }
-    });
+    return this.ratingsRepository
+      .createQueryBuilder('rating')
+      .leftJoin('rating.product', 'product')
+      .leftJoin('product.seller', 'seller')
+      .leftJoin('rating.user', 'user')
+      .where('seller.id = :sellerId', { sellerId })
+      .orderBy('rating.createdAt', 'DESC')
+      .getMany();
   }
 
   async deleteSeller(sellerId: number): Promise<boolean> {
