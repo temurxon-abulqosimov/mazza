@@ -1558,12 +1558,12 @@ export class BotUpdate {
     await this.handleRateProduct(ctx, rating);
   }
 
-  @Action(/rate_store_(\d+)/)
-  async onRateStore(@Ctx() ctx: TelegramContext) {
+  @Action(/rate_product_(\d+)/)
+  async onRateProduct(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
     this.initializeSession(ctx);
     const rating = parseInt(ctx.match[1]);
-    await this.handleRateStore(ctx, rating);
+    await this.handleRateProduct(ctx, rating);
   }
 
   @Action(/page_(\d+)/)

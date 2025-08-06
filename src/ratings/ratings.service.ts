@@ -17,19 +17,11 @@ export class RatingsService {
     // Create a new Rating entity instance
     const rating = new Rating();
     rating.rating = createRatingDto.rating;
-    rating.type = createRatingDto.type;
     rating.user = { id: createRatingDto.userId } as any;
+    rating.product = { id: createRatingDto.productId } as any;
 
     if (createRatingDto.comment) {
       rating.comment = createRatingDto.comment;
-    }
-
-    if (createRatingDto.productId) {
-      rating.product = { id: createRatingDto.productId } as any;
-    }
-
-    if (createRatingDto.sellerId) {
-      rating.seller = { id: createRatingDto.sellerId } as any;
     }
 
     console.log('Rating entity to save:', rating);
@@ -56,15 +48,7 @@ export class RatingsService {
 
   async findByProduct(productId: number): Promise<Rating[]> {
     return this.ratingsRepository.find({
-      where: { product: { id: productId }, type: 'product' },
-      relations: ['user'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async findBySeller(sellerId: number): Promise<Rating[]> {
-    return this.ratingsRepository.find({
-      where: { seller: { id: sellerId }, type: 'seller' },
+      where: { product: { id: productId } },
       relations: ['user'],
       order: { createdAt: 'DESC' },
     });
@@ -83,7 +67,6 @@ export class RatingsService {
       .createQueryBuilder('rating')
       .select('AVG(rating.rating)', 'average')
       .where('rating.product.id = :productId', { productId })
-      .andWhere('rating.type = :type', { type: 'product' })
       .getRawOne();
 
     return result?.average ? parseFloat(result.average) : 0;
@@ -92,11 +75,13 @@ export class RatingsService {
   async getAverageRatingBySeller(sellerId: number): Promise<number> {
     console.log('Getting average rating for seller:', sellerId);
     
+    // Get all products from this seller and calculate average of their ratings
     const result = await this.ratingsRepository
       .createQueryBuilder('rating')
+      .leftJoin('rating.product', 'product')
+      .leftJoin('product.seller', 'seller')
       .select('AVG(rating.rating)', 'average')
-      .where('rating.seller.id = :sellerId', { sellerId })
-      .andWhere('rating.type = :type', { type: 'seller' })
+      .where('seller.id = :sellerId', { sellerId })
       .getRawOne();
 
     const average = result?.average ? parseFloat(result.average) : 0;
@@ -107,27 +92,30 @@ export class RatingsService {
   async getSellerRatingCount(sellerId: number): Promise<number> {
     console.log('Getting rating count for seller:', sellerId);
     
-    const count = await this.ratingsRepository.count({
-      where: { seller: { id: sellerId }, type: 'seller' }
-    });
+    // Count all ratings for products from this seller
+    const count = await this.ratingsRepository
+      .createQueryBuilder('rating')
+      .leftJoin('rating.product', 'product')
+      .leftJoin('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .getCount();
     
     console.log('Rating count result:', count);
     return count;
   }
 
-  async hasUserRatedSeller(userId: number, sellerId: number): Promise<boolean> {
-    console.log('Checking if user has rated seller:', { userId, sellerId });
+  async hasUserRatedProduct(userId: number, productId: number): Promise<boolean> {
+    console.log('Checking if user has rated product:', { userId, productId });
     
     const count = await this.ratingsRepository.count({
       where: { 
         user: { id: userId }, 
-        seller: { id: sellerId }, 
-        type: 'seller' 
+        product: { id: productId }
       }
     });
     
     const hasRated = count > 0;
-    console.log('User has rated seller:', hasRated);
+    console.log('User has rated product:', hasRated);
     return hasRated;
   }
 

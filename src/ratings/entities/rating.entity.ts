@@ -14,9 +14,6 @@ export class Rating {
   @Column({ type: 'text', nullable: true })
   comment?: string;
 
-  @Column({ type: 'enum', enum: ['product', 'seller'], default: 'product' })
-  type: 'product' | 'seller'; // Type of rating
-
   @CreateDateColumn()
   createdAt: Date;
 
@@ -26,9 +23,6 @@ export class Rating {
   @ManyToOne(() => User, (user) => user.ratings)
   user: User;
 
-  @ManyToOne(() => Product, (product) => product.ratings, { nullable: true })
-  product?: Product; // Optional for seller ratings
-
-  @ManyToOne(() => Seller, { nullable: true })
-  seller?: Seller; // Optional for product ratings
+  @ManyToOne(() => Product, (product) => product.ratings)
+  product: Product;
 } 
