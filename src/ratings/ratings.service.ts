@@ -14,34 +14,31 @@ export class RatingsService {
   async create(createRatingDto: CreateRatingDto): Promise<Rating> {
     console.log('Creating rating with DTO:', createRatingDto);
     
-    // Create the rating entity with proper relationships
-    const ratingData: any = {
-      rating: createRatingDto.rating,
-      type: createRatingDto.type,
-      user: { id: createRatingDto.userId }
-    };
+    // Create a new Rating entity instance
+    const rating = new Rating();
+    rating.rating = createRatingDto.rating;
+    rating.type = createRatingDto.type;
+    rating.user = { id: createRatingDto.userId } as any;
 
     if (createRatingDto.comment) {
-      ratingData.comment = createRatingDto.comment;
+      rating.comment = createRatingDto.comment;
     }
 
     if (createRatingDto.productId) {
-      ratingData.product = { id: createRatingDto.productId };
+      rating.product = { id: createRatingDto.productId } as any;
     }
 
     if (createRatingDto.sellerId) {
-      ratingData.seller = { id: createRatingDto.sellerId };
+      rating.seller = { id: createRatingDto.sellerId } as any;
     }
 
-    console.log('Rating data to save:', ratingData);
+    console.log('Rating entity to save:', rating);
     
-    const rating = this.ratingsRepository.create(ratingData);
     const savedRating = await this.ratingsRepository.save(rating);
     
     console.log('Rating saved successfully:', savedRating);
     
-    // Return the saved rating with proper type
-    return savedRating as Rating;
+    return savedRating;
   }
 
   async findAll(): Promise<Rating[]> {
