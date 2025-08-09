@@ -20,6 +20,17 @@ import { envVariables } from 'src/config/env.variables';
   imports: [
     TelegrafModule.forRoot({
       token: envVariables.TELEGRAM_BOT_TOKEN,
+      // Use webhook in production, long polling in development
+      ...(envVariables.USE_WEBHOOK ? {
+        webhook: {
+          domain: envVariables.WEBHOOK_URL,
+          hookPath: '/webhook',
+          secretToken: envVariables.WEBHOOK_SECRET || undefined,
+        },
+      } : {
+        // Long polling configuration
+        polling: true,
+      }),
     }),
     UsersModule,
     SellersModule,

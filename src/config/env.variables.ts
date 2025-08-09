@@ -6,6 +6,11 @@ export const envVariables = {
     // Telegram Bot Configuration
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
     
+    // Webhook Configuration
+    WEBHOOK_URL: process.env.WEBHOOK_URL || '',
+    WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || '',
+    USE_WEBHOOK: process.env.USE_WEBHOOK === 'true',
+    
     // Database Configuration
     DB_HOST: process.env.DB_HOST || 'localhost',
     DB_PORT: parseInt(process.env.DB_PORT || '5432', 10),
@@ -38,6 +43,14 @@ export const envVariables = {
         }
         if (!this.ADMIN_PASSWORD) {
             throw new Error('ADMIN_PASSWORD is required');
+        }
+        if (this.USE_WEBHOOK) {
+            if (!this.WEBHOOK_URL) {
+                throw new Error('WEBHOOK_URL is required when USE_WEBHOOK is true');
+            }
+            if (!this.WEBHOOK_URL.startsWith('https://')) {
+                throw new Error('WEBHOOK_URL must start with https:// for security');
+            }
         }
     }
 };

@@ -13,7 +13,11 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
-    "db:reset": "chmod +x reset-database.sh && ./reset-database.sh"
+    "db:reset": "chmod +x reset-database.sh && ./reset-database.sh",
+    "webhook:setup": "node setup-webhook.js setup",
+    "webhook:delete": "node setup-webhook.js delete",
+    "webhook:info": "node setup-webhook.js info",
+    "webhook:test": "node test-webhook-config.js"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
