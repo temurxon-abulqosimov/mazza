@@ -141,8 +141,14 @@ export class SellersService {
           console.log(`No valid location for seller`);
         }
 
-        const isOpen = isStoreOpen(seller.opensAt, seller.closesAt);
-        console.log(`Store hours: ${seller.opensAt} - ${seller.closesAt}, Is open: ${isOpen}`);
+        // Handle store hours (now optional)
+        let isOpen = false;
+        if (seller.opensAt !== undefined && seller.closesAt !== undefined) {
+          isOpen = isStoreOpen(seller.opensAt, seller.closesAt);
+          console.log(`Store hours: ${seller.opensAt} - ${seller.closesAt}, Is open: ${isOpen}`);
+        } else {
+          console.log(`Store has no opening hours set`);
+        }
 
         // Filter active products for this seller
         const activeProducts = seller.products.filter(product => {

@@ -116,12 +116,12 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
 
 export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'seller'): any {
   if (role === 'seller') {
-    // Seller menu: My Products, Add Product, My Orders, Support, Language
+    // Seller menu: My Products, Add Product, Statistics, Support, Language
     return {
       keyboard: [
         [getMessage(language, 'mainMenu.myProducts')],
         [getMessage(language, 'mainMenu.postProduct')],
-        [getMessage(language, 'mainMenu.myOrders')],
+        [getMessage(language, 'mainMenu.statistics')],
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
       resize_keyboard: true
@@ -326,6 +326,9 @@ export function getAdminMainKeyboard(): InlineKeyboardMarkup {
       ],
       [
         { text: '📊 Statistika', callback_data: 'admin_statistics' },
+        { text: '📈 Kengaytirilgan', callback_data: 'admin_advanced_statistics' }
+      ],
+      [
         { text: '🔍 Qidiruv', callback_data: 'admin_search' }
       ],
       [

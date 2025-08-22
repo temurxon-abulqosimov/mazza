@@ -25,11 +25,11 @@ export class Seller {
   @Column('jsonb', { nullable: true })
   location?: { latitude: number; longitude: number } | null;
 
-  @Column({ type: 'int' })
-  opensAt: number; // Minutes from midnight
+  @Column({ type: 'int', nullable: true })
+  opensAt?: number; // Minutes from midnight - now optional
 
-  @Column({ type: 'int' })
-  closesAt: number; // Minutes from midnight
+  @Column({ type: 'int', nullable: true })
+  closesAt?: number; // Minutes from midnight - now optional
 
   @Column({ type: 'enum', enum: SellerStatus, default: SellerStatus.PENDING })
   status: SellerStatus;

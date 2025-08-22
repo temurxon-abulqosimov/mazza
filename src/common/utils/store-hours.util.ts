@@ -92,6 +92,64 @@ export function formatStoreHours(opensAt: number, closesAt: number): string {
 }
 
 /**
+ * Formats a date in relative time format (today, tomorrow, yesterday, or specific date)
+ * 
+ * @param date - Date to format
+ * @param language - Language for localization ('uz' or 'ru')
+ * @returns formatted relative time string (e.g., "today at 18:00", "tomorrow at 09:30")
+ */
+export function formatRelativeTime(date: Date | string, language: 'uz' | 'ru' = 'uz'): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  
+  // Get today's date at midnight for comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // Get the date part of the target date (without time)
+  const targetDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  
+  // Format time as HH:MM
+  const hours = dateObj.getHours().toString().padStart(2, '0');
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  const timeString = `${hours}:${minutes}`;
+  
+  // Determine relative date
+  let relativeDate: string;
+  if (targetDate.getTime() === today.getTime()) {
+    relativeDate = language === 'ru' ? 'сегодня' : 'bugun';
+  } else if (targetDate.getTime() === tomorrow.getTime()) {
+    relativeDate = language === 'ru' ? 'завтра' : 'ertaga';
+  } else if (targetDate.getTime() === yesterday.getTime()) {
+    relativeDate = language === 'ru' ? 'вчера' : 'kecha';
+  } else {
+    // For dates more than 1 day away, use the original format
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear();
+    relativeDate = language === 'ru' ? `${day}/${month}/${year}` : `${day}/${month}/${year}`;
+  }
+  
+  // Format: "today at 18:00" or "bugun soat 18:00"
+  if (language === 'ru') {
+    if (targetDate.getTime() === today.getTime() || targetDate.getTime() === tomorrow.getTime() || targetDate.getTime() === yesterday.getTime()) {
+      return `${relativeDate} в ${timeString}`;
+    } else {
+      return `${relativeDate} в ${timeString}`;
+    }
+  } else {
+    if (targetDate.getTime() === today.getTime() || targetDate.getTime() === tomorrow.getTime() || targetDate.getTime() === yesterday.getTime()) {
+      return `${relativeDate} soat ${timeString}`;
+    } else {
+      return `${relativeDate} soat ${timeString}`;
+    }
+  }
+}
+
+/**
  * Formats a date in DD/MM/YYYY HH:MM format (24-hour)
  * 
  * @param date - Date to format
@@ -100,18 +158,15 @@ export function formatStoreHours(opensAt: number, closesAt: number): string {
 export function formatDateForDisplay(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   
-  // Get date in Uzbekistan timezone (UTC+5)
-  const uzbekistanTime = new Date(dateObj.getTime() + (5 * 60 * 60 * 1000)); // UTC+5
-  
-  const day = uzbekistanTime.getDate().toString().padStart(2, '0');
-  const month = (uzbekistanTime.getMonth() + 1).toString().padStart(2, '0');
-  const year = uzbekistanTime.getFullYear();
-  const hours = uzbekistanTime.getHours().toString().padStart(2, '0');
-  const minutes = uzbekistanTime.getMinutes().toString().padStart(2, '0');
+  // Don't add timezone offset - the time is already stored correctly
+  const day = dateObj.getDate().toString().padStart(2, '0');
+  const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+  const year = dateObj.getFullYear();
+  const hours = dateObj.getHours().toString().padStart(2, '0');
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
   
   console.log(`=== DATE FORMATTING ===`);
   console.log(`Original date: ${dateObj.toISOString()}`);
-  console.log(`Uzbekistan time: ${uzbekistanTime.toISOString()}`);
   console.log(`Formatted: ${day}/${month}/${year} ${hours}:${minutes}`);
   
   return `${day}/${month}/${year} ${hours}:${minutes}`;

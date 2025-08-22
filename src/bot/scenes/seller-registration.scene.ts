@@ -8,7 +8,7 @@ import { BusinessType } from 'src/common/enums/business-type.enum';
 import { SellerStatus } from 'src/common/enums/seller-status.enum';
 import { getMessage } from 'src/config/messages';
 import { SessionProvider } from '../providers/session.provider';
-import { validateAndParseTime } from 'src/common/utils/store-hours.util';
+
 
 @Scene('seller-registration')
 export class SellerRegistrationScene {
@@ -64,38 +64,6 @@ export class SellerRegistrationScene {
       ctx.session.registrationStep = 'business_type';
 
       await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { reply_markup: getBusinessTypeKeyboard(language) });
-    } else if (step === 'opens_at') {
-      const timeValidation = validateAndParseTime(ctx.message.text);
-      
-      if (!timeValidation.isValid) {
-        return ctx.reply(getMessage(language, 'validation.invalidTime'));
-      }
-
-      const hours = timeValidation.hours!;
-      const minutes = timeValidation.minutes!;
-      if (!ctx.session.sellerData) {
-        ctx.session.sellerData = {};
-      }
-      ctx.session.sellerData.opensAt = hours * 60 + minutes;
-      ctx.session.registrationStep = 'closes_at';
-
-      await ctx.reply(getMessage(language, 'registration.opensAtSuccess'));
-    } else if (step === 'closes_at') {
-      const timeValidation = validateAndParseTime(ctx.message.text);
-      
-      if (!timeValidation.isValid) {
-        return ctx.reply(getMessage(language, 'validation.invalidTime'));
-      }
-
-      const hours = timeValidation.hours!;
-      const minutes = timeValidation.minutes!;
-      if (!ctx.session.sellerData) {
-        ctx.session.sellerData = {};
-      }
-      ctx.session.sellerData.closesAt = hours * 60 + minutes;
-      ctx.session.registrationStep = 'location';
-
-      await ctx.reply(getMessage(language, 'registration.closesAtSuccess'), { reply_markup: getLocationKeyboard(language) });
     } else {
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     }
@@ -111,10 +79,10 @@ export class SellerRegistrationScene {
       ctx.session.sellerData = {};
     }
     ctx.session.sellerData.businessType = businessType;
-    ctx.session.registrationStep = 'opens_at';
+    ctx.session.registrationStep = 'location';
 
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.businessTypeRequest'));
+    await ctx.reply(getMessage(language, 'registration.locationRequest'), { reply_markup: getLocationKeyboard(language) });
   }
 
   @On('location')
@@ -135,8 +103,7 @@ export class SellerRegistrationScene {
     try {
       if (!ctx.from) throw new Error('User not found');
       if (!ctx.session.sellerData.phoneNumber || !ctx.session.sellerData.businessName || 
-          !ctx.session.sellerData.businessType || !ctx.session.sellerData.location ||
-          ctx.session.sellerData.opensAt === undefined || ctx.session.sellerData.closesAt === undefined) {
+          !ctx.session.sellerData.businessType || !ctx.session.sellerData.location) {
         throw new Error('Missing seller data');
       }
 
@@ -146,8 +113,6 @@ export class SellerRegistrationScene {
         businessName: ctx.session.sellerData.businessName,
         businessType: ctx.session.sellerData.businessType,
         location: ctx.session.sellerData.location,
-        opensAt: ctx.session.sellerData.opensAt,
-        closesAt: ctx.session.sellerData.closesAt,
         status: SellerStatus.PENDING,
         language: ctx.session.language
       };

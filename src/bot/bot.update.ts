@@ -3,7 +3,7 @@ import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegra
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
 import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
-import { isStoreOpen, formatDateForDisplay, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
+import { isStoreOpen, formatDateForDisplay, formatRelativeTime, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
 import { SellersService } from 'src/sellers/sellers.service';
 import { AdminService } from 'src/admin/admin.service';
@@ -1287,7 +1287,7 @@ export class BotUpdate {
             code: createdProduct.code,
             description: createdProduct.description,
             price: createdProduct.price,
-            availableUntil: formatDateForDisplay(createdProduct.availableUntil)
+            availableUntil: formatRelativeTime(createdProduct.availableUntil, language)
           }));
         } catch (error) {
           console.error('Product creation error:', error);
@@ -1317,8 +1317,8 @@ export class BotUpdate {
       await this.handleAddProduct(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.myProducts'))) {
       await this.handleMyProducts(ctx);
-    } else if (text.includes(getMessage(language, 'mainMenu.myOrders'))) {
-      await this.handleMyOrders(ctx);
+    } else if (text.includes(getMessage(language, 'mainMenu.statistics'))) {
+      await this.handleSellerStatistics(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.support'))) {
       await this.handleSupport(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.language'))) {
@@ -1333,7 +1333,7 @@ export class BotUpdate {
       console.log('- findStores:', getMessage(language, 'mainMenu.findStores'));
       console.log('- postProduct:', getMessage(language, 'mainMenu.postProduct'));
       console.log('- myProducts:', getMessage(language, 'mainMenu.myProducts'));
-      console.log('- myOrders:', getMessage(language, 'mainMenu.myOrders'));
+      console.log('- statistics:', getMessage(language, 'mainMenu.statistics'));
       console.log('- support:', getMessage(language, 'mainMenu.support'));
       console.log('- language:', getMessage(language, 'mainMenu.language'));
       
@@ -1923,6 +1923,33 @@ export class BotUpdate {
     }
   }
 
+  @Action('admin_advanced_statistics')
+  async onAdminAdvancedStatistics(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      const language = ctx.session?.language || 'uz';
+      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    }
+    
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    try {
+      const advancedStats = await this.adminService.getAdvancedStatistics();
+      
+      await ctx.reply(getMessage(language, 'admin.advancedStatistics', advancedStats), {
+        reply_markup: getAdminMainKeyboard()
+      });
+    } catch (error) {
+      console.error('Admin advanced statistics error:', error);
+      await ctx.reply(getMessage(language, 'admin.actionFailed'));
+    }
+  }
+
   @Action('admin_search')
   async onAdminSearch(@Ctx() ctx: TelegramContext) {
     if (!ctx.from) return;
@@ -1987,7 +2014,13 @@ export class BotUpdate {
         return ctx.reply(getMessage(language, 'admin.sellerNotFound'));
       }
       
-      const hours = `${Math.floor(seller.opensAt / 60)}:${(seller.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(seller.closesAt / 60)}:${(seller.closesAt % 60).toString().padStart(2, '0')}`;
+      // Handle store hours (now optional)
+      let hours = '';
+      if (seller.opensAt !== undefined && seller.closesAt !== undefined) {
+        hours = `${Math.floor(seller.opensAt / 60)}:${(seller.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(seller.closesAt / 60)}:${(seller.closesAt % 60).toString().padStart(2, '0')}`;
+      } else {
+        hours = language === 'ru' ? 'Время работы не указано' : 'Ish vaqti ko\'rsatilmagan';
+      }
       const location = seller.location ? `${seller.location.latitude}, ${seller.location.longitude}` : 'Manzil yo\'q';
       const productCount = seller.products?.length || 0;
       const orderCount = seller.products?.reduce((sum, product) => sum + (product.orders?.length || 0), 0) || 0;
@@ -2476,9 +2509,18 @@ export class BotUpdate {
     const products = await this.productsService.findBySeller(storeId);
     const language = ctx.session.language || 'uz';
 
-    const hours = `${Math.floor(store.opensAt / 60)}:${(store.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(store.closesAt / 60)}:${(store.closesAt % 60).toString().padStart(2, '0')}`;
-    const isOpen = this.isStoreOpen(store.opensAt, store.closesAt);
-    const status = isOpen ? getMessage(language, 'stores.openStatus') : getMessage(language, 'stores.closedStatus');
+    // Handle store hours (now optional)
+    let hours = '';
+    let status = '';
+    
+    if (store.opensAt !== undefined && store.closesAt !== undefined) {
+      hours = `${Math.floor(store.opensAt / 60)}:${(store.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(store.closesAt / 60)}:${(store.closesAt % 60).toString().padStart(2, '0')}`;
+      const isOpen = this.isStoreOpen(store.opensAt, store.closesAt);
+      status = isOpen ? getMessage(language, 'stores.openStatus') : getMessage(language, 'stores.closedStatus');
+    } else {
+      hours = language === 'ru' ? 'Время работы не указано' : 'Ish vaqti ko\'rsatilmagan';
+      status = language === 'ru' ? 'Статус неизвестен' : 'Status noma\'lum';
+    }
 
     // Add location link if available
     let locationLink = '';
@@ -2569,7 +2611,7 @@ export class BotUpdate {
       // Add products list with buy buttons
       let productsList = '';
       products.forEach((product, index) => {
-        const formattedDate = formatDateForDisplay(product.availableUntil);
+        const formattedDate = formatRelativeTime(product.availableUntil, language);
         
         // Format original price display with strikethrough if on sale
         let originalPriceText = '';
@@ -2752,6 +2794,59 @@ export class BotUpdate {
     });
 
     await ctx.reply(getMessage(language, 'products.myProducts', { productsList }));
+  }
+
+  private async handleSellerStatistics(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const seller = await this.sellersService.findByTelegramId(telegramId);
+    
+    if (!seller) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.sellerNotFound'));
+    }
+
+    const language = ctx.session.language || 'uz';
+    
+    try {
+      // Get seller's products
+      const products = await this.productsService.findBySeller(seller.id);
+      
+      // Calculate statistics
+      const totalProducts = products.length;
+      const now = new Date();
+      const activeProducts = products.filter(product => 
+        product.isActive && new Date(product.availableUntil) > now
+      ).length;
+      const expiredProducts = products.filter(product => 
+        new Date(product.availableUntil) <= now
+      ).length;
+      
+      // Get seller's orders directly
+      const orders = await this.ordersService.findBySeller(seller.id);
+      const totalOrders = orders.length;
+      const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+      
+      // Get seller's ratings
+      const averageRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+      const storeRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+      
+      const statistics = getMessage(language, 'products.statistics', {
+        totalProducts,
+        activeProducts,
+        expiredProducts,
+        totalOrders,
+        totalRevenue: totalRevenue.toLocaleString(),
+        averageRating: averageRating.toFixed(1),
+        storeRating: storeRating.toFixed(1)
+      });
+      
+      await ctx.reply(statistics);
+    } catch (error) {
+      console.error('Error getting seller statistics:', error);
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
   }
 
   private async handleSupport(@Ctx() ctx: TelegramContext) {

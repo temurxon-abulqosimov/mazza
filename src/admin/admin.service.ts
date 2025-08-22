@@ -194,6 +194,92 @@ export class AdminService {
     };
   }
 
+  async getAdvancedStatistics(): Promise<{
+    totalRevenue: number;
+    averageOrderValue: number;
+    topSellers: string;
+    dailyActivity: string;
+    conversionRate: number;
+  }> {
+    try {
+      // Get total revenue and average order value
+      const revenueResult = await this.ordersRepository
+        .createQueryBuilder('order')
+        .select([
+          'SUM(order.totalPrice) as totalRevenue',
+          'AVG(order.totalPrice) as averageOrderValue'
+        ])
+        .getRawOne();
+
+      const totalRevenue = parseFloat(revenueResult.totalRevenue) || 0;
+      const averageOrderValue = parseFloat(revenueResult.averageOrderValue) || 0;
+
+      // Get top sellers by revenue
+      const topSellersResult = await this.ordersRepository
+        .createQueryBuilder('order')
+        .leftJoin('order.product', 'product')
+        .leftJoin('product.seller', 'seller')
+        .select([
+          'seller.businessName as businessName',
+          'SUM(order.totalPrice) as revenue',
+          'COUNT(order.id) as orderCount'
+        ])
+        .groupBy('seller.id, seller.businessName')
+        .orderBy('revenue', 'DESC')
+        .limit(5)
+        .getRawMany();
+
+      let topSellers = '';
+      topSellersResult.forEach((seller, index) => {
+        const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+        topSellers += `${emoji} ${seller.businessName}: ${parseInt(seller.revenue).toLocaleString()} so'm (${seller.orderCount} buyurtma)\n`;
+      });
+
+      // Get daily activity (last 7 days)
+      const dailyActivityResult = await this.ordersRepository
+        .createQueryBuilder('order')
+        .select([
+          'DATE(order.createdAt) as date',
+          'COUNT(order.id) as orderCount'
+        ])
+        .where('order.createdAt >= :startDate', { 
+          startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) 
+        })
+        .groupBy('DATE(order.createdAt)')
+        .orderBy('date', 'ASC')
+        .getRawMany();
+
+      let dailyActivity = '';
+      dailyActivityResult.forEach(day => {
+        const date = new Date(day.date);
+        const dayName = date.toLocaleDateString('uz-UZ', { weekday: 'short' });
+        dailyActivity += `${dayName}: ${day.orderCount} buyurtma\n`;
+      });
+
+      // Calculate conversion rate (orders / products viewed)
+      const totalProducts = await this.productsRepository.count();
+      const totalOrders = await this.ordersRepository.count();
+      const conversionRate = totalProducts > 0 ? Math.round((totalOrders / totalProducts) * 100) : 0;
+
+      return {
+        totalRevenue,
+        averageOrderValue,
+        topSellers,
+        dailyActivity,
+        conversionRate
+      };
+    } catch (error) {
+      console.error('Error getting advanced statistics:', error);
+      return {
+        totalRevenue: 0,
+        averageOrderValue: 0,
+        topSellers: 'Ma\'lumot mavjud emas',
+        dailyActivity: 'Ma\'lumot mavjud emas',
+        conversionRate: 0
+      };
+    }
+  }
+
   async getAllSellers(): Promise<Seller[]> {
     return this.sellersRepository.find({
       relations: ['products'],

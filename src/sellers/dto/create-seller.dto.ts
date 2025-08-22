@@ -28,15 +28,17 @@ export class CreateSellerDto {
   @Type(() => LocationDto)
   location?: LocationDto;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(1440) // 24 hours in minutes
-  opensAt: number;
+  opensAt?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(1440) // 24 hours in minutes
-  closesAt: number;
+  closesAt?: number;
 
   @IsString()
   @IsEnum(['uz', 'ru'])

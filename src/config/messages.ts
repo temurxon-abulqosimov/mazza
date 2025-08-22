@@ -27,11 +27,7 @@ export const messages = {
       paymentRequest: '💳 To\'lov usulini tanlang:',
       businessNameRequest: '✅ Telefon raqam qabul qilindi! Endi biznes nomingizni kiriting:',
       businessNameSuccess: '✅ Biznes nomi qabul qilindi! Endi biznes turini tanlang:',
-      businessTypeRequest: '✅ Biznes turi qabul qilindi! Endi ochilish vaqtini kiriting (HH:MM formatida):',
-      opensAtRequest: '🕐 Do\'kon ochilish vaqtini kiriting (masalan: 09:00):',
-      opensAtSuccess: '✅ Ochiq vaqti qabul qilindi! Endi yopilish vaqtini kiriting (masalan: 22:00):',
-      closesAtRequest: '🕐 Do\'kon yopilish vaqtini kiriting (masalan: 22:00):',
-      closesAtSuccess: '✅ Yopilish vaqti qabul qilindi! Endi manzilingizni yuboring:',
+      businessTypeRequest: '✅ Biznes turi qabul qilindi! Endi manzilingizni yuboring:',
       priceRequest: '💰 Mahsulot narxini kiriting (masalan: 50000):',
       priceSuccess: '✅ Narx qabul qilindi! Asl narxni kiriting (agar chegirma bo\'lsa, aks holda 0):',
       originalPriceSuccess: '✅ Asl narx qabul qilindi! Mahsulot haqida qisqacha ma\'lumot kiriting:',
@@ -102,6 +98,7 @@ export const messages = {
       myOrders: '📋 Mening buyurtmalarim',
       postProduct: '📦 Mahsulot qo\'shish',
       myProducts: '📋 Mening mahsulotlarim',
+      statistics: '📊 Statistika',
       support: '💬 Qo\'llab-quvvatlash',
       language: '🌐 Tilni o\'zgartirish'
     },
@@ -135,7 +132,8 @@ export const messages = {
       productItemWithBuy: '🛍️ <b>Mahsulot #{number} | Kod: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Mavjud: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 Sizda hali mahsulotlar yo\'q.',
       productWithDiscount: '{number}. {price} so\'m ({discount}% chegirma)\n',
-      productWithoutDiscount: '{number}. {price} so\'m\n'
+      productWithoutDiscount: '{number}. {price} so\'m\n',
+      statistics: '📊 Sizning statistikangiz:\n\n📦 Jami mahsulotlar: {totalProducts}\n✅ Faol mahsulotlar: {activeProducts}\n❌ Muddat o\'tgan: {expiredProducts}\n📋 Jami buyurtmalar: {totalOrders}\n💰 Jami tushum: {totalRevenue} so\'m\n⭐ O\'rtacha baho: {averageRating}/5\n📊 Do\'kon bahosi: {storeRating}/5'
     },
     
     // Support
@@ -190,6 +188,7 @@ export const messages = {
       notAuthorized: '❌ Siz admin emassiz!',
       mainMenu: '🔐 Admin paneli - Asosiy menyu:',
       statistics: '📊 Statistika:\n\n👥 Jami foydalanuvchilar: {totalUsers}\n🏪 Jami do\'konlar: {totalSellers}\n⏳ Kutilayotgan: {pendingSellers}\n✅ Tasdiqlangan: {approvedSellers}\n❌ Rad etilgan: {rejectedSellers}\n🚫 Bloklangan: {blockedSellers}\n📦 Jami mahsulotlar: {totalProducts}\n📋 Jami buyurtmalar: {totalOrders}\n⭐ Jami baholar: {totalRatings}\n📊 O\'rtacha baho: {averageRating}/5',
+      advancedStatistics: '📈 Kengaytirilgan statistika:\n\n💰 Jami tushum: {totalRevenue} so\'m\n📊 O\'rtacha chek: {averageOrderValue} so\'m\n🔥 Top sotuvchilar:\n{topSellers}\n📈 Kunlik faollik:\n{dailyActivity}\n🎯 Konversiya: {conversionRate}%',
       allSellers: '🏪 Barcha do\'konlar ({count}):',
       pendingSellers: '⏳ Kutilayotgan do\'konlar ({count}):',
       approvedSellers: '✅ Tasdiqlangan do\'konlar ({count}):',
@@ -254,11 +253,7 @@ export const messages = {
       paymentRequest: '💳 Выберите способ оплаты:',
       businessNameRequest: '✅ Номер телефона принят! Теперь введите название вашего бизнеса:',
       businessNameSuccess: '✅ Название бизнеса принято! Теперь выберите тип бизнеса:',
-      businessTypeRequest: '✅ Тип бизнеса принят! Теперь введите время открытия (в формате ЧЧ:ММ):',
-      opensAtRequest: '🕐 Введите время открытия магазина (например: 09:00):',
-      opensAtSuccess: '✅ Время открытия принято! Теперь введите время закрытия (например: 22:00):',
-      closesAtRequest: '🕐 Введите время закрытия магазина (например: 22:00):',
-      closesAtSuccess: '✅ Время закрытия принято! Теперь отправьте ваше местоположение:',
+      businessTypeRequest: '✅ Тип бизнеса принят! Теперь отправьте ваше местоположение:',
       priceRequest: '💰 Введите цену товара (например: 50000):',
       priceSuccess: '✅ Цена принята! Введите оригинальную цену (если есть скидка, иначе 0):',
       originalPriceSuccess: '✅ Оригинальная цена принята! Введите краткую информацию о товаре:',
@@ -326,6 +321,7 @@ export const messages = {
       myOrders: '📋 Мои заказы',
       postProduct: '📦 Добавить товар',
       myProducts: '📋 Мои товары',
+      statistics: '📊 Статистика',
       support: '💬 Поддержка',
       language: '🌐 Изменить язык'
     },
@@ -359,7 +355,8 @@ export const messages = {
       productItemWithBuy: '🛍️ <b>Товар #{number} | Код: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно до: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 У вас пока нет товаров.',
       productWithDiscount: '{number}. {price} сум ({discount}% скидка)\n',
-      productWithoutDiscount: '{number}. {price} сум\n'
+      productWithoutDiscount: '{number}. {price} сум\n',
+      statistics: '📊 Ваша статистика:\n\n📦 Всего товаров: {totalProducts}\n✅ Активные товары: {activeProducts}\n❌ Просроченные: {expiredProducts}\n📋 Всего заказов: {totalOrders}\n💰 Общий доход: {totalRevenue} сум\n⭐ Средняя оценка: {averageRating}/5\n📊 Оценка магазина: {storeRating}/5'
     },
     
     // Support
@@ -414,6 +411,7 @@ export const messages = {
       notAuthorized: '❌ Вы не администратор!',
       mainMenu: '🔐 Панель администратора - Главное меню:',
       statistics: '📊 Статистика:\n\n👥 Всего пользователей: {totalUsers}\n🏪 Всего магазинов: {totalSellers}\n⏳ Ожидающие: {pendingSellers}\n✅ Подтвержденные: {approvedSellers}\n❌ Отклоненные: {rejectedSellers}\n🚫 Заблокированные: {blockedSellers}\n📦 Всего товаров: {totalProducts}\n📋 Всего заказов: {totalOrders}\n⭐ Всего оценок: {totalRatings}\n📊 Средняя оценка: {averageRating}/5',
+      advancedStatistics: '📈 Расширенная статистика:\n\n💰 Общий доход: {totalRevenue} сум\n📊 Средний чек: {averageOrderValue} сум\n🔥 Топ продавцов:\n{topSellers}\n📈 Активность по дням:\n{dailyActivity}\n🎯 Конверсия: {conversionRate}%',
       allSellers: '🏪 Все магазины ({count}):',
       pendingSellers: '⏳ Ожидающие магазины ({count}):',
       approvedSellers: '✅ Подтвержденные магазины ({count}):',
