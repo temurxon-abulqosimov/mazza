@@ -104,22 +104,13 @@ export function getContactKeyboard(language: 'uz' | 'ru'): any {
   };
 }
 
-export function getLocationKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+export function getLocationKeyboard(language: 'uz' | 'ru'): any {
   return {
-    inline_keyboard: [
-      [
-        {
-          text: getMessage(language, 'actions.shareLocation'),
-          callback_data: 'share_location'
-        }
-      ],
-      [
-        {
-          text: getMessage(language, 'actions.backToMainMenu'),
-          callback_data: 'back_to_main_menu'
-        }
-      ]
-    ]
+    keyboard: [
+      [{ text: getMessage(language, 'actions.shareLocation'), request_location: true }]
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: true
   };
 }
 
@@ -491,6 +482,19 @@ export function getAdminLogoutKeyboard(): InlineKeyboardMarkup {
     inline_keyboard: [
       [
         { text: '👋 Chiqish', callback_data: 'admin_logout' }
+      ]
+    ]
+  };
+} 
+
+export function getOrderConfirmationKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: getMessage(language, 'actions.backToMainMenu'),
+          callback_data: 'back_to_main_menu'
+        }
       ]
     ]
   };

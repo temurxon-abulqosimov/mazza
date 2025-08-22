@@ -132,7 +132,7 @@ export const messages = {
     products: {
       myProducts: '📦 Mening mahsulotlarim:\n\n{productsList}',
       productItem: '{number}. 💰 {price} so\'m\n   📅 {date}\n\n',
-      productItemWithBuy: '{number}. 🔢 Kod: {code} | 💰 {price} so\'m{originalPriceText}\n   📝 {description}\n   ⏰ Mavjud: {availableUntil}\n\n',
+      productItemWithBuy: '🛍️ <b>{number}. {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Mavjud: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 Sizda hali mahsulotlar yo\'q.',
       productWithDiscount: '{number}. {price} so\'m ({discount}% chegirma)\n',
       productWithoutDiscount: '{number}. {price} so\'m\n'
@@ -356,7 +356,7 @@ export const messages = {
     products: {
       myProducts: '📦 Мои товары:\n\n{productsList}',
       productItem: '{number}. 💰 {price} сум\n   📅 {date}\n\n',
-      productItemWithBuy: '{number}. 🔢 Код: {code} | 💰 {price} сум{originalPriceText}\n   📝 {description}\n   ⏰ Доступно до: {availableUntil}\n\n',
+      productItemWithBuy: '🛍️ <b>{number}. {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно до: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 У вас пока нет товаров.',
       productWithDiscount: '{number}. {price} сум ({discount}% скидка)\n',
       productWithoutDiscount: '{number}. {price} сум\n'

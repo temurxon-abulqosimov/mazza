@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
@@ -2576,9 +2576,15 @@ export class BotUpdate {
         if (product.originalPrice && product.originalPrice > 0 && product.originalPrice > product.price) {
           const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
           if (language === 'ru') {
-            originalPriceText = `\n   ~~💰 ${product.originalPrice} сум~~ (${discount}% скидка)`;
+            originalPriceText = `💰 <s>${product.originalPrice} сум</s> → <b>${product.price} сум</b> (${discount}% скидка)`;
           } else {
-            originalPriceText = `\n   ~~💰 ${product.originalPrice} so'm~~ (${discount}% chegirma)`;
+            originalPriceText = `💰 <s>${product.originalPrice} so'm</s> → <b>${product.price} so'm</b> (${discount}% chegirma)`;
+          }
+        } else {
+          if (language === 'ru') {
+            originalPriceText = `💰 <b>${product.price} сум</b>`;
+          } else {
+            originalPriceText = `💰 <b>${product.price} so'm</b>`;
           }
         }
         
@@ -2595,7 +2601,8 @@ export class BotUpdate {
 
       ctx.session.selectedStoreId = storeId;
       await ctx.reply(productsList, { 
-        reply_markup: getProductListKeyboard(products, language) 
+        reply_markup: getProductListKeyboard(products, language),
+        parse_mode: 'HTML'
       });
     } else {
       await ctx.reply(getMessage(language, 'stores.noProductsAvailable'));
@@ -2948,7 +2955,7 @@ export class BotUpdate {
         code: order.code,
         productCode: product.code,
         price: order.totalPrice
-      }));
+      }), { reply_markup: getOrderConfirmationKeyboard(language) });
       
       // Send notification to seller with approval buttons
       const seller = await this.sellersService.findOne(product.seller.id);
@@ -4211,21 +4218,6 @@ export class BotUpdate {
     }
   }
 
-  @Action('share_location')
-  async onShareLocation(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    const language = ctx.session.language || 'uz';
-    
-    // Request location from user
-    await ctx.reply(getMessage(language, 'stores.requestLocation'), {
-      reply_markup: {
-        keyboard: [
-          [{ text: getMessage(language, 'actions.shareLocation'), request_location: true }]
-        ],
-        resize_keyboard: true,
-        one_time_keyboard: true
-      }
-    });
-  }
+
 
 }
