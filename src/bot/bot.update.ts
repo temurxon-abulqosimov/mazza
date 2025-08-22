@@ -2576,9 +2576,9 @@ export class BotUpdate {
         if (product.originalPrice && product.originalPrice > 0 && product.originalPrice > product.price) {
           const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
           if (language === 'ru') {
-            originalPriceText = `💰 <s>${product.originalPrice} сум</s> → <b>${product.price} сум</b> (${discount}% скидка)`;
+            originalPriceText = `💰 <s>${product.originalPrice} сум</s> - <b>${product.price} сум</b> (${discount}% скидка)`;
           } else {
-            originalPriceText = `💰 <s>${product.originalPrice} so'm</s> → <b>${product.price} so'm</b> (${discount}% chegirma)`;
+            originalPriceText = `💰 <s>${product.originalPrice} so'm</s> - <b>${product.price} so'm</b> (${discount}% chegirma)`;
           }
         } else {
           if (language === 'ru') {
