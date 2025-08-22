@@ -2571,11 +2571,23 @@ export class BotUpdate {
       products.forEach((product, index) => {
         const formattedDate = formatDateForDisplay(product.availableUntil);
         
+        // Format original price display with strikethrough if on sale
+        let originalPriceText = '';
+        if (product.originalPrice && product.originalPrice > 0 && product.originalPrice > product.price) {
+          const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+          if (language === 'ru') {
+            originalPriceText = `\n   ~~💰 ${product.originalPrice} сум~~ (${discount}% скидка)`;
+          } else {
+            originalPriceText = `\n   ~~💰 ${product.originalPrice} so'm~~ (${discount}% chegirma)`;
+          }
+        }
+        
         productsList += getMessage(language, 'products.productItemWithBuy', {
           number: index + 1,
           id: product.id,
           code: product.code,
           price: product.price,
+          originalPriceText: originalPriceText,
           description: product.description,
           availableUntil: formattedDate
         });
@@ -4198,4 +4210,22 @@ export class BotUpdate {
       await ctx.reply(`❌ Test failed: ${error.message}`);
     }
   }
+
+  @Action('share_location')
+  async onShareLocation(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Request location from user
+    await ctx.reply(getMessage(language, 'stores.requestLocation'), {
+      reply_markup: {
+        keyboard: [
+          [{ text: getMessage(language, 'actions.shareLocation'), request_location: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    });
+  }
+
 }

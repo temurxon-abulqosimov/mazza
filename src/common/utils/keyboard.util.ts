@@ -104,13 +104,22 @@ export function getContactKeyboard(language: 'uz' | 'ru'): any {
   };
 }
 
-export function getLocationKeyboard(language: 'uz' | 'ru'): any {
+export function getLocationKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
   return {
-    keyboard: [
-      [{ text: getMessage(language, 'actions.shareLocation'), request_location: true }]
-    ],
-    resize_keyboard: true,
-    one_time_keyboard: true
+    inline_keyboard: [
+      [
+        {
+          text: getMessage(language, 'actions.shareLocation'),
+          callback_data: 'share_location'
+        }
+      ],
+      [
+        {
+          text: getMessage(language, 'actions.backToMainMenu'),
+          callback_data: 'back_to_main_menu'
+        }
+      ]
+    ]
   };
 }
 
