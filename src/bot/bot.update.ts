@@ -1097,60 +1097,8 @@ export class BotUpdate {
       console.log('User role:', ctx.session.role);
       console.log('Registration step exists:', !!ctx.session.registrationStep);
       
-      // Handle back commands
-      if (text.toLowerCase() === 'back' || text.toLowerCase() === 'orqaga' || text.toLowerCase() === 'назад') {
-        if (step === 'business_type') {
-          ctx.session.registrationStep = 'business_name';
-          await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
-          return;
-        } else if (step === 'opens_at') {
-          ctx.session.registrationStep = 'business_type';
-          await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { reply_markup: getBusinessTypeKeyboard(language) });
-          return;
-        } else if (step === 'closes_at') {
-          ctx.session.registrationStep = 'opens_at';
-          await ctx.reply(getMessage(language, 'registration.opensAtRequest'));
-          return;
-        }
-      }
-      
-      if (step === 'business_name') {
-        if (!ctx.session.sellerData) {
-          ctx.session.sellerData = {};
-        }
-        ctx.session.sellerData.businessName = text;
-        ctx.session.registrationStep = 'business_type';
-        await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { reply_markup: getBusinessTypeKeyboard(language) });
-        return;
-      } else if (step === 'opens_at') {
-        const timeMatch = text.match(/^(\d{1,2}):(\d{2})$/);
-        if (!timeMatch) {
-          return ctx.reply(getMessage(language, 'validation.invalidTime'));
-        }
-        const hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
-        if (!ctx.session.sellerData) {
-          ctx.session.sellerData = {};
-        }
-        ctx.session.sellerData.opensAt = hours * 60 + minutes;
-        ctx.session.registrationStep = 'closes_at';
-        await ctx.reply(getMessage(language, 'registration.opensAtSuccess'));
-        return;
-      } else if (step === 'closes_at') {
-        const timeMatch = text.match(/^(\d{1,2}):(\d{2})$/);
-        if (!timeMatch) {
-          return ctx.reply(getMessage(language, 'validation.invalidTime'));
-        }
-        const hours = parseInt(timeMatch[1]);
-        const minutes = parseInt(timeMatch[2]);
-        if (!ctx.session.sellerData) {
-          ctx.session.sellerData = {};
-        }
-        ctx.session.sellerData.closesAt = hours * 60 + minutes;
-        ctx.session.registrationStep = 'location';
-        await ctx.reply(getMessage(language, 'registration.closesAtSuccess'), { reply_markup: getLocationKeyboard(language) });
-        return;
-      }
+      // Let scenes handle their own registration logic
+      // The seller registration scene will handle business_name, business_type, and location steps
     }
 
     // Handle product creation text inputs
