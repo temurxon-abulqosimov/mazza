@@ -108,22 +108,35 @@ export class SellerRegistrationScene {
 
   @On('text')
   async onText(@Ctx() ctx: TelegramContext) {
+    console.log('=== SELLER REGISTRATION TEXT HANDLER DEBUG ===');
+    console.log('Scene active:', !!ctx.scene);
+    console.log('Current registration step:', ctx.session.registrationStep);
+    console.log('Message text:', ctx.message && 'text' in ctx.message ? ctx.message.text : 'no text');
+    console.log('Message type:', ctx.message ? typeof ctx.message : 'no message');
+    
     const step = ctx.session.registrationStep;
     const language = ctx.session.language || 'uz';
-    if (!ctx.message || !('text' in ctx.message)) return;
+    if (!ctx.message || !('text' in ctx.message)) {
+      console.log('No valid text message found');
+      return;
+    }
 
     console.log('Text received, current step:', step, 'text:', ctx.message.text);
 
     if (step === 'business_name') {
+      console.log('Processing business_name step...');
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
       }
       ctx.session.sellerData.businessName = ctx.message.text;
       ctx.session.registrationStep = 'business_type';
+      console.log('Updated registration step to business_type');
+      console.log('Seller data:', ctx.session.sellerData);
 
       await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { 
         reply_markup: getBusinessTypeKeyboard(language) 
       });
+      console.log('Business name success message sent with keyboard');
     } else if (step === 'location') {
       // Handle back button in location step
       if (ctx.message.text === getMessage(language, 'actions.back')) {
@@ -138,6 +151,7 @@ export class SellerRegistrationScene {
       // If not back button, show invalid format message
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     } else {
+      console.log('Step not recognized:', step);
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     }
   }
