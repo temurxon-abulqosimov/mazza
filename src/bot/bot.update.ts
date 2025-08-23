@@ -1327,7 +1327,16 @@ export class BotUpdate {
     } else if (text.includes(getMessage(language, 'mainMenu.support'))) {
       await this.handleSupport(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.language'))) {
-      await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
+      // Show language change keyboard with different callback_data to avoid conflicts with registration
+      const changeLanguageKeyboard = {
+        inline_keyboard: [
+          [
+            { text: '🇺🇿 O\'zbekcha', callback_data: 'change_lang_uz' },
+            { text: '🇷🇺 Русский', callback_data: 'change_lang_ru' }
+          ]
+        ]
+      };
+      await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: changeLanguageKeyboard });
     } else {
       console.log('=== FALLBACK CONDITION DEBUG ===');
       console.log('Text did not match any menu options:', text);
@@ -1558,7 +1567,7 @@ export class BotUpdate {
     await ctx.reply(getMessage(language, 'stores.requestLocation'), { reply_markup: getLocationKeyboard(language) });
   }
 
-  @Action(/lang_(uz|ru)/)
+  @Action(/change_lang_(uz|ru)/)
   async onLanguageChange(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
     
@@ -1607,6 +1616,39 @@ export class BotUpdate {
       });
     }
   }
+
+  // Registration flow handlers - these handle the initial language and role selection
+  @Action(/lang_(uz|ru)/)
+  async onLanguageSelect(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (!ctx.match) return;
+    
+    const language = ctx.match[1] as 'uz' | 'ru';
+    ctx.session.language = language;
+    
+    console.log(`Language selected during registration: ${language}`);
+    
+    // Continue to role selection
+    await ctx.reply(getMessage(language, 'languageSelected'));
+    await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
+  }
+
+  @Action('back_to_language')
+  async onBackToLanguage(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Clear registration data and go back to language selection
+    ctx.session.role = undefined;
+    ctx.session.registrationStep = undefined;
+    ctx.session.userData = undefined;
+    ctx.session.sellerData = undefined;
+    
+    await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
+  }
+
+
 
   @Action(/role_(user|seller)/)
   async onRoleSelect(@Ctx() ctx: TelegramContext) {
