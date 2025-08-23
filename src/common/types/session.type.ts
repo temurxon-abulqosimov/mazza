@@ -30,6 +30,7 @@ export interface SessionData {
     price?: number;
     originalPrice?: number;
     description?: string;
+    availableFrom?: string;
     availableUntil?: string;
   };
   currentPage?: number;

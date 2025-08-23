@@ -19,6 +19,11 @@ export class CreateProductDto {
   @Transform(({ value }) => String(value).trim())
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  @Length(5, 5) // Exactly 5 characters for time format "HH:MM"
+  availableFrom?: string;
+
   @IsDateString()
   availableUntil: string;
 

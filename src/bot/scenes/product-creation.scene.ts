@@ -58,9 +58,23 @@ export class ProductCreationScene {
         ctx.session.productData = {};
       }
       ctx.session.productData.description = ctx.message.text;
+      ctx.session.registrationStep = 'available_from';
+
+      await ctx.reply(getMessage(language, 'registration.availableFromRequest'));
+    } else if (step === 'available_from') {
+      const timeValidation = validateAndParseTime(ctx.message.text);
+      
+      if (!timeValidation.isValid) {
+        return ctx.reply(getMessage(language, 'validation.invalidTime'));
+      }
+
+      if (!ctx.session.productData) {
+        ctx.session.productData = {};
+      }
+      ctx.session.productData.availableFrom = `${timeValidation.hours!.toString().padStart(2, '0')}:${timeValidation.minutes!.toString().padStart(2, '0')}`;
       ctx.session.registrationStep = 'available_until';
 
-      await ctx.reply(getMessage(language, 'registration.descriptionSuccess'));
+      await ctx.reply(getMessage(language, 'registration.availableUntilRequest'));
     } else if (step === 'available_until') {
       const timeValidation = validateAndParseTime(ctx.message.text);
       
@@ -68,14 +82,11 @@ export class ProductCreationScene {
         return ctx.reply(getMessage(language, 'validation.invalidTime'));
       }
 
-      const hours = timeValidation.hours!;
-      const minutes = timeValidation.minutes!;
-      
-      // Create available until date (today at specified time)
+      // Create available until date (today at end time)
       const availableUntil = new Date();
-      availableUntil.setHours(hours, minutes, 0, 0);
+      availableUntil.setHours(timeValidation.hours!, timeValidation.minutes!, 0, 0);
       
-      // If time has passed today, set it for tomorrow
+      // If end time has passed today, set it for tomorrow
       if (availableUntil <= new Date()) {
         availableUntil.setDate(availableUntil.getDate() + 1);
       }
@@ -103,6 +114,7 @@ export class ProductCreationScene {
           price: ctx.session.productData.price,
           originalPrice: ctx.session.productData.originalPrice,
           description: ctx.session.productData.description,
+          availableFrom: ctx.session.productData.availableFrom,
           availableUntil: ctx.session.productData.availableUntil,
           sellerId: seller.id
         };

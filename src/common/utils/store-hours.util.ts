@@ -38,6 +38,66 @@ export function validateAndParseTime(timeText: string): { hours: number | null; 
 }
 
 /**
+ * Validates and parses time range input in format "HH:MM - HH:MM"
+ * 
+ * @param timeRangeText - Time range input text (e.g., "09:00 - 18:00", "22:00 - 06:00")
+ * @returns object with parsed start/end times and validation result
+ */
+export function validateAndParseTimeRange(timeRangeText: string): { 
+  startTime: { hours: number; minutes: number } | null; 
+  endTime: { hours: number; minutes: number } | null; 
+  isValid: boolean; 
+  error?: string 
+} {
+  if (!timeRangeText || typeof timeRangeText !== 'string') {
+    return { startTime: null, endTime: null, isValid: false, error: 'Time range text is required' };
+  }
+
+  // Regex for time range format: "HH:MM - HH:MM"
+  const timeRangeMatch = timeRangeText.trim().match(/^(\d{1,2}):(\d{1,2})\s*-\s*(\d{1,2}):(\d{1,2})$/);
+  
+  if (!timeRangeMatch) {
+    return { 
+      startTime: null, 
+      endTime: null, 
+      isValid: false, 
+      error: 'Invalid time range format. Use HH:MM - HH:MM (e.g., 09:00 - 18:00)' 
+    };
+  }
+
+  const startHours = parseInt(timeRangeMatch[1], 10);
+  const startMinutes = parseInt(timeRangeMatch[2], 10);
+  const endHours = parseInt(timeRangeMatch[3], 10);
+  const endMinutes = parseInt(timeRangeMatch[4], 10);
+
+  // Validate hours (0-23)
+  if (startHours < 0 || startHours > 23 || endHours < 0 || endHours > 23) {
+    return { 
+      startTime: null, 
+      endTime: null, 
+      isValid: false, 
+      error: 'Hours must be between 0 and 23' 
+    };
+  }
+
+  // Validate minutes (0-59)
+  if (startMinutes < 0 || startMinutes > 59 || endMinutes < 0 || endMinutes > 59) {
+    return { 
+      startTime: null, 
+      endTime: null, 
+      isValid: false, 
+      error: 'Minutes must be between 0 and 59' 
+    };
+  }
+
+  return { 
+    startTime: { hours: startHours, minutes: startMinutes },
+    endTime: { hours: endHours, minutes: endMinutes },
+    isValid: true 
+  };
+}
+
+/**
  * Determines if a store is currently open based on its opening and closing hours
  * Handles cases where stores operate across midnight (e.g., 22:00 - 06:00)
  * 

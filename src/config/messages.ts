@@ -32,6 +32,8 @@ export const messages = {
       priceSuccess: '✅ Narx qabul qilindi! Asl narxni kiriting (agar chegirma bo\'lsa, aks holda 0):',
       originalPriceSuccess: '✅ Asl narx qabul qilindi! Mahsulot haqida qisqacha ma\'lumot kiriting:',
       descriptionSuccess: '✅ Ma\'lumot qabul qilindi! Mahsulot mavjud bo\'lish vaqtini kiriting (HH:MM):',
+      availableFromRequest: '🕐 Mahsulot mavjud bo\'lish vaqtini kiriting (masalan: 09:00):',
+      availableUntilRequest: '🕐 Mahsulot mavjud bo\'lish tugash vaqtini kiriting (masalan: 18:00):',
       availableUntilSuccess: '✅ Vaqt qabul qilindi! Mahsulot yaratilmoqda...'
     },
     
@@ -57,7 +59,8 @@ export const messages = {
       productRatingRequest: '⭐ Mahsulotni olganingizdan so\'ng uni baholang:',
       storeRatingSubmitted: '✅ Bahoyingiz uchun rahmat! Do\'kon bahosi: {rating}/5',
       storeRatingRequest: '⭐ Do\'konni baholang:',
-      storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!'
+      storeImageUploaded: '✅ Do\'kon surati muvaffaqiyatli yuklandi!',
+      languageChanged: '✅ Til muvaffaqiyatli o\'zgartirildi!'
     },
     
     // Info Messages
@@ -258,6 +261,8 @@ export const messages = {
       priceSuccess: '✅ Цена принята! Введите оригинальную цену (если есть скидка, иначе 0):',
       originalPriceSuccess: '✅ Оригинальная цена принята! Введите краткую информацию о товаре:',
       descriptionSuccess: '✅ Информация принята! Введите время доступности товара (ЧЧ:ММ):',
+      availableFromRequest: '🕐 Введите время начала доступности товара (например: 09:00):',
+      availableUntilRequest: '🕐 Введите время окончания доступности товара (например: 18:00):',
       availableUntilSuccess: '✅ Время принято! Создание товара...'
     },
     
@@ -281,7 +286,8 @@ export const messages = {
       ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
       productRatingSubmitted: '✅ Спасибо за вашу оценку! Оценка товара: {rating}/5',
       productRatingRequest: '⭐ Оцените товар после получения:',
-      storeImageUploaded: '✅ Фото магазина успешно загружено!'
+      storeImageUploaded: '✅ Фото магазина успешно загружено!',
+      languageChanged: '✅ Язык успешно изменен!'
     },
     
     // Info Messages
@@ -352,7 +358,7 @@ export const messages = {
     products: {
       myProducts: '📦 Мои товары:\n\n{productsList}',
       productItem: '{number}. 💰 {price} сум\n   📅 {date}\n\n',
-      productItemWithBuy: '🛍️ <b>Товар #{number} | Код: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно до: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
+      productItemWithBuy: '🛍️ <b>Товар #{number} | Код: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 У вас пока нет товаров.',
       productWithDiscount: '{number}. {price} сум ({discount}% скидка)\n',
       productWithoutDiscount: '{number}. {price} сум\n',

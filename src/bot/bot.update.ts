@@ -1283,11 +1283,14 @@ export class BotUpdate {
           ctx.session.registrationStep = undefined;
 
           await ctx.reply(getMessage(language, 'success.productCreated'));
+          // Format time range for display
+          const timeRange = this.formatTimeRange(createdProduct.availableFrom, formatRelativeTime(createdProduct.availableUntil, language), language);
+          
           await ctx.reply(getMessage(language, 'success.productDetails', {
             code: createdProduct.code,
             description: createdProduct.description,
             price: createdProduct.price,
-            availableUntil: formatRelativeTime(createdProduct.availableUntil, language)
+            availableUntil: timeRange
           }));
         } catch (error) {
           console.error('Product creation error:', error);
@@ -1413,26 +1416,19 @@ export class BotUpdate {
         // Get the largest photo (best quality)
         const photo = photos[photos.length - 1];
         
-        // Get file info to download the photo
         try {
-          const file = await ctx.telegram.getFile(photo.file_id);
-          
-          // Store both file_id (for Telegram) and URL (for external access)
-          const imageUrl = `https://api.telegram.org/file/bot${envVariables.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
-          const imageData = {
-            fileId: photo.file_id,
-            url: imageUrl
-          };
-          
-          // Update seller with image data
+          // Store the file_id directly - this is the most reliable way
+          // Telegram file_ids are valid for a long time and work best for sending photos
           if (!ctx.from) throw new Error('User not found');
           
           const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
           if (seller) {
-            // Store the file_id as the primary reference, URL as backup
+            // Store the file_id directly
             await this.sellersService.update(seller.id, { 
-              imageUrl: photo.file_id // Store file_id instead of URL
+              imageUrl: photo.file_id
             });
+            
+            console.log('Store image uploaded successfully, file_id:', photo.file_id);
             await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
           }
           
@@ -2552,50 +2548,46 @@ export class BotUpdate {
     }
 
     // Send store image if available
+    console.log('Store imageUrl from database:', store.imageUrl);
     if (store.imageUrl && store.imageUrl.trim() !== '') {
       try {
-        // Validate image URL format
         const imageUrl = store.imageUrl.trim();
+        console.log('Attempting to display store image:', imageUrl);
         
-        // Check if it's a valid image URL or file_id
-        if (imageUrl.startsWith('http') && (
-          imageUrl.includes('.jpg') || 
-          imageUrl.includes('.jpeg') || 
-          imageUrl.includes('.png') || 
-          imageUrl.includes('api.telegram.org')
-        )) {
-          // For Telegram file URLs, they might be expired, so we'll try to send as InputFile
-          if (imageUrl.includes('api.telegram.org')) {
-            try {
-              // Try to send as URL first
-              await ctx.replyWithPhoto(imageUrl, { 
-                caption: storeInfo,
-                parse_mode: 'HTML'
-              });
-            } catch (telegramError) {
-              console.log('Telegram file URL expired or invalid, sending text only:', telegramError.message);
-              await ctx.reply(storeInfo, { parse_mode: 'HTML' });
-            }
-          } else {
-            // For external URLs, try to send as photo
-            await ctx.replyWithPhoto(imageUrl, { 
-              caption: storeInfo,
-              parse_mode: 'HTML'
-            });
-          }
-        } else if (imageUrl.length > 20 && !imageUrl.includes('http')) {
-          // This might be a file_id, try to send it directly
+        // Check if it's a file_id (Telegram's internal identifier)
+        if (imageUrl.length > 20 && !imageUrl.includes('http')) {
+          console.log('Detected file_id, sending directly:', imageUrl);
+          // This is likely a file_id, send it directly
+          await ctx.replyWithPhoto(imageUrl, { 
+            caption: storeInfo,
+            parse_mode: 'HTML'
+          });
+          console.log('Store image sent successfully as file_id');
+        } else if (imageUrl.startsWith('http')) {
+          console.log('Detected URL, attempting to send:', imageUrl);
+          // This is a URL, try to send as photo
           try {
             await ctx.replyWithPhoto(imageUrl, { 
               caption: storeInfo,
               parse_mode: 'HTML'
             });
-          } catch (fileIdError) {
-            console.log('File ID invalid, sending text only:', fileIdError.message);
-            await ctx.reply(storeInfo, { parse_mode: 'HTML' });
+            console.log('Store image sent successfully as URL');
+          } catch (urlError) {
+            console.log('URL image failed, trying as file_id:', urlError.message);
+            // If URL fails, try treating it as file_id
+            try {
+              await ctx.replyWithPhoto(imageUrl, { 
+                caption: storeInfo,
+                parse_mode: 'HTML'
+              });
+              console.log('Store image sent successfully as file_id (fallback)');
+            } catch (fileIdError) {
+              console.log('Both URL and file_id failed, sending text only:', fileIdError.message);
+              await ctx.reply(storeInfo, { parse_mode: 'HTML' });
+            }
           }
         } else {
-          console.log('Invalid image URL format:', imageUrl);
+          console.log('Invalid image format, sending text only:', imageUrl);
           await ctx.reply(storeInfo, { parse_mode: 'HTML' });
         }
       } catch (error) {
@@ -2604,6 +2596,7 @@ export class BotUpdate {
         await ctx.reply(storeInfo, { parse_mode: 'HTML' });
       }
     } else {
+      console.log('No store image available, sending text only');
       await ctx.reply(storeInfo, { parse_mode: 'HTML' });
     }
 
@@ -2612,6 +2605,9 @@ export class BotUpdate {
       let productsList = '';
       products.forEach((product, index) => {
         const formattedDate = formatRelativeTime(product.availableUntil, language);
+        
+        // Format time range: "today 14:00 - 21:00"
+        const timeRange = this.formatTimeRange(product.availableFrom, formattedDate, language);
         
         // Format original price display with strikethrough if on sale
         let originalPriceText = '';
@@ -2626,7 +2622,7 @@ export class BotUpdate {
           if (language === 'ru') {
             originalPriceText = `💰 <b>${product.price} сум</b>`;
           } else {
-            originalPriceText = `💰 <b>${product.price} so'm</b>`;
+            originalPriceText = `💰 <b>${product.price} сум</b>`;
           }
         }
         
@@ -2637,7 +2633,7 @@ export class BotUpdate {
           price: product.price,
           originalPriceText: originalPriceText,
           description: product.description,
-          availableUntil: formattedDate
+          availableUntil: timeRange
         });
       });
 
@@ -2847,6 +2843,56 @@ export class BotUpdate {
       console.error('Error getting seller statistics:', error);
       await ctx.reply(getMessage(language, 'error.general'));
     }
+  }
+
+  /**
+   * Formats time range for display: "today 14:00 - 21:00"
+   */
+  private formatTimeRange(availableFrom: string | undefined, availableUntil: string, language: 'uz' | 'ru'): string {
+    if (!availableFrom) {
+      return availableUntil;
+    }
+    
+    // Extract the time part from availableUntil (remove "today", "tomorrow", etc.)
+    const timeMatch = availableUntil.match(/(\d{2}:\d{2})$/);
+    if (timeMatch) {
+      const endTime = timeMatch[1];
+      
+      if (language === 'ru') {
+        // For Russian: "сегодня 14:00 - 21:00"
+        if (availableUntil.includes('сегодня')) {
+          return `сегодня ${availableFrom} - ${endTime}`;
+        } else if (availableUntil.includes('завтра')) {
+          return `завтра ${availableFrom} - ${endTime}`;
+        } else if (availableUntil.includes('вчера')) {
+          return `вчера ${availableFrom} - ${endTime}`;
+        } else {
+          // For specific dates: "10/08/2025 14:00 - 21:00"
+          const dateMatch = availableUntil.match(/(\d{2}\/\d{2}\/\d{4})/);
+          if (dateMatch) {
+            return `${dateMatch[1]} ${availableFrom} - ${endTime}`;
+          }
+        }
+      } else {
+        // For Uzbek: "bugun 14:00 - 21:00"
+        if (availableUntil.includes('bugun')) {
+          return `bugun ${availableFrom} - ${endTime}`;
+        } else if (availableUntil.includes('ertaga')) {
+          return `ertaga ${availableFrom} - ${endTime}`;
+        } else if (availableUntil.includes('kecha')) {
+          return `kecha ${availableFrom} - ${endTime}`;
+        } else {
+          // For specific dates: "10/08/2025 14:00 - 21:00"
+          const dateMatch = availableUntil.match(/(\d{2}\/\d{2}\/\d{4})/);
+          if (dateMatch) {
+            return `${dateMatch[1]} ${availableFrom} - ${endTime}`;
+          }
+        }
+      }
+    }
+    
+    // Fallback: just show the range
+    return `${availableFrom} - ${availableUntil}`;
   }
 
   private async handleSupport(@Ctx() ctx: TelegramContext) {

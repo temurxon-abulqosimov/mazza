@@ -18,9 +18,9 @@ export class LanguageScene {
     const language = ctx.match[1] as 'uz' | 'ru';
     ctx.session.language = language;
 
-    await ctx.reply(getMessage(language, 'languageSelected'));
+    await ctx.reply(getMessage(language, 'success.languageChanged'));
     if (ctx.scene) {
-      await ctx.scene.enter('role');
+      await ctx.scene.leave();
     }
   }
 }

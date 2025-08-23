@@ -18,6 +18,9 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  availableFrom?: string; // Format: "HH:MM"
+
   @Column({ type: 'timestamp' })
   availableUntil: Date;
 

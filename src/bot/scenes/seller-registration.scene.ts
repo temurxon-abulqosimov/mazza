@@ -1,7 +1,7 @@
 // src/bot/scenes/seller-registration.scene.ts
 import { Ctx, Scene, SceneEnter, On, Action } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getLocationKeyboard, getBusinessTypeKeyboard } from 'src/common/utils/keyboard.util';
+import { getLocationKeyboard, getBusinessTypeKeyboard, getSkipImageKeyboard, getMainMenuKeyboard } from 'src/common/utils/keyboard.util';
 import { SellersService } from 'src/sellers/sellers.service';
 import { CreateSellerDto } from 'src/sellers/dto/create-seller.dto';
 import { BusinessType } from 'src/common/enums/business-type.enum';
@@ -121,12 +121,77 @@ export class SellerRegistrationScene {
 
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.sellerRegistration'));
-      if (ctx.scene) {
-        await ctx.scene.leave();
-      }
+      
+      // Move to store image step
+      ctx.session.registrationStep = 'store_image';
+      await ctx.reply(getMessage(language, 'registration.storeImageRequest'), { 
+        reply_markup: getSkipImageKeyboard(language) 
+      });
+      
+      // Don't leave the scene yet - wait for image or skip
     } catch (error) {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
+  @On('photo')
+  async onPhoto(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'store_image') return;
+    if (!ctx.message || !('photo' in ctx.message)) return;
+
+    const language = ctx.session.language || 'uz';
+    const photos = ctx.message.photo;
+    
+    if (photos && photos.length > 0) {
+      // Get the largest photo (best quality)
+      const photo = photos[photos.length - 1];
+      
+      try {
+        // Store the file_id directly - this is the most reliable way
+        if (!ctx.from) throw new Error('User not found');
+        
+        const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+        if (seller) {
+          // Store the file_id directly
+          await this.sellersService.update(seller.id, { 
+            imageUrl: photo.file_id
+          });
+          
+          console.log('Store image uploaded successfully, file_id:', photo.file_id);
+          await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
+        }
+        
+        // Complete registration and go to main menu
+        await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+          reply_markup: getMainMenuKeyboard(language, 'seller') 
+        });
+        
+        // Leave the scene
+        if (ctx.scene) {
+          await ctx.scene.leave();
+        }
+      } catch (error) {
+        console.error('Store image processing error:', error);
+        await ctx.reply(getMessage(language, 'error.photoProcessingFailed'));
+      }
+    }
+  }
+
+  @Action('skip_image')
+  async onSkipImage(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'store_image') return;
+    
+    const language = ctx.session.language || 'uz';
+    
+    // Skip image upload and go to main menu
+    await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+      reply_markup: getMainMenuKeyboard(language, 'seller') 
+    });
+    
+    // Leave the scene
+    if (ctx.scene) {
+      await ctx.scene.leave();
     }
   }
 }
