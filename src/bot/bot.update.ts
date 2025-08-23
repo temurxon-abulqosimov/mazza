@@ -989,9 +989,15 @@ export class BotUpdate {
 
     this.initializeSession(ctx);
     
-    // Check if user is in a scene - if so, let the scene handle the input
+    // Check if user is in a scene - if so, let the scene handle ALL input
     if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
-      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle input');
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle ALL input');
+      return; // Let the scene handle this input
+    }
+    
+    // Check if user is in any other scene
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle input');
       return; // Let the scene handle this input
     }
     
@@ -1316,6 +1322,20 @@ export class BotUpdate {
     this.initializeSession(ctx);
     
     if (!ctx.message || !('contact' in ctx.message)) return;
+    
+    // If user is in any scene, let the scene handle the contact
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle contact');
+      return; // Let the scene handle this contact
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle contact');
+      return; // Let the scene handle this contact
+    }
+    
+    // Only handle contacts when no scene is active
     if (ctx.session.registrationStep !== 'phone') return;
 
     const contact = ctx.message.contact;
@@ -1360,10 +1380,6 @@ export class BotUpdate {
           await ctx.reply(getMessage(language, 'error.general'));
         }
       }
-    } else if (ctx.session.role === UserRole.SELLER) {
-      // Seller registration - let the scene handle it
-      // The scene will be entered from the role selection
-      console.log('Seller role detected, scene should handle registration');
     }
   }
 
@@ -1373,9 +1389,21 @@ export class BotUpdate {
     
     if (!ctx.message || !('photo' in ctx.message)) return;
     
+    // If user is in any scene, let the scene handle the photo
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle photo');
+      return; // Let the scene handle this photo
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle photo');
+      return; // Let the scene handle this photo
+    }
+    
     const language = ctx.session.language || 'uz';
     
-    // Handle seller store image upload after registration
+    // Handle seller store image upload after registration (only when no scene is active)
     if (ctx.session.registrationStep === 'store_image' && ctx.session.role === UserRole.SELLER) {
       const photos = ctx.message.photo;
       if (photos && photos.length > 0) {
@@ -1414,12 +1442,24 @@ export class BotUpdate {
     
     if (!ctx.message || !('location' in ctx.message)) return;
     
+    // If user is in any scene, let the scene handle the location
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle location');
+      return; // Let the scene handle this location
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle location');
+      return; // Let the scene handle this location
+    }
+    
     const location = ctx.message.location;
     console.log('Received location:', location);
     
     const language = ctx.session.language || 'uz';
     
-    // Handle finding stores action
+    // Handle finding stores action (only when no scene is active)
     if (ctx.session.action === 'finding_stores') {
       await this.handleFindStoresWithLocation(ctx, location);
       return;

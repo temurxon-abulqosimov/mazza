@@ -15,7 +15,10 @@ export class SellerRegistrationScene {
   constructor(
     private readonly sellersService: SellersService,
     private readonly sessionProvider: SessionProvider,
-  ) {}
+  ) {
+    console.log('=== SELLER REGISTRATION SCENE CONSTRUCTOR ===');
+    console.log('Scene instantiated with services');
+  }
 
   private initializeSession(ctx: TelegramContext) {
     if (!ctx.from) return;
@@ -33,9 +36,19 @@ export class SellerRegistrationScene {
 
   private async createSeller(ctx: TelegramContext) {
     try {
+      console.log('=== CREATING SELLER ===');
+      console.log('User found:', !!ctx.from);
+      console.log('Seller data:', ctx.session.sellerData);
+      
       if (!ctx.from) throw new Error('User not found');
       if (!ctx.session.sellerData?.phoneNumber || !ctx.session.sellerData?.businessName || 
           !ctx.session.sellerData?.businessType || !ctx.session.sellerData?.location) {
+        console.log('Missing data:', {
+          phoneNumber: !!ctx.session.sellerData?.phoneNumber,
+          businessName: !!ctx.session.sellerData?.businessName,
+          businessType: !!ctx.session.sellerData?.businessType,
+          location: !!ctx.session.sellerData?.location
+        });
         throw new Error('Missing seller data');
       }
 
@@ -46,10 +59,13 @@ export class SellerRegistrationScene {
         businessType: ctx.session.sellerData.businessType,
         location: ctx.session.sellerData.location,
         status: SellerStatus.PENDING,
-        language: ctx.session.language
+        language: ctx.session.language || 'uz'
       };
+      
+      console.log('CreateSellerDto:', createSellerDto);
 
-      await this.sellersService.create(createSellerDto);
+      const seller = await this.sellersService.create(createSellerDto);
+      console.log('Seller created successfully:', seller.id);
 
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.sellerRegistration'));
@@ -62,11 +78,20 @@ export class SellerRegistrationScene {
         reply_markup: getSkipImageKeyboard(language) 
       });
       
+      console.log('Moved to store_image step');
+      
       // Don't leave the scene yet - wait for image or skip
     } catch (error) {
       console.error('Error creating seller:', error);
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
+      
+      // Show more specific error message
+      if (error.message === 'Missing seller data') {
+        await ctx.reply('❌ Registration failed: Missing required data. Please try again.');
+      } else {
+        await ctx.reply(`❌ Registration failed: ${error.message}`);
+      }
     }
   }
 
@@ -103,16 +128,38 @@ export class SellerRegistrationScene {
       }
     });
     
+    // Add a test message to verify the scene is working
+    await ctx.reply('🔧 Scene entered successfully! You should see the phone request above.');
+    
     console.log('Phone request sent successfully');
     console.log('Final session state:', ctx.session);
     console.log('Scene enter completed');
   }
 
+  // Add a middleware to ensure all handlers work
+  @On('message')
+  async onAnyMessage(@Ctx() ctx: TelegramContext) {
+    console.log('=== ANY MESSAGE RECEIVED IN SCENE ===');
+    console.log('Message type:', ctx.message ? Object.keys(ctx.message)[0] : 'no message');
+    console.log('Current step:', ctx.session.registrationStep);
+    console.log('Scene active:', !!ctx.scene);
+  }
+
   @On('contact')
   async onContact(@Ctx() ctx: TelegramContext) {
     console.log('=== SELLER REGISTRATION CONTACT HANDLER ===');
+    console.log('Scene active:', !!ctx.scene);
+    console.log('Scene name:', ctx.scene ? 'seller-registration' : 'none');
     console.log('Current step:', ctx.session.registrationStep);
     console.log('Expected step: phone');
+    console.log('User role:', ctx.session.role);
+    console.log('Contact message received:', !!ctx.message && 'contact' in ctx.message);
+    
+    // Ensure we're in the right scene
+    if (!ctx.scene) {
+      console.log('No scene context, returning');
+      return;
+    }
     
     if (ctx.session.registrationStep !== 'phone') {
       console.log('Step mismatch, returning');
@@ -125,6 +172,8 @@ export class SellerRegistrationScene {
     }
 
     const contact = ctx.message.contact;
+    console.log('Contact object:', contact);
+    
     if (!contact.phone_number) {
       const language = ctx.session.language || 'uz';
       console.log('No phone number in contact, showing error');
@@ -135,6 +184,7 @@ export class SellerRegistrationScene {
     ctx.session.sellerData = { phoneNumber: contact.phone_number };
     ctx.session.registrationStep = 'business_name';
     console.log('Updated step to business_name');
+    console.log('Updated seller data:', ctx.session.sellerData);
 
     const language = ctx.session.language || 'uz';
     
@@ -299,7 +349,11 @@ export class SellerRegistrationScene {
 
   @On('location')
   async onLocation(@Ctx() ctx: TelegramContext) {
-    console.log('Location received, current step:', ctx.session.registrationStep);
+    console.log('=== LOCATION RECEIVED ===');
+    console.log('Current step:', ctx.session.registrationStep);
+    console.log('Expected step: location');
+    console.log('Message type:', ctx.message ? typeof ctx.message : 'no message');
+    console.log('Has location:', ctx.message && 'location' in ctx.message);
     
     if (ctx.session.registrationStep !== 'location') {
       console.log('Location step mismatch, expected: location, got:', ctx.session.registrationStep);
@@ -313,16 +367,22 @@ export class SellerRegistrationScene {
 
     const location = ctx.message.location;
     console.log('Location data received:', location);
+    console.log('Latitude:', location.latitude, 'Longitude:', location.longitude);
     
     if (!ctx.session.sellerData) {
       ctx.session.sellerData = {};
     }
+    
     ctx.session.sellerData.location = {
       latitude: location.latitude,
       longitude: location.longitude
     };
+    
+    console.log('Updated seller data with location:', ctx.session.sellerData.location);
+    console.log('Full seller data:', ctx.session.sellerData);
 
     // Now create the seller with all required data
+    console.log('Calling createSeller...');
     await this.createSeller(ctx);
   }
 
