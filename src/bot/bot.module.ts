@@ -7,6 +7,7 @@ import { RoleScene } from './scenes/role.scene';
 import { UserRegistrationScene } from './scenes/user-registration.scene';
 import { SellerRegistrationScene } from './scenes/seller-registration.scene';
 import { ProductCreationScene } from './scenes/product-creation.scene';
+import { PhotoChangeScene } from './scenes/photo-change.scene';
 import { SessionProvider } from './providers/session.provider';
 import { UsersModule } from 'src/users/users.module';
 import { SellersModule } from 'src/sellers/sellers.module';
@@ -46,6 +47,7 @@ import { envVariables } from 'src/config/env.variables';
     UserRegistrationScene,
     SellerRegistrationScene,
     ProductCreationScene,
+    PhotoChangeScene,
     SessionProvider,
   ],
 })

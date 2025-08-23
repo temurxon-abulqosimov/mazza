@@ -22,6 +22,8 @@ export const messages = {
       phoneSuccess: '✅ Telefon raqam qabul qilindi! Endi to\'lov usulini tanlang:',
       phoneError: '❌ Telefon raqami topilmadi. Iltimos, qaytadan urinib ko\'ring.',
       storeImageRequest: '📸 Iltimos, do\'koningizning suratini yuboring (ixtiyoriy):',
+      changePhotoRequest: '📸 Iltimos, do\'koningizning yangi suratini yuboring:',
+      photoChangedSuccess: '✅ Do\'kon surati muvaffaqiyatli o\'zgartirildi!',
       locationRequest: '📍 Manzilingizni yuboring:',
       locationSuccess: '✅ Manzil qabul qilindi! Endi to\'lov usulini tanlang:',
       paymentRequest: '💳 To\'lov usulini tanlang:',
@@ -34,7 +36,9 @@ export const messages = {
       descriptionSuccess: '✅ Ma\'lumot qabul qilindi! Mahsulot mavjud bo\'lish vaqtini kiriting (HH:MM):',
       availableFromRequest: '🕐 Mahsulot mavjud bo\'lish vaqtini kiriting (masalan: 09:00):',
       availableUntilRequest: '🕐 Mahsulot mavjud bo\'lish tugash vaqtini kiriting (masalan: 18:00):',
-      availableUntilSuccess: '✅ Vaqt qabul qilindi! Mahsulot yaratilmoqda...'
+      availableUntilSuccess: '✅ Vaqt qabul qilindi! Mahsulot yaratilmoqda...',
+      quantityRequest: '🔢 Mahsulot miqdorini kiriting (masalan: 10) yoki o\'tkazib yuboring:',
+      quantitySuccess: '✅ Miqdor qabul qilindi! Mahsulot yaratilmoqda...'
     },
     
     // Validation Messages
@@ -91,7 +95,8 @@ export const messages = {
       productNotSelected: '❌ Mahsulot tanlanmagan.',
       storeNotSelected: '❌ Do\'kon tanlanmagan.',
       paymentMethodNotSelected: '❌ To\'lov usuli tanlanmagan. (Bu xabar endi ko\'rsatilmaydi)',
-      photoProcessingFailed: '❌ Surat qayta ishlashda xatolik yuz berdi.'
+      photoProcessingFailed: '❌ Surat qayta ishlashda xatolik yuz berdi.',
+      productOutOfStock: '❌ Bu mahsulot hozirda mavjud emas.'
     },
     
     // Main Menu
@@ -103,7 +108,8 @@ export const messages = {
       myProducts: '📋 Mening mahsulotlarim',
       statistics: '📊 Statistika',
       support: '💬 Qo\'llab-quvvatlash',
-      language: '🌐 Tilni o\'zgartirish'
+      language: '🌐 Tilni o\'zgartirish',
+      changePhoto: '📸 Do\'kon suratini o\'zgartirish'
     },
     
     // Store Discovery
@@ -132,7 +138,7 @@ export const messages = {
     products: {
       myProducts: '📦 Mening mahsulotlarim:\n\n{productsList}',
       productItem: '{number}. 💰 {price} so\'m\n   📅 {date}\n\n',
-      productItemWithBuy: '🛍️ <b>Mahsulot #{number} | Kod: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Mavjud: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
+      productItemWithBuy: '🛍️ <b>Mahsulot #{number} | Kod: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Mavjud: {availableUntil}\n🔢 Miqdor: {quantity} ta\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 Sizda hali mahsulotlar yo\'q.',
       productWithDiscount: '{number}. {price} so\'m ({discount}% chegirma)\n',
       productWithoutDiscount: '{number}. {price} so\'m\n',
@@ -176,13 +182,20 @@ export const messages = {
       back: '⬅️ Orqaga',
       backToMainMenu: '🏠 Asosiy menyu',
       tryAgain: '🔄 Qaytadan urinish',
-      skip: '⏭️ O\'tkazib yuborish'
+      skip: '⏭️ O\'tkazib yuborish',
+      confirm: '✅ Ha',
+      cancel: '❌ Yo\'q',
+      minus: '➖',
+      plus: '➕',
+      cancelled: '❌ Bekor qilindi'
     },
 
     // Purchase
     purchase: {
       selectPaymentMethod: '🛒 {productName}\n💰 Narxi: {price} so\'m\n\n💳 To\'lov usulini tanlang:',
-      paymentMethodNotNeeded: '💳 To\'lov usuli endi avtomatik tanlanadi. Buyurtma to\'g\'ridan-to\'g\'ri yaratiladi.'
+      paymentMethodNotNeeded: '💳 To\'lov usuli endi avtomatik tanlanadi. Buyurtma to\'g\'ridan-to\'g\'ri yaratiladi.',
+      selectQuantity: '🛒 {productName}\n💰 Narxi: {price} so\'m\n🔢 Maksimal miqdor: {maxQuantity} ta\n\n🔢 Miqdorni tanlang:',
+      confirmPurchase: '🛒 Buyurtmani tasdiqlash:\n\n📦 Mahsulot: {productName}\n🔢 Miqdor: {quantity}\n💰 Jami narx: {totalPrice} so\'m\n\n✅ Tasdiqlash uchun "Ha" tugmasini bosing\n❌ Bekor qilish uchun "Yo\'q" tugmasini bosing'
     },
 
     // Admin Panel
@@ -251,6 +264,8 @@ export const messages = {
       phoneSuccess: '✅ Номер телефона принят! Теперь выберите способ оплаты:',
       phoneError: '❌ Номер телефона не найден. Пожалуйста, попробуйте снова.',
       storeImageRequest: '📸 Пожалуйста, отправьте фото вашего магазина (необязательно):',
+      changePhotoRequest: '📸 Пожалуйста, отправьте новое фото вашего магазина:',
+      photoChangedSuccess: '✅ Фото магазина успешно загружено!',
       locationRequest: '📍 Отправьте местоположение:',
       locationSuccess: '✅ Местоположение принято! Теперь выберите способ оплаты:',
       paymentRequest: '💳 Выберите способ оплаты:',
@@ -263,7 +278,9 @@ export const messages = {
       descriptionSuccess: '✅ Информация принята! Введите время доступности товара (ЧЧ:ММ):',
       availableFromRequest: '🕐 Введите время начала доступности товара (например: 09:00):',
       availableUntilRequest: '🕐 Введите время окончания доступности товара (например: 18:00):',
-      availableUntilSuccess: '✅ Время принято! Создание товара...'
+      availableUntilSuccess: '✅ Время принято! Создание товара...',
+      quantityRequest: '🔢 Введите количество товара (например: 10) или пропустите:',
+      quantitySuccess: '✅ Количество принято! Создание товара...'
     },
     
     // Validation Messages
@@ -316,8 +333,10 @@ export const messages = {
       ratingFailed: '❌ Ошибка при выставлении оценки.',
       alreadyRated: '❌ Вы уже оценили этот магазин.',
       productNotSelected: '❌ Товар не выбран.',
+      storeNotSelected: '❌ Магазин не выбран.',
       paymentMethodNotSelected: '❌ Способ оплаты не выбран. (Это сообщение больше не показывается)',
-      photoProcessingFailed: '❌ Ошибка при обработке фото.'
+      photoProcessingFailed: '❌ Ошибка при обработке фото.',
+      productOutOfStock: '❌ Этот товар сейчас недоступен.'
     },
     
     // Main Menu
@@ -329,7 +348,8 @@ export const messages = {
       myProducts: '📋 Мои товары',
       statistics: '📊 Статистика',
       support: '💬 Поддержка',
-      language: '🌐 Изменить язык'
+      language: '🌐 Изменить язык',
+      changePhoto: '📸 Изменить фото магазина'
     },
     
     // Store Discovery
@@ -358,7 +378,7 @@ export const messages = {
     products: {
       myProducts: '📦 Мои товары:\n\n{productsList}',
       productItem: '{number}. 💰 {price} сум\n   📅 {date}\n\n',
-      productItemWithBuy: '🛍️ <b>Товар #{number} | Код: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно: {availableUntil}\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
+      productItemWithBuy: '🛍️ <b>Товар #{number} | Код: {code}</b>\n{originalPriceText}\n📝 {description}\n⏰ Доступно: {availableUntil}\n🔢 Количество: {quantity} шт\n━━━━━━━━━━━━━━━━━━━━━━━━\n',
       noProducts: '📦 У вас пока нет товаров.',
       productWithDiscount: '{number}. {price} сум ({discount}% скидка)\n',
       productWithoutDiscount: '{number}. {price} сум\n',
@@ -402,13 +422,20 @@ export const messages = {
       back: '⬅️ Назад',
       backToMainMenu: '🏠 Главное меню',
       tryAgain: '🔄 Попробовать снова',
-      skip: '⏭️ Пропустить'
+      skip: '⏭️ Пропустить',
+      confirm: '✅ Да',
+      cancel: '❌ Нет',
+      minus: '➖',
+      plus: '➕',
+      cancelled: '❌ Отменено'
     },
 
     // Purchase
     purchase: {
       selectPaymentMethod: '🛒 {productName}\n💰 Цена: {price} сум\n\n💳 Выберите способ оплаты:',
-      paymentMethodNotNeeded: '💳 Способ оплаты теперь выбирается автоматически. Заказ создается напрямую.'
+      paymentMethodNotNeeded: '💳 Способ оплаты теперь выбирается автоматически. Заказ создается напрямую.',
+      selectQuantity: '🛒 {productName}\n💰 Цена: {price} сум\n🔢 Максимальное количество: {maxQuantity} шт\n\n🔢 Выберите количество:',
+      confirmPurchase: '🛒 Подтверждение заказа:\n\n📦 Товар: {productName}\n🔢 Количество: {quantity}\n💰 Общая цена: {totalPrice} сум\n\n✅ Нажмите "Да" для подтверждения\n❌ Нажмите "Нет" для отмены'
     },
 
     // Admin Panel

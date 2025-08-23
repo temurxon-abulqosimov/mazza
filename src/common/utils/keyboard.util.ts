@@ -105,23 +105,38 @@ export function getContactKeyboard(language: 'uz' | 'ru'): any {
 }
 
 export function getLocationKeyboard(language: 'uz' | 'ru'): any {
-  return {
+  const locationText = getMessage(language, 'actions.shareLocation');
+  const backText = getMessage(language, 'actions.back');
+  console.log(`Creating location keyboard for language: ${language}, text: ${locationText}`);
+  
+  const keyboard = {
     keyboard: [
-      [{ text: getMessage(language, 'actions.shareLocation'), request_location: true }]
+      [{ text: locationText, request_location: true }],
+      [{ text: backText }]
     ],
     resize_keyboard: true,
     one_time_keyboard: true
   };
+  
+  console.log('Final location keyboard:', JSON.stringify(keyboard));
+  
+  // Validate keyboard structure
+  if (!keyboard.keyboard || !Array.isArray(keyboard.keyboard)) {
+    throw new Error('Invalid location keyboard structure');
+  }
+  
+  return keyboard;
 }
 
 export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'seller'): any {
   if (role === 'seller') {
-    // Seller menu: My Products, Add Product, Statistics, Support, Language
+    // Seller menu: My Products, Add Product, Statistics, Support, Language, Change Photo
     return {
       keyboard: [
         [getMessage(language, 'mainMenu.myProducts')],
         [getMessage(language, 'mainMenu.postProduct')],
         [getMessage(language, 'mainMenu.statistics')],
+        [getMessage(language, 'mainMenu.changePhoto')],
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
       resize_keyboard: true
@@ -195,6 +210,42 @@ export function getProductActionKeyboard(productId: number, language: 'uz' | 'ru
     inline_keyboard: [
       [{ text: getMessage(language, 'actions.buy'), callback_data: `buy_${productId}` }],
       [{ text: getMessage(language, 'actions.back'), callback_data: 'back_to_stores' }]
+    ]
+  };
+}
+
+export function getQuantitySelectionKeyboard(productId: number, currentQuantity: number, maxQuantity: number, language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  const minusDisabled = currentQuantity <= 1;
+  const plusDisabled = currentQuantity >= maxQuantity;
+  
+  return {
+    inline_keyboard: [
+      [
+        { 
+          text: getMessage(language, 'actions.minus'), 
+          callback_data: minusDisabled ? 'no_action' : `quantity_minus_${productId}_${currentQuantity}` 
+        },
+        { text: `${currentQuantity}`, callback_data: 'quantity_display' },
+        { 
+          text: getMessage(language, 'actions.plus'), 
+          callback_data: plusDisabled ? 'no_action' : `quantity_plus_${productId}_${currentQuantity}` 
+        }
+      ],
+      [
+        { text: getMessage(language, 'actions.buy'), callback_data: `confirm_quantity_${productId}_${currentQuantity}` },
+        { text: getMessage(language, 'actions.back'), callback_data: 'back_to_stores' }
+      ]
+    ]
+  };
+}
+
+export function getPurchaseConfirmationKeyboard(productId: number, quantity: number, language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: getMessage(language, 'actions.confirm'), callback_data: `purchase_confirm_${productId}_${quantity}` },
+        { text: getMessage(language, 'actions.cancel'), callback_data: `purchase_cancel_${productId}` }
+      ]
     ]
   };
 }

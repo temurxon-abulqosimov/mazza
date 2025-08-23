@@ -6,6 +6,7 @@ export interface SessionData {
   language: 'uz' | 'ru';
   role?: UserRole;
   registrationStep?: string;
+  photoChangeStep?: string;
   action?: string;
   userData?: {
     phoneNumber?: string;
@@ -32,10 +33,12 @@ export interface SessionData {
     description?: string;
     availableFrom?: string;
     availableUntil?: string;
+    quantity?: number;
   };
   currentPage?: number;
   selectedStoreId?: number;
   selectedProductId?: number;
+  selectedQuantity?: number;
   selectedSellerId?: number;
   selectedPaymentMethod?: string;
   

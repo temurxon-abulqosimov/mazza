@@ -17,6 +17,9 @@ export class Order {
   @Column('float')
   totalPrice: number;
 
+  @Column({ type: 'int', default: 1 })
+  quantity: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

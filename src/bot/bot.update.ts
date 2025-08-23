@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard, getQuantitySelectionKeyboard, getPurchaseConfirmationKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, formatRelativeTime, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
@@ -1322,6 +1322,8 @@ export class BotUpdate {
       await this.handleMyProducts(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.statistics'))) {
       await this.handleSellerStatistics(ctx);
+    } else if (text.includes(getMessage(language, 'mainMenu.changePhoto'))) {
+      await this.handleChangePhoto(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.support'))) {
       await this.handleSupport(ctx);
     } else if (text.includes(getMessage(language, 'mainMenu.language'))) {
@@ -1337,6 +1339,7 @@ export class BotUpdate {
       console.log('- postProduct:', getMessage(language, 'mainMenu.postProduct'));
       console.log('- myProducts:', getMessage(language, 'mainMenu.myProducts'));
       console.log('- statistics:', getMessage(language, 'mainMenu.statistics'));
+      console.log('- changePhoto:', getMessage(language, 'mainMenu.changePhoto'));
       console.log('- support:', getMessage(language, 'mainMenu.support'));
       console.log('- language:', getMessage(language, 'mainMenu.language'));
       
@@ -1540,9 +1543,10 @@ export class BotUpdate {
   
   @Action(/buy_(\d+)/)
   async onBuyProduct(@Ctx() ctx: TelegramContext) {
-    if (!ctx.match) return;
-    this.initializeSession(ctx);
-    const productId = parseInt(ctx.match[1]);
+    const match = ctx.match;
+    if (!match) return;
+    
+    const productId = parseInt(match[1]);
     await this.handleBuyProduct(ctx, productId);
   }
 
@@ -2633,7 +2637,8 @@ export class BotUpdate {
           price: product.price,
           originalPriceText: originalPriceText,
           description: product.description,
-          availableUntil: timeRange
+          availableUntil: timeRange,
+          quantity: product.quantity || 1
         });
       });
 
@@ -2664,11 +2669,29 @@ export class BotUpdate {
       return ctx.reply(getMessage(language, 'error.productNotFound'));
     }
 
-    // Store selected product and directly complete purchase
+    // Check if product has available quantity
+    if (product.quantity <= 0) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.productOutOfStock'));
+    }
+
+    // Store selected product and show quantity selection
     ctx.session.selectedProductId = productId;
+    ctx.session.selectedQuantity = 1; // Default quantity
     
-    // Directly complete the purchase without payment method selection
-    await this.handleCompletePurchase(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Show quantity selection keyboard
+    await ctx.reply(
+      getMessage(language, 'purchase.selectQuantity', {
+        productName: product.description || `Product #${product.id}`,
+        price: product.price,
+        maxQuantity: product.quantity
+      }),
+      { 
+        reply_markup: getQuantitySelectionKeyboard(productId, 1, product.quantity, language) 
+      }
+    );
   }
 
   private async handleMyOrders(@Ctx() ctx: TelegramContext) {
@@ -2842,6 +2865,23 @@ export class BotUpdate {
     } catch (error) {
       console.error('Error getting seller statistics:', error);
       await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
+  private async handleChangePhoto(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const seller = await this.sellersService.findByTelegramId(telegramId);
+    
+    if (!seller) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.sellerNotFound'));
+    }
+
+    // Enter the photo change scene
+    if (ctx.scene) {
+      await ctx.scene.enter('photo-change');
     }
   }
 
@@ -3056,7 +3096,7 @@ export class BotUpdate {
     return isStoreOpen(opensAt, closesAt);
   }
 
-  private async handleCompletePurchase(@Ctx() ctx: TelegramContext) {
+  private async handleCompletePurchase(@Ctx() ctx: TelegramContext, quantity: number = 1) {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
@@ -3083,13 +3123,26 @@ export class BotUpdate {
         return ctx.reply(getMessage(language, 'error.productNotFound'));
       }
 
+      // Check if product has enough quantity
+      if (product.quantity < quantity) {
+        const language = ctx.session.language || 'uz';
+        return ctx.reply(getMessage(language, 'error.productOutOfStock'));
+      }
+
       const order = await this.ordersService.create({
         userId: user.id,
-        productId: product.id
+        productId: product.id,
+        quantity: quantity,
+        totalPrice: product.price * quantity
       });
 
       // Set initial status to PENDING
       await this.ordersService.updateStatus(order.id, OrderStatus.PENDING);
+
+      // Update product quantity
+      await this.productsService.update(product.id, {
+        quantity: product.quantity - quantity
+      });
 
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.orderCreated', {
@@ -3102,8 +3155,8 @@ export class BotUpdate {
       const seller = await this.sellersService.findOne(product.seller.id);
       if (seller) {
         const sellerTexts = {
-          uz: `🆕 Yangi buyurtma!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${product.code}\n💰 Narxi: ${order.totalPrice} so'm\n👤 Mijoz: ${user.phoneNumber}\n📦 Mahsulot: ${product.description}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun tugmani bosing`,
-          ru: `🆕 Новый заказ!\n\n📋 Код заказа: ${order.code}\n🔢 Код товара: ${product.code}\n💰 Цена: ${order.totalPrice} сум\n👤 Клиент: ${user.phoneNumber}\n📦 Товар: ${product.description}\n\n✅ Нажмите кнопку для подтверждения или ❌ отмены`
+          uz: `🆕 Yangi buyurtma!\n\n📋 Buyurtma kodi: ${order.code}\n🔢 Mahsulot kodi: ${product.code}\n🔢 Miqdor: ${quantity} ta\n💰 Narxi: ${order.totalPrice} so'm\n👤 Mijoz: ${user.phoneNumber}\n📦 Mahsulot: ${product.description}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun tugmani bosing`,
+          ru: `🆕 Новый заказ!\n\n📋 Код заказа: ${order.code}\n🔢 Код товара: ${product.code}\n🔢 Количество: ${quantity} шт\n💰 Цена: ${order.totalPrice} сум\n👤 Клиент: ${user.phoneNumber}\n📦 Товар: ${product.description}\n\n✅ Нажмите кнопку для подтверждения или ❌ отмены`
         };
         
         try {
@@ -3124,6 +3177,7 @@ export class BotUpdate {
 
       // Clear session data
       ctx.session.selectedProductId = undefined;
+      ctx.session.selectedQuantity = undefined;
     } catch (error) {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.orderCreationFailed'));
@@ -3376,7 +3430,9 @@ export class BotUpdate {
       // Create a test order
       const order = await this.ordersService.create({
         userId: testUser.id,
-        productId: testProduct.id
+        productId: testProduct.id,
+        quantity: 1,
+        totalPrice: testProduct.price
       });
       
       console.log('Created order:', {
@@ -4359,6 +4415,117 @@ export class BotUpdate {
     }
   }
 
+  @Action(/quantity_minus_(\d+)_(\d+)/)
+  async onQuantityMinus(@Ctx() ctx: TelegramContext) {
+    const match = ctx.match;
+    if (!match) return;
+    
+    const productId = parseInt(match[1]);
+    const currentQuantity = parseInt(match[2]);
+    
+    if (currentQuantity <= 1) return; // Can't go below 1
+    
+    const newQuantity = currentQuantity - 1;
+    ctx.session.selectedQuantity = newQuantity;
+    
+    const language = ctx.session.language || 'uz';
+    const product = await this.productsService.findOne(productId);
+    
+    if (product) {
+      await ctx.editMessageReplyMarkup(
+        getQuantitySelectionKeyboard(productId, newQuantity, product.quantity, language)
+      );
+    }
+  }
 
+  @Action(/quantity_plus_(\d+)_(\d+)/)
+  async onQuantityPlus(@Ctx() ctx: TelegramContext) {
+    const match = ctx.match;
+    if (!match) return;
+    
+    const productId = parseInt(match[1]);
+    const currentQuantity = parseInt(match[2]);
+    
+    const product = await this.productsService.findOne(productId);
+    if (!product || currentQuantity >= product.quantity) return; // Can't go above max
+    
+    const newQuantity = currentQuantity + 1;
+    ctx.session.selectedQuantity = newQuantity;
+    
+    const language = ctx.session.language || 'uz';
+    
+    await ctx.editMessageReplyMarkup(
+      getQuantitySelectionKeyboard(productId, newQuantity, product.quantity, language)
+    );
+  }
+
+  @Action(/confirm_quantity_(\d+)_(\d+)/)
+  async onConfirmQuantity(@Ctx() ctx: TelegramContext) {
+    const match = ctx.match;
+    if (!match) return;
+    
+    const productId = parseInt(match[1]);
+    const quantity = parseInt(match[2]);
+    
+    const product = await this.productsService.findOne(productId);
+    if (!product) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.productNotFound'));
+    }
+    
+    // Check if quantity is still available
+    if (quantity > product.quantity) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.productOutOfStock'));
+    }
+    
+    ctx.session.selectedProductId = productId;
+    ctx.session.selectedQuantity = quantity;
+    
+    const language = ctx.session.language || 'uz';
+    const totalPrice = product.price * quantity;
+    
+    // Show purchase confirmation
+    await ctx.reply(
+      getMessage(language, 'purchase.confirmPurchase', {
+        productName: product.description || `Product #${product.id}`,
+        quantity: quantity,
+        totalPrice: totalPrice.toLocaleString()
+      }),
+      { 
+        reply_markup: getPurchaseConfirmationKeyboard(productId, quantity, language) 
+      }
+    );
+  }
+
+  @Action(/purchase_confirm_(\d+)_(\d+)/)
+  async onPurchaseConfirm(@Ctx() ctx: TelegramContext) {
+    const match = ctx.match;
+    if (!match) return;
+    
+    const productId = parseInt(match[1]);
+    const quantity = parseInt(match[2]);
+    
+    // Complete the purchase
+    await this.handleCompletePurchase(ctx, quantity);
+  }
+
+  @Action(/purchase_cancel_(\d+)/)
+  async onPurchaseCancel(@Ctx() ctx: TelegramContext) {
+    const match = ctx.match;
+    if (!match) return;
+    
+    const language = ctx.session.language || 'uz';
+    
+    // Clear selected product and return to store details
+    ctx.session.selectedProductId = undefined;
+    ctx.session.selectedQuantity = undefined;
+    
+    if (ctx.session.selectedStoreId) {
+      await this.handleStoreDetails(ctx, ctx.session.selectedStoreId);
+    } else {
+      await ctx.reply(getMessage(language, 'actions.cancelled'));
+    }
+  }
 
 }

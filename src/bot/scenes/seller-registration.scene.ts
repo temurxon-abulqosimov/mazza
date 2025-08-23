@@ -28,8 +28,21 @@ export class SellerRegistrationScene {
   async onSceneEnter(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
     const language = ctx.session.language || 'uz';
+    
+    // Reset registration data when entering scene
     ctx.session.registrationStep = 'phone';
-    await ctx.reply(getMessage(language, 'registration.phoneRequest'));
+    ctx.session.sellerData = {};
+    
+    // Clear any existing keyboards and show phone request
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
+      reply_markup: { 
+        keyboard: [
+          [{ text: getMessage(language, 'actions.shareContact'), request_contact: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    });
   }
 
   @On('contact')
@@ -47,7 +60,11 @@ export class SellerRegistrationScene {
     ctx.session.registrationStep = 'business_name';
 
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
+    
+    // Clear keyboard and ask for business name
+    await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
+      reply_markup: { remove_keyboard: true }
+    });
   }
 
   @On('text')
@@ -56,6 +73,8 @@ export class SellerRegistrationScene {
     const language = ctx.session.language || 'uz';
     if (!ctx.message || !('text' in ctx.message)) return;
 
+    console.log('Text received, current step:', step, 'text:', ctx.message.text);
+
     if (step === 'business_name') {
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
@@ -63,7 +82,22 @@ export class SellerRegistrationScene {
       ctx.session.sellerData.businessName = ctx.message.text;
       ctx.session.registrationStep = 'business_type';
 
-      await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { reply_markup: getBusinessTypeKeyboard(language) });
+      await ctx.reply(getMessage(language, 'registration.businessNameSuccess'), { 
+        reply_markup: getBusinessTypeKeyboard(language) 
+      });
+    } else if (step === 'location') {
+      // Handle back button in location step
+      if (ctx.message.text === getMessage(language, 'actions.back')) {
+        console.log('Back button pressed, returning to business type selection');
+        ctx.session.registrationStep = 'business_type';
+        await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { 
+          reply_markup: getBusinessTypeKeyboard(language) 
+        });
+        return;
+      }
+      
+      // If not back button, show invalid format message
+      await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     } else {
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
     }
@@ -71,10 +105,21 @@ export class SellerRegistrationScene {
 
   @Action(/business_(cafe|restaurant|market|bakery|other)/)
   async onBusinessType(@Ctx() ctx: TelegramContext) {
-    if (ctx.session.registrationStep !== 'business_type') return;
-    if (!ctx.match) return;
+    console.log('Business type action received:', ctx.match);
+    
+    if (ctx.session.registrationStep !== 'business_type') {
+      console.log('Business type step mismatch, expected: business_type, got:', ctx.session.registrationStep);
+      return;
+    }
+    
+    if (!ctx.match) {
+      console.log('No business type match found');
+      return;
+    }
 
     const businessType = ctx.match[1] as BusinessType;
+    console.log('Selected business type:', businessType);
+    
     if (!ctx.session.sellerData) {
       ctx.session.sellerData = {};
     }
@@ -82,15 +127,48 @@ export class SellerRegistrationScene {
     ctx.session.registrationStep = 'location';
 
     const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, 'registration.locationRequest'), { reply_markup: getLocationKeyboard(language) });
+    
+    try {
+      // Clear previous inline keyboard and show location request with proper keyboard
+      const locationKeyboard = getLocationKeyboard(language);
+      console.log('Location keyboard:', JSON.stringify(locationKeyboard));
+      console.log('Current registration step:', ctx.session.registrationStep);
+      console.log('Seller data:', ctx.session.sellerData);
+      
+      // Validate keyboard structure
+      if (!locationKeyboard.keyboard || !Array.isArray(locationKeyboard.keyboard)) {
+        throw new Error('Invalid location keyboard structure');
+      }
+      
+      await ctx.reply(getMessage(language, 'registration.locationRequest'), { 
+        reply_markup: locationKeyboard 
+      });
+      
+      console.log('Location request sent successfully');
+    } catch (error) {
+      console.error('Error showing location keyboard:', error);
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
   }
 
   @On('location')
   async onLocation(@Ctx() ctx: TelegramContext) {
-    if (ctx.session.registrationStep !== 'location') return;
-    if (!ctx.message || !('location' in ctx.message)) return;
+    console.log('Location received, current step:', ctx.session.registrationStep);
+    
+    if (ctx.session.registrationStep !== 'location') {
+      console.log('Location step mismatch, expected: location, got:', ctx.session.registrationStep);
+      return;
+    }
+    
+    if (!ctx.message || !('location' in ctx.message)) {
+      console.log('Invalid location message');
+      return;
+    }
 
     const location = ctx.message.location;
+    console.log('Location data received:', location);
+    
     if (!ctx.session.sellerData) {
       ctx.session.sellerData = {};
     }
@@ -124,12 +202,15 @@ export class SellerRegistrationScene {
       
       // Move to store image step
       ctx.session.registrationStep = 'store_image';
+      
+      // Clear location keyboard and show store image request
       await ctx.reply(getMessage(language, 'registration.storeImageRequest'), { 
         reply_markup: getSkipImageKeyboard(language) 
       });
       
       // Don't leave the scene yet - wait for image or skip
     } catch (error) {
+      console.error('Error creating seller:', error);
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
     }

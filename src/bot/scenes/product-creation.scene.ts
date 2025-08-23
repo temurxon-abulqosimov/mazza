@@ -95,41 +95,92 @@ export class ProductCreationScene {
         ctx.session.productData = {};
       }
       ctx.session.productData.availableUntil = availableUntil.toISOString();
+      ctx.session.registrationStep = 'quantity';
+
+      await ctx.reply(getMessage(language, 'registration.quantityRequest'), {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: getMessage(language, 'actions.skip'), callback_data: 'skip_quantity' },
+              { text: getMessage(language, 'actions.confirm'), callback_data: 'enter_quantity' }
+            ]
+          ]
+        }
+      });
+    } else if (step === 'quantity') {
+      const quantity = parseInt(ctx.message.text);
+      if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+        return ctx.reply(getMessage(language, 'validation.invalidFormat'));
+      }
+
+      if (!ctx.session.productData) {
+        ctx.session.productData = {};
+      }
+      ctx.session.productData.quantity = quantity;
 
       // Create product
-      try {
-        if (!ctx.from) throw new Error('User not found');
-        if (!ctx.session.productData.price || !ctx.session.productData.description || !ctx.session.productData.availableUntil) {
-          throw new Error('Missing product data');
-        }
-
-        const telegramId = ctx.from.id.toString();
-        const seller = await this.sellersService.findByTelegramId(telegramId);
-        
-        if (!seller) {
-          throw new Error('Seller not found');
-        }
-
-        const createProductDto: CreateProductDto = {
-          price: ctx.session.productData.price,
-          originalPrice: ctx.session.productData.originalPrice,
-          description: ctx.session.productData.description,
-          availableFrom: ctx.session.productData.availableFrom,
-          availableUntil: ctx.session.productData.availableUntil,
-          sellerId: seller.id
-        };
-
-        await this.productsService.create(createProductDto);
-
-        await ctx.reply(getMessage(language, 'success.productCreated'));
-        if (ctx.scene) {
-          await ctx.scene.leave();
-        }
-      } catch (error) {
-        await ctx.reply(getMessage(language, 'error.productCreationFailed'));
-      }
+      await this.createProduct(ctx);
     } else {
       await ctx.reply(getMessage(language, 'validation.invalidFormat'));
+    }
+  }
+
+  @Action('skip_quantity')
+  async onSkipQuantity(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'quantity') return;
+    
+    if (!ctx.session.productData) {
+      ctx.session.productData = {};
+    }
+    ctx.session.productData.quantity = 1; // Default to 1
+    
+    // Create product with default quantity
+    await this.createProduct(ctx);
+  }
+
+  @Action('enter_quantity')
+  async onEnterQuantity(@Ctx() ctx: TelegramContext) {
+    if (ctx.session.registrationStep !== 'quantity') return;
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'registration.quantityRequest'));
+  }
+
+  private async createProduct(ctx: TelegramContext) {
+    try {
+      if (!ctx.from) throw new Error('User not found');
+      if (!ctx.session.productData?.price || !ctx.session.productData?.description || 
+          !ctx.session.productData?.availableUntil || !ctx.session.productData?.quantity) {
+        throw new Error('Missing product data');
+      }
+
+      const telegramId = ctx.from.id.toString();
+      const seller = await this.sellersService.findByTelegramId(telegramId);
+      
+      if (!seller) {
+        throw new Error('Seller not found');
+      }
+
+      const createProductDto: CreateProductDto = {
+        price: ctx.session.productData.price,
+        originalPrice: ctx.session.productData.originalPrice,
+        description: ctx.session.productData.description,
+        availableFrom: ctx.session.productData.availableFrom,
+        availableUntil: ctx.session.productData.availableUntil,
+        quantity: ctx.session.productData.quantity,
+        sellerId: seller.id
+      };
+
+      await this.productsService.create(createProductDto);
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.productCreated'));
+      if (ctx.scene) {
+        await ctx.scene.leave();
+      }
+    } catch (error) {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.productCreationFailed'));
     }
   }
 } 

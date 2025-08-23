@@ -34,7 +34,8 @@ export class OrdersService {
     
     const order = this.ordersRepository.create({
       code: generateOrderCode(),
-      totalPrice: product.price, // Set the actual product price
+      totalPrice: createOrderDto.totalPrice, // Use the provided totalPrice
+      quantity: createOrderDto.quantity, // Use the provided quantity
       user: { id: createOrderDto.userId }, // Set the user reference
       product: { id: createOrderDto.productId } // Set the product reference
     });

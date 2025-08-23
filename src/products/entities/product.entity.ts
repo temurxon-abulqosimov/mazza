@@ -30,6 +30,9 @@ export class Product {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'int', default: 1 })
+  quantity: number;
+
   @CreateDateColumn()
   createdAt: Date;
 
