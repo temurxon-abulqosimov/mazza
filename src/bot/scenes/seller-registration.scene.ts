@@ -21,7 +21,14 @@ export class SellerRegistrationScene {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
-    ctx.session = this.sessionProvider.getSession(telegramId);
+    
+    // Only initialize if session doesn't exist
+    if (!ctx.session) {
+      ctx.session = this.sessionProvider.getSession(telegramId);
+      console.log('Session initialized from provider');
+    } else {
+      console.log('Session already exists, not overriding');
+    }
   }
 
   private async createSeller(ctx: TelegramContext) {
@@ -65,46 +72,45 @@ export class SellerRegistrationScene {
 
   @SceneEnter()
   async onSceneEnter(@Ctx() ctx: TelegramContext) {
+    console.log('=== SELLER REGISTRATION SCENE ENTER ===');
+    console.log('Scene context:', !!ctx.scene);
+    console.log('User ID:', ctx.from?.id);
+    console.log('Session before init:', ctx.session);
+    
     this.initializeSession(ctx);
+    
+    console.log('Session after init:', ctx.session);
+    console.log('Current registration step:', ctx.session.registrationStep);
+    
     const language = ctx.session.language || 'uz';
     
-    // Reset registration data when entering scene
-    ctx.session.registrationStep = 'phone';
-    ctx.session.sellerData = {};
-    
-    // Clear any existing keyboards and show phone request
-    await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
-      reply_markup: { 
-        keyboard: [
-          [{ text: getMessage(language, 'actions.shareContact'), request_contact: true }]
-        ],
-        resize_keyboard: true,
-        one_time_keyboard: true
-      }
-    });
-  }
-
-  @On('contact')
-  async onContact(@Ctx() ctx: TelegramContext) {
-    if (ctx.session.registrationStep !== 'phone') return;
-    if (!ctx.message || !('contact' in ctx.message)) return;
-
-    const contact = ctx.message.contact;
-    if (!contact.phone_number) {
-      const language = ctx.session.language || 'uz';
-      return ctx.reply(getMessage(language, 'registration.phoneError'));
+    // The scene should start from business_name step since phone is handled by main bot
+    if (!ctx.session.registrationStep || ctx.session.registrationStep === 'phone') {
+      // If we're at phone step, move to business_name
+      ctx.session.registrationStep = 'business_name';
+      console.log('Moving to business_name step');
     }
-
-    ctx.session.sellerData = { phoneNumber: contact.phone_number };
-    ctx.session.registrationStep = 'business_name';
-
-    const language = ctx.session.language || 'uz';
     
-    // Clear keyboard and ask for business name
-    await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
-      reply_markup: { remove_keyboard: true }
-    });
+    if (ctx.session.registrationStep === 'business_name') {
+      // Start with business name step
+      console.log('Starting with business name step');
+      await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
+        reply_markup: { remove_keyboard: true }
+      });
+    } else if (ctx.session.registrationStep === 'business_type') {
+      // Continue from business type step
+      console.log('Continuing from business type step');
+      await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { 
+        reply_markup: getBusinessTypeKeyboard(language) 
+      });
+    }
+    
+    console.log('Final session state:', ctx.session);
+    console.log('Scene enter completed');
   }
+
+  // Phone input is handled by main bot, scene starts from business_name
+  // @On('contact') - removed since phone is handled by main bot
 
   @On('text')
   async onText(@Ctx() ctx: TelegramContext) {
@@ -113,6 +119,17 @@ export class SellerRegistrationScene {
     console.log('Current registration step:', ctx.session.registrationStep);
     console.log('Message text:', ctx.message && 'text' in ctx.message ? ctx.message.text : 'no text');
     console.log('Message type:', ctx.message ? typeof ctx.message : 'no message');
+    console.log('Session data:', {
+      role: ctx.session.role,
+      language: ctx.session.language,
+      sellerData: ctx.session.sellerData
+    });
+    
+    // Ensure we're in the right scene
+    if (!ctx.scene) {
+      console.log('No scene context, returning');
+      return;
+    }
     
     const step = ctx.session.registrationStep;
     const language = ctx.session.language || 'uz';
