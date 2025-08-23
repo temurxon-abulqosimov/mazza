@@ -988,6 +988,13 @@ export class BotUpdate {
     }
 
     this.initializeSession(ctx);
+    
+    // Check if user is in a scene - if so, let the scene handle the input
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle input');
+      return; // Let the scene handle this input
+    }
+    
     const text = this.sanitizeInput(ctx.message.text);
     const rawText = ctx.message.text; // Keep raw text for admin authentication
     const telegramId = ctx.from.id.toString();
