@@ -84,33 +84,67 @@ export class SellerRegistrationScene {
     
     const language = ctx.session.language || 'uz';
     
-    // The scene should start from business_name step since phone is handled by main bot
-    if (!ctx.session.registrationStep || ctx.session.registrationStep === 'phone') {
-      // If we're at phone step, move to business_name
-      ctx.session.registrationStep = 'business_name';
-      console.log('Moving to business_name step');
+    // Always start from phone step when entering the scene
+    ctx.session.registrationStep = 'phone';
+    if (!ctx.session.sellerData) {
+      ctx.session.sellerData = {};
     }
     
-    if (ctx.session.registrationStep === 'business_name') {
-      // Start with business name step
-      console.log('Starting with business name step');
-      await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
-        reply_markup: { remove_keyboard: true }
-      });
-    } else if (ctx.session.registrationStep === 'business_type') {
-      // Continue from business type step
-      console.log('Continuing from business type step');
-      await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { 
-        reply_markup: getBusinessTypeKeyboard(language) 
-      });
-    }
+    console.log('Starting with phone step');
     
+    // Show phone request
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
+      reply_markup: { 
+        keyboard: [
+          [{ text: getMessage(language, 'actions.shareContact'), request_contact: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    });
+    
+    console.log('Phone request sent successfully');
     console.log('Final session state:', ctx.session);
     console.log('Scene enter completed');
   }
 
-  // Phone input is handled by main bot, scene starts from business_name
-  // @On('contact') - removed since phone is handled by main bot
+  @On('contact')
+  async onContact(@Ctx() ctx: TelegramContext) {
+    console.log('=== SELLER REGISTRATION CONTACT HANDLER ===');
+    console.log('Current step:', ctx.session.registrationStep);
+    console.log('Expected step: phone');
+    
+    if (ctx.session.registrationStep !== 'phone') {
+      console.log('Step mismatch, returning');
+      return;
+    }
+    
+    if (!ctx.message || !('contact' in ctx.message)) {
+      console.log('No valid contact message, returning');
+      return;
+    }
+
+    const contact = ctx.message.contact;
+    if (!contact.phone_number) {
+      const language = ctx.session.language || 'uz';
+      console.log('No phone number in contact, showing error');
+      return ctx.reply(getMessage(language, 'registration.phoneError'));
+    }
+
+    console.log('Phone number received:', contact.phone_number);
+    ctx.session.sellerData = { phoneNumber: contact.phone_number };
+    ctx.session.registrationStep = 'business_name';
+    console.log('Updated step to business_name');
+
+    const language = ctx.session.language || 'uz';
+    
+    // Clear keyboard and ask for business name
+    await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
+      reply_markup: { remove_keyboard: true }
+    });
+    
+    console.log('Business name request sent successfully');
+  }
 
   @On('text')
   async onText(@Ctx() ctx: TelegramContext) {
@@ -142,6 +176,23 @@ export class SellerRegistrationScene {
 
     if (step === 'business_name') {
       console.log('Processing business_name step...');
+      
+      // Check if this is a back button
+      if (ctx.message.text === getMessage(language, 'actions.back')) {
+        console.log('Back button pressed, returning to phone step');
+        ctx.session.registrationStep = 'phone';
+        await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
+          reply_markup: { 
+            keyboard: [
+              [{ text: getMessage(language, 'actions.shareContact'), request_contact: true }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: true
+          }
+        });
+        return;
+      }
+      
       if (!ctx.session.sellerData) {
         ctx.session.sellerData = {};
       }
@@ -225,6 +276,25 @@ export class SellerRegistrationScene {
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
     }
+  }
+
+  @Action('back_to_business_name')
+  async onBackToBusinessName(@Ctx() ctx: TelegramContext) {
+    console.log('Back to business name action received');
+    
+    if (ctx.session.registrationStep !== 'business_type') {
+      console.log('Step mismatch, returning');
+      return;
+    }
+    
+    ctx.session.registrationStep = 'business_name';
+    const language = ctx.session.language || 'uz';
+    
+    await ctx.reply(getMessage(language, 'registration.businessNameRequest'), {
+      reply_markup: { remove_keyboard: true }
+    });
+    
+    console.log('Returned to business name step');
   }
 
   @On('location')

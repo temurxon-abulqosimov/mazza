@@ -1361,10 +1361,9 @@ export class BotUpdate {
         }
       }
     } else if (ctx.session.role === UserRole.SELLER) {
-      // Seller registration
-      ctx.session.sellerData = { phoneNumber: contact.phone_number };
-      ctx.session.registrationStep = 'business_name';
-      await ctx.reply(getMessage(language, 'registration.businessNameRequest'));
+      // Seller registration - let the scene handle it
+      // The scene will be entered from the role selection
+      console.log('Seller role detected, scene should handle registration');
     }
   }
 
