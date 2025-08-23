@@ -1542,17 +1542,10 @@ export class BotUpdate {
     ctx.session.currentPage = undefined;
     
     // Show main menu
-    if (!ctx.from) return;
-    
-    const telegramId = ctx.from.id.toString();
-    const user = await this.usersService.findByTelegramId(telegramId);
-    const seller = await this.sellersService.findByTelegramId(telegramId);
-    
-    if (user || seller) {
-      const language = user?.language || seller?.language || 'uz';
-      const role = user ? 'user' : 'seller';
-      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, role) });
-    }
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+      reply_markup: getMainMenuKeyboard(language, ctx.session.role) 
+    });
   }
 
   @Action('try_again_location')
@@ -1566,29 +1559,53 @@ export class BotUpdate {
   }
 
   @Action(/lang_(uz|ru)/)
-  async onLanguageSelect(@Ctx() ctx: TelegramContext) {
+  async onLanguageChange(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     if (!ctx.match) return;
     
-    this.initializeSession(ctx);
-    const language = ctx.match[1] as 'uz' | 'ru';
-    ctx.session.language = language;
-
-    await ctx.reply(getMessage(language, 'languageSelected'));
-    await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
-  }
-
-  @Action('back_to_language')
-  async onBackToLanguage(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    const language = ctx.session.language || 'uz';
+    const newLanguage = ctx.match[1] as 'uz' | 'ru';
+    const oldLanguage = ctx.session.language || 'uz';
     
-    // Clear registration data
-    ctx.session.role = undefined;
-    ctx.session.registrationStep = undefined;
-    ctx.session.userData = undefined;
-    ctx.session.sellerData = undefined;
+    console.log(`Language change requested: ${oldLanguage} -> ${newLanguage}`);
     
-    await ctx.reply(getMessage(language, 'selectLanguage'), { reply_markup: getLanguageKeyboard() });
+    try {
+      // Update language in session
+      ctx.session.language = newLanguage;
+      
+      // Update language in database based on user role
+      if (ctx.session.role === UserRole.SELLER) {
+        // Update seller language
+        await this.sellersService.updateLanguage(ctx.from!.id.toString(), newLanguage);
+        console.log('Seller language updated in database');
+      } else if (ctx.session.role === UserRole.USER) {
+        // Update user language
+        await this.usersService.updateLanguage(ctx.from!.id.toString(), newLanguage);
+        console.log('User language updated in database');
+      }
+      
+      // Send success message in new language
+      await ctx.reply(getMessage(newLanguage, 'languageChanged'));
+      
+      // Return to main menu with new language
+      await ctx.reply(getMessage(newLanguage, 'mainMenu.welcome'), { 
+        reply_markup: getMainMenuKeyboard(newLanguage, ctx.session.role) 
+      });
+      
+      console.log('Language change completed successfully');
+      
+    } catch (error) {
+      console.error('Language change error:', error);
+      
+      // Fallback to old language if update fails
+      ctx.session.language = oldLanguage;
+      await ctx.reply(getMessage(oldLanguage, 'error.general'));
+      
+      // Still return to main menu
+      await ctx.reply(getMessage(oldLanguage, 'mainMenu.welcome'), { 
+        reply_markup: getMainMenuKeyboard(oldLanguage, ctx.session.role) 
+      });
+    }
   }
 
   @Action(/role_(user|seller)/)

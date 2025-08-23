@@ -179,12 +179,16 @@ export class SellerRegistrationScene {
         throw new Error('Invalid location keyboard structure');
       }
       
-      // Show the location keyboard directly (it will replace the previous keyboard)
-      await ctx.reply(getMessage(language, 'registration.locationRequest'), { 
+      // Ensure the first button has request_location: true
+      if (!locationKeyboard.keyboard[0] || !locationKeyboard.keyboard[0][0] || !('request_location' in locationKeyboard.keyboard[0][0])) {
+        throw new Error('Location keyboard first button must have request_location: true');
+      }
+      
+      // Send the location request with the keyboard
+      const sentMessage = await ctx.reply(getMessage(language, 'registration.locationRequest'), { 
         reply_markup: locationKeyboard 
       });
       
-      console.log('Location request sent successfully');
     } catch (error) {
       console.error('Error showing location keyboard:', error);
       const language = ctx.session.language || 'uz';

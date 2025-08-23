@@ -119,6 +119,13 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
   };
   
   console.log('Final location keyboard:', JSON.stringify(keyboard));
+  console.log('Keyboard type:', typeof keyboard);
+  console.log('Keyboard structure:', {
+    hasKeyboard: !!keyboard.keyboard,
+    keyboardLength: keyboard.keyboard?.length,
+    firstButton: keyboard.keyboard?.[0]?.[0],
+    firstButtonHasRequestLocation: 'request_location' in (keyboard.keyboard?.[0]?.[0] || {})
+  });
   
   // Validate keyboard structure
   if (!keyboard.keyboard || !Array.isArray(keyboard.keyboard)) {
