@@ -17,24 +17,18 @@ export class RoleScene {
     if (!ctx.match) return;
     
     const role = ctx.match[1] as UserRole;
-    console.log('=== ROLE SELECTION ===');
-    console.log('Role selected:', role);
-    console.log('Session before role set:', ctx.session);
     
     // Set the role in the session
     ctx.session.role = role;
-    console.log('Session after role set:', ctx.session);
     
     const language = ctx.session.language || 'uz';
     await ctx.reply(getMessage(language, `roleSelected.${role}`));
     
     if (role === UserRole.USER) {
-      console.log('Entering user-registration scene');
       if (ctx.scene) {
         await ctx.scene.enter('user-registration');
       }
     } else {
-      console.log('Entering seller-registration scene');
       if (ctx.scene) {
         await ctx.scene.enter('seller-registration');
       }

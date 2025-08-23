@@ -24,6 +24,7 @@ export interface SessionData {
       latitude: number;
       longitude: number;
     };
+    imageUrl?: string;
     opensAt?: number;
     closesAt?: number;
   };
