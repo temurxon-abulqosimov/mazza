@@ -24,6 +24,45 @@ export class SellerRegistrationScene {
     ctx.session = this.sessionProvider.getSession(telegramId);
   }
 
+  private async createSeller(ctx: TelegramContext) {
+    try {
+      if (!ctx.from) throw new Error('User not found');
+      if (!ctx.session.sellerData?.phoneNumber || !ctx.session.sellerData?.businessName || 
+          !ctx.session.sellerData?.businessType || !ctx.session.sellerData?.location) {
+        throw new Error('Missing seller data');
+      }
+
+      const createSellerDto: CreateSellerDto = {
+        telegramId: ctx.from.id.toString(),
+        phoneNumber: ctx.session.sellerData.phoneNumber,
+        businessName: ctx.session.sellerData.businessName,
+        businessType: ctx.session.sellerData.businessType,
+        location: ctx.session.sellerData.location,
+        status: SellerStatus.PENDING,
+        language: ctx.session.language
+      };
+
+      await this.sellersService.create(createSellerDto);
+
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.sellerRegistration'));
+      
+      // Move to store image step
+      ctx.session.registrationStep = 'store_image';
+      
+      // Clear location keyboard and show store image request
+      await ctx.reply(getMessage(language, 'registration.storeImageRequest'), { 
+        reply_markup: getSkipImageKeyboard(language) 
+      });
+      
+      // Don't leave the scene yet - wait for image or skip
+    } catch (error) {
+      console.error('Error creating seller:', error);
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
   @SceneEnter()
   async onSceneEnter(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
@@ -178,43 +217,8 @@ export class SellerRegistrationScene {
       longitude: location.longitude
     };
 
-    // Create seller
-    try {
-      if (!ctx.from) throw new Error('User not found');
-      if (!ctx.session.sellerData.phoneNumber || !ctx.session.sellerData.businessName || 
-          !ctx.session.sellerData.businessType || !ctx.session.sellerData.location) {
-        throw new Error('Missing seller data');
-      }
-
-      const createSellerDto: CreateSellerDto = {
-        telegramId: ctx.from.id.toString(),
-        phoneNumber: ctx.session.sellerData.phoneNumber,
-        businessName: ctx.session.sellerData.businessName,
-        businessType: ctx.session.sellerData.businessType,
-        location: ctx.session.sellerData.location,
-        status: SellerStatus.PENDING,
-        language: ctx.session.language
-      };
-
-      await this.sellersService.create(createSellerDto);
-
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'success.sellerRegistration'));
-      
-      // Move to store image step
-      ctx.session.registrationStep = 'store_image';
-      
-      // Clear location keyboard and show store image request
-      await ctx.reply(getMessage(language, 'registration.storeImageRequest'), { 
-        reply_markup: getSkipImageKeyboard(language) 
-      });
-      
-      // Don't leave the scene yet - wait for image or skip
-    } catch (error) {
-      console.error('Error creating seller:', error);
-      const language = ctx.session.language || 'uz';
-      await ctx.reply(getMessage(language, 'error.general'));
-    }
+    // Now create the seller with all required data
+    await this.createSeller(ctx);
   }
 
   @On('photo')
