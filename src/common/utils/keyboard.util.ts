@@ -125,6 +125,11 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
     throw new Error('Invalid location keyboard structure');
   }
   
+  // Ensure the first button has request_location: true
+  if (!keyboard.keyboard[0] || !keyboard.keyboard[0][0] || !('request_location' in keyboard.keyboard[0][0])) {
+    throw new Error('Location keyboard must have request_location: true for the first button');
+  }
+  
   return keyboard;
 }
 

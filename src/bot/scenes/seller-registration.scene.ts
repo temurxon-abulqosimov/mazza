@@ -140,6 +140,7 @@ export class SellerRegistrationScene {
         throw new Error('Invalid location keyboard structure');
       }
       
+      // Show the location keyboard directly (it will replace the previous keyboard)
       await ctx.reply(getMessage(language, 'registration.locationRequest'), { 
         reply_markup: locationKeyboard 
       });

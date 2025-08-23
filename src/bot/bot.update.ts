@@ -1462,75 +1462,8 @@ export class BotUpdate {
       return;
     }
     
-    // Handle registration location step (only for sellers)
-    if (ctx.session.registrationStep !== 'location') return;
-    
-    if (ctx.session.role === UserRole.SELLER) {
-      // Seller registration - location step
-      if (!ctx.session.sellerData) {
-        ctx.session.sellerData = {};
-      }
-      ctx.session.sellerData.location = {
-        latitude: location.latitude,
-        longitude: location.longitude
-      };
-      
-      // Complete seller registration
-      try {
-        if (!ctx.from) throw new Error('User not found');
-        if (!ctx.session.sellerData.phoneNumber || !ctx.session.sellerData.location || 
-            !ctx.session.sellerData.businessName || !ctx.session.sellerData.businessType ||
-            ctx.session.sellerData.opensAt === undefined || ctx.session.sellerData.closesAt === undefined) {
-          throw new Error('Missing seller data');
-        }
-
-        // Check if seller already exists
-        const existingSeller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
-        if (existingSeller) {
-          await ctx.reply(getMessage(language, 'error.sellerAlreadyExists'));
-          return;
-        }
-
-        const createSellerDto = {
-          telegramId: ctx.from.id.toString(),
-          phoneNumber: ctx.session.sellerData.phoneNumber,
-          businessName: ctx.session.sellerData.businessName,
-          businessType: ctx.session.sellerData.businessType,
-          location: ctx.session.sellerData.location || undefined,
-          opensAt: ctx.session.sellerData.opensAt,
-          closesAt: ctx.session.sellerData.closesAt,
-          language: ctx.session.language,
-          status: SellerStatus.PENDING
-        };
-
-        await this.sellersService.create(createSellerDto);
-        await ctx.reply(getMessage(language, 'success.sellerRegistration'));
-        
-        // Notify admin about new seller registration
-        try {
-          const adminNotification = `🆕 Yangi do'kon ro'yxatdan o'tdi!\n\n📝 Nomi: ${ctx.session.sellerData.businessName}\n📍 Turi: ${ctx.session.sellerData.businessType}\n📞 Telefon: ${ctx.session.sellerData.phoneNumber}\n🕐 Ish vaqti: ${Math.floor(ctx.session.sellerData.opensAt / 60)}:${(ctx.session.sellerData.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(ctx.session.sellerData.closesAt / 60)}:${(ctx.session.sellerData.closesAt % 60).toString().padStart(2, '0')}\n\n✅ Tasdiqlash uchun /admin buyrug'ini bosing`;
-          
-          // Send notification to admin
-          try {
-            await ctx.telegram.sendMessage(envVariables.ADMIN_TELEGRAM_ID, adminNotification);
-          } catch (error) {
-            console.error(`Failed to notify admin ${envVariables.ADMIN_TELEGRAM_ID}:`, error);
-          }
-        } catch (error) {
-          console.error('Failed to send admin notification:', error);
-        }
-        
-        ctx.session.registrationStep = 'store_image';
-        await ctx.reply(getMessage(language, 'registration.storeImageRequest'), { reply_markup: getSkipImageKeyboard(language) });
-      } catch (error) {
-        console.error('Seller registration error:', error);
-        if (error.message === 'Seller already exists with this telegram ID') {
-          await ctx.reply(getMessage(language, 'error.sellerAlreadyExists'));
-        } else {
-          await ctx.reply(getMessage(language, 'error.general'));
-        }
-      }
-    }
+    // Let scenes handle their own location processing
+    // The seller registration scene will handle location for registration
   }
 
   @Action(/store_(\d+)/)
