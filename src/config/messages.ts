@@ -46,6 +46,7 @@ export const messages = {
       invalidPrice: '❌ Noto\'g\'ri narx. Iltimos, musbat son kiriting (masalan: 50000):',
       invalidOriginalPrice: '❌ Noto\'g\'ri narx. Iltimos, 0 yoki musbat son kiriting (masalan: 50000):',
       invalidTime: '❌ Noto\'g\'ri format. Iltimos, HH:MM yoki H:MM formatida kiriting (masalan: 9:00, 22:30):',
+      invalidQuantity: '❌ Noto\'g\'ri miqdor. Iltimos, 1-10000 oralig\'ida son kiriting:',
       invalidFormat: '❌ Iltimos, to\'g\'ri formatda ma\'lumot yuboring.',
       phoneFormat: 'Telefon raqami O\'zbekiston formati bo\'lishi kerak (masalan: +998 90 123 45 67)',
       businessNameFormat: 'Biznes nomi faqat harflar, raqamlar va bo\'shliqlardan iborat bo\'lishi kerak'
@@ -56,7 +57,7 @@ export const messages = {
       userRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Do\'konlarni topish uchun "Do\'konlarni topish" tugmasini bosing. Manzilingizni faqat do\'konlarni qidirayotganda yuborishingiz kerak.',
       sellerRegistration: '✅ Ro\'yxatdan o\'tish muvaffaqiyatli yakunlandi! Ma\'muriyat tasdiqlashini kutmoqda. Asosiy menyuga o\'tish uchun /start buyrug\'ini bosing.',
       productCreated: '✅ Mahsulot muvaffaqiyatli qo\'shildi!',
-      productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n⏰ Mavjud vaqti: {availableUntil}',
+      productDetails: '📦 Mahsulot ma\'lumotlari:\n\n🔢 Kod: {code}\n📝 Tavsif: {description}\n💰 Narxi: {price} so\'m\n🔢 Miqdor: {quantity} ta\n⏰ Mavjud vaqti: {timeRange}',
       orderCreated: '✅ Buyurtma qabul qilindi!\n\n📋 Buyurtma kodi: {code}\n🔢 Mahsulot kodi: {productCode}\n💰 Narxi: {price} so\'m\n\nBuyurtma kodini sotuvchiga ko\'rsating. To\'lov usuli sotuvchi bilan kelishiladi.',
       ratingSubmitted: '⭐ Baho qo\'yildi: {rating}/5',
       productRatingSubmitted: '✅ Bahoyingiz uchun rahmat! Mahsulot bahosi: {rating}/5',
@@ -116,15 +117,14 @@ export const messages = {
     stores: {
       nearbyStores: '🏪 Yaqin do\'konlar:\n\n{storeList}',
       storeDetails: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n\n{productsList}',
-      storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
-      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
+      storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}',
+      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}',
       noProductsAvailable: '😔 Hozirda mahsulot mavjud emas.',
       availableProducts: '📦 Mavjud mahsulotlar:\n{productsList}',
       requestLocation: '📍 Do\'konlarni topish uchun hozirgi manzilingizni yuboring:',
-      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} | {status}\n\n',
+      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance}\n\n',
       noProducts: 'Mahsulot yo\'q',
-      openStatus: '🟢 Ochiq',
-      closedStatus: '🔴 Yopiq'
+
     },
     
     // Orders
@@ -288,6 +288,7 @@ export const messages = {
       invalidPrice: '❌ Неправильная цена. Пожалуйста, введите положительное число (например: 50000):',
       invalidOriginalPrice: '❌ Неправильная цена. Пожалуйста, введите 0 или положительное число (например: 50000):',
       invalidTime: '❌ Неправильный формат. Пожалуйста, введите в формате ЧЧ:ММ или Ч:ММ (например: 9:00, 22:30):',
+      invalidQuantity: '❌ Неправильное количество. Пожалуйста, введите число от 1 до 10000:',
       invalidFormat: '❌ Пожалуйста, отправьте информацию в правильном формате.',
       phoneFormat: 'Номер телефона должен быть в формате Узбекистана (например: +998 90 123 45 67)',
       businessNameFormat: 'Название бизнеса должно содержать только буквы, цифры и пробелы'
@@ -298,7 +299,7 @@ export const messages = {
       userRegistration: '✅ Регистрация успешно завершена! Нажмите "Найти магазины" для поиска магазинов. Ваше местоположение потребуется только при поиске магазинов.',
       sellerRegistration: '✅ Регистрация успешно завершена! Ожидаем подтверждение администрации. Нажмите /start для перехода в главное меню.',
       productCreated: '✅ Товар успешно добавлен!',
-      productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n⏰ Доступно до: {availableUntil}',
+      productDetails: '📦 Информация о товаре:\n\n🔢 Код: {code}\n📝 Описание: {description}\n💰 Цена: {price} сум\n🔢 Количество: {quantity} шт\n⏰ Доступно: {timeRange}',
       orderCreated: '✅ Заказ принят!\n\n📋 Код заказа: {code}\n🔢 Код товара: {productCode}\n💰 Цена: {price} сум\n\nПокажите код заказа продавцу. Способ оплаты обсудите с продавцом.',
       ratingSubmitted: '⭐ Оценка поставлена: {rating}/5',
       productRatingSubmitted: '✅ Спасибо за вашу оценку! Оценка товара: {rating}/5',
@@ -356,15 +357,14 @@ export const messages = {
     stores: {
       nearbyStores: '🏪 Ближайшие магазины:\n\n{storeList}',
       storeDetails: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n\n{productsList}',
-      storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
-      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}\n{status}',
+      storeDetailsHeader: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}',
+      storeDetailsWithImage: '🏪 {businessName}\n📍 {businessType}\n📞 {phoneNumber}\n🕐 {hours}',
       noProductsAvailable: '😔 В данный момент товары недоступны.',
       availableProducts: '📦 Доступные товары:\n{productsList}',
       requestLocation: '📍 Отправьте ваше текущее местоположение для поиска магазинов:',
-      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance} | {status}\n\n',
+      storeItem: '{number}. {businessName}\n📍 {businessType} | {distance}\n\n',
       noProducts: 'Нет товаров',
-      openStatus: '🟢 Открыт',
-      closedStatus: '🔴 Закрыт'
+
     },
     
     // Orders

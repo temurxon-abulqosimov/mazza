@@ -34,6 +34,7 @@ export interface SessionData {
     description?: string;
     availableFrom?: string;
     availableUntil?: string;
+    availableUntilTime?: string;
     quantity?: number;
   };
   currentPage?: number;

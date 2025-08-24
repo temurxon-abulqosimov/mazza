@@ -20,12 +20,9 @@ export class CreateProductDto {
   description?: string;
 
   @IsOptional()
-  @IsString()
-  @Length(5, 5) // Exactly 5 characters for time format "HH:MM"
-  availableFrom?: string;
+  availableFrom?: Date;
 
-  @IsDateString()
-  availableUntil: string;
+  availableUntil: Date;
 
   @IsOptional()
   @IsString()

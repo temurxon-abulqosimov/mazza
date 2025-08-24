@@ -2,6 +2,7 @@
 import { Module } from '@nestjs/common';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { BotUpdate } from './bot.update';
+import { BotService } from './bot.service';
 import { LanguageScene } from './scenes/language.scene';
 import { RoleScene } from './scenes/role.scene';
 import { UserRegistrationScene } from './scenes/user-registration.scene';
@@ -16,6 +17,7 @@ import { ProductsModule } from 'src/products/products.module';
 import { OrdersModule } from 'src/orders/orders.module';
 import { RatingsModule } from 'src/ratings/ratings.module';
 import { envVariables } from 'src/config/env.variables';
+
 
 @Module({
   imports: [
@@ -32,6 +34,7 @@ import { envVariables } from 'src/config/env.variables';
         // Long polling configuration
         polling: true,
       }),
+
     }),
     UsersModule,
     SellersModule,
@@ -42,6 +45,7 @@ import { envVariables } from 'src/config/env.variables';
   ],
   providers: [
     BotUpdate,
+    BotService,
     LanguageScene,
     RoleScene,
     UserRegistrationScene,
@@ -49,6 +53,7 @@ import { envVariables } from 'src/config/env.variables';
     ProductCreationScene,
     PhotoChangeScene,
     SessionProvider,
+
   ],
 })
 export class BotModule {}

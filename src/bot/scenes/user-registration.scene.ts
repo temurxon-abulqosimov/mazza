@@ -19,7 +19,10 @@ export class UserRegistrationScene {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
-    ctx.session = this.sessionProvider.getSession(telegramId);
+    
+    if (!ctx.session) {
+      ctx.session = this.sessionProvider.getSession(telegramId);
+    }
   }
 
   @SceneEnter()
@@ -27,7 +30,15 @@ export class UserRegistrationScene {
     this.initializeSession(ctx);
     const language = ctx.session.language || 'uz';
     ctx.session.registrationStep = 'phone';
-    await ctx.reply(getMessage(language, 'registration.phoneRequest'));
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
+      reply_markup: { 
+        keyboard: [
+          [{ text: getMessage(language, 'actions.shareContact'), request_contact: true }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    });
   }
 
   @On('contact')

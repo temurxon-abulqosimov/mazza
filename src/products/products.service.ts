@@ -43,7 +43,9 @@ export class ProductsService {
       price: createProductDto.price,
       originalPrice: createProductDto.originalPrice,
       description: createProductDto.description,
+      availableFrom: createProductDto.availableFrom,
       availableUntil: createProductDto.availableUntil,
+      quantity: createProductDto.quantity,
       code: productCode,
       seller: { id: createProductDto.sellerId }
     });

@@ -7,11 +7,15 @@ export class SessionProvider {
 
   getSession(telegramId: string): SessionData {
     if (!this.sessions.has(telegramId)) {
-      this.sessions.set(telegramId, {
+      const newSession: SessionData = {
         language: 'uz',
-      });
+      };
+      this.sessions.set(telegramId, newSession);
+      return newSession;
+    } else {
+      const existingSession = this.sessions.get(telegramId)!;
+      return existingSession;
     }
-    return this.sessions.get(telegramId)!;
   }
 
   setSession(telegramId: string, session: SessionData): void {

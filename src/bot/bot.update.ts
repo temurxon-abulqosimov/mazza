@@ -75,7 +75,15 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
-    ctx.session = this.sessionProvider.getSession(telegramId);
+    const providerSession = this.sessionProvider.getSession(telegramId);
+    
+    // If ctx.session doesn't exist, use provider session
+    if (!ctx.session) {
+      ctx.session = providerSession;
+    } else {
+      // Merge provider session with local changes, preserving local changes
+      ctx.session = { ...providerSession, ...ctx.session };
+    }
   }
 
   private async checkAdminAuth(ctx: TelegramContext): Promise<{ isAdmin: boolean; language: 'uz' | 'ru' }> {
@@ -156,7 +164,7 @@ export class BotUpdate {
       const testProduct = await this.productsService.create({
         price: 15000,
         description: 'Test Product - Delicious food',
-        availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Available for 24 hours
+        availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // Available for 24 hours
         sellerId: testSeller.id
       });
       
@@ -927,9 +935,15 @@ export class BotUpdate {
       // Set the session role based on what type of user they are
       if (existingSeller) {
         ctx.session.role = UserRole.SELLER;
+        // Clear any registration step for existing sellers
+        ctx.session.registrationStep = undefined;
+        ctx.session.productData = undefined;
         console.log('Set session role to SELLER for existing seller');
       } else if (existingUser) {
         ctx.session.role = UserRole.USER;
+        // Clear any registration step for existing users
+        ctx.session.registrationStep = undefined;
+        ctx.session.userData = undefined;
         console.log('Set session role to USER for existing user');
       }
       
@@ -973,6 +987,22 @@ export class BotUpdate {
     await ctx.reply(getMessage(language, 'support.complains', { username: envVariables.SUPPORT_USERNAME }));
   }
 
+  @Command('clear')
+  async clearCommand(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    // Clear registration step and related data
+    ctx.session.registrationStep = undefined;
+    ctx.session.productData = undefined;
+    ctx.session.userData = undefined;
+    ctx.session.sellerData = undefined;
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply('🧹 Session cleared! Registration step and data have been reset.', {
+      reply_markup: getMainMenuKeyboard(language, ctx.session.role === UserRole.SELLER ? 'seller' : 'user')
+    });
+  }
+
   @On('text')
   async onText(@Ctx() ctx: TelegramContext) {
     if (!ctx.from || !ctx.message || !('text' in ctx.message)) return;
@@ -989,11 +1019,15 @@ export class BotUpdate {
 
     this.initializeSession(ctx);
     
-    // Check if user is in a scene - if so, let the scene handle the input
-    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
-      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle input');
-      // Don't return here - let the main bot handle registration steps
+    // Check if user is in a scene - if so, let the scene handle ALL input
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle input');
+      return; // Let the scene handle this input
     }
+    
+
+    
+
     
     const text = this.sanitizeInput(ctx.message.text);
     const rawText = ctx.message.text; // Keep raw text for admin authentication
@@ -1095,8 +1129,8 @@ export class BotUpdate {
       return;
     }
 
-    // Handle seller registration text inputs
-    if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep) {
+    // Handle seller registration text inputs (but NOT product creation)
+    if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep && !ctx.session.registrationStep.startsWith('product_')) {
       const step = ctx.session.registrationStep;
       
       console.log('=== SELLER REGISTRATION TEXT INPUT DEBUG ===');
@@ -1112,54 +1146,26 @@ export class BotUpdate {
     if (ctx.session.role === UserRole.SELLER && ctx.session.registrationStep && ctx.session.registrationStep.startsWith('product_')) {
       const step = ctx.session.registrationStep;
       
-      // Handle back commands for product creation
-      if (text.toLowerCase() === 'back' || text.toLowerCase() === 'orqaga' || text.toLowerCase() === 'назад') {
-        if (step === 'product_original_price') {
-          ctx.session.registrationStep = 'product_price';
-          await ctx.reply(getMessage(language, 'registration.priceRequest'));
-          return;
-        } else if (step === 'product_description') {
-          ctx.session.registrationStep = 'product_original_price';
-          await ctx.reply(getMessage(language, 'registration.priceSuccess'));
-          return;
-        } else if (step === 'product_available_until') {
-          ctx.session.registrationStep = 'product_description';
-          await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
-          return;
-        } else if (step === 'product_price') {
-          // Go back to main menu
-          ctx.session.registrationStep = undefined;
-          ctx.session.productData = undefined;
-          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'seller') });
-          return;
-        }
-      }
+      console.log('=== PRODUCT CREATION TEXT INPUT DEBUG ===');
+      console.log('Current step:', step);
+      console.log('User role:', ctx.session.role);
+      console.log('Registration step exists:', !!ctx.session.registrationStep);
       
       if (step === 'product_price') {
-        // Use original text for price validation, not sanitized
-        console.log('=== PRICE VALIDATION DEBUG ===');
-        console.log('Original text:', ctx.message.text);
-        console.log('Text type:', typeof ctx.message.text);
-        console.log('Text length:', ctx.message.text.length);
-        
         const priceValidation = cleanAndValidatePrice(ctx.message.text);
-        console.log('Price validation result:', priceValidation);
-        
         if (!priceValidation.isValid) {
-          console.log('Price validation failed - sending error message');
           return ctx.reply(getMessage(language, 'validation.invalidPrice'));
         }
 
-        console.log('Price validation passed - setting price:', priceValidation.price);
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        ctx.session.productData.price = priceValidation.price!; // We know it's not null because isValid is true
+        ctx.session.productData.price = priceValidation.price!;
         ctx.session.registrationStep = 'product_original_price';
+
         await ctx.reply(getMessage(language, 'registration.priceSuccess'));
         return;
       } else if (step === 'product_original_price') {
-        // Use original text for original price validation, not sanitized
         const originalPriceValidation = cleanAndValidatePrice(ctx.message.text);
         if (!originalPriceValidation.isValid) {
           return ctx.reply(getMessage(language, 'validation.invalidOriginalPrice'));
@@ -1170,100 +1176,86 @@ export class BotUpdate {
         }
         ctx.session.productData.originalPrice = originalPriceValidation.price! > 0 ? originalPriceValidation.price! : undefined;
         ctx.session.registrationStep = 'product_description';
+
         await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
         return;
       } else if (step === 'product_description') {
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        // Don't sanitize product description - use original text
-        ctx.session.productData.description = ctx.message.text; // Use original text, not sanitized
-        ctx.session.registrationStep = 'product_available_until';
-        await ctx.reply(getMessage(language, 'registration.descriptionSuccess'));
+        ctx.session.productData.description = ctx.message.text;
+        ctx.session.registrationStep = 'product_available_from';
+
+        await ctx.reply(getMessage(language, 'registration.availableFromRequest'));
         return;
-      } else if (step === 'product_available_until') {
-        // Use original text for time validation, not sanitized
+      } else if (step === 'product_available_from') {
         const timeValidation = validateAndParseTime(ctx.message.text);
         
         if (!timeValidation.isValid) {
           return ctx.reply(getMessage(language, 'validation.invalidTime'));
         }
 
-        const hours = timeValidation.hours!;
-        const minutes = timeValidation.minutes!;
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.availableFrom = `${timeValidation.hours!.toString().padStart(2, '0')}:${timeValidation.minutes!.toString().padStart(2, '0')}`;
+        ctx.session.registrationStep = 'product_available_until';
+
+        await ctx.reply(getMessage(language, 'registration.availableUntilRequest'));
+        return;
+      } else if (step === 'product_available_until') {
+        const timeValidation = validateAndParseTime(ctx.message.text);
         
-        // Create available until date (today at specified time)
-        const availableUntil = new Date();
-        availableUntil.setHours(hours, minutes, 0, 0);
-        
-        // If time has passed today, set it for tomorrow
-        if (availableUntil <= new Date()) {
-          availableUntil.setDate(availableUntil.getDate() + 1);
+        if (!timeValidation.isValid) {
+          return ctx.reply(getMessage(language, 'validation.invalidTime'));
         }
 
         if (!ctx.session.productData) {
           ctx.session.productData = {};
         }
-        ctx.session.productData.availableUntil = availableUntil.toISOString();
+        ctx.session.productData.availableUntilTime = `${timeValidation.hours!.toString().padStart(2, '0')}:${timeValidation.minutes!.toString().padStart(2, '0')}`;
+        ctx.session.registrationStep = 'product_quantity';
 
-        // Create product
-        try {
-          if (!ctx.from) throw new Error('User not found');
-          if (!ctx.session.productData.price || !ctx.session.productData.description || !ctx.session.productData.availableUntil) {
-            throw new Error('Missing product data');
-          }
-
-          const telegramId = ctx.from.id.toString();
-          const seller = await this.sellersService.findByTelegramId(telegramId);
-          
-          console.log('Found seller for product creation:', seller);
-          
-          if (!seller) {
-            throw new Error('Seller not found');
-          }
-
-          const createProductDto = {
-            price: ctx.session.productData.price,
-            originalPrice: ctx.session.productData.originalPrice,
-            description: ctx.session.productData.description,
-            availableUntil: ctx.session.productData.availableUntil,
-            sellerId: seller.id
-          };
-
-          console.log('Creating product with DTO:', createProductDto);
-          const createdProduct = await this.productsService.create(createProductDto);
-
-          // Clear product data and registration step
-          ctx.session.productData = {};
-          ctx.session.registrationStep = undefined;
-
-          await ctx.reply(getMessage(language, 'success.productCreated'));
-          // Format time range for display
-          const timeRange = this.formatTimeRange(createdProduct.availableFrom, formatRelativeTime(createdProduct.availableUntil, language), language);
-          
-          await ctx.reply(getMessage(language, 'success.productDetails', {
-            code: createdProduct.code,
-            description: createdProduct.description,
-            price: createdProduct.price,
-            availableUntil: timeRange
-          }));
-        } catch (error) {
-          console.error('Product creation error:', error);
-          
-          // Provide more specific error messages
-          let errorMessage = getMessage(language, 'error.productCreationFailed');
-          
-          if (error.message.includes('validation')) {
-            errorMessage = `❌ Validation error: ${error.message}`;
-          } else if (error.message.includes('description')) {
-            errorMessage = `❌ Description error: ${error.message}`;
-          } else if (error.message.includes('price')) {
-            errorMessage = `❌ Price error: ${error.message}`;
-          }
-          
-          await ctx.reply(errorMessage);
-          await ctx.reply(getMessage(language, 'validation.invalidFormat'));
+        // Initialize default quantity to 1
+        if (!ctx.session.productData.quantity) {
+          ctx.session.productData.quantity = 1;
         }
+        
+        await ctx.reply(getMessage(language, 'registration.quantityRequest'), {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '➖', callback_data: 'quantity_minus' },
+                { text: `${ctx.session.productData.quantity}`, callback_data: 'quantity_display' },
+                { text: '➕', callback_data: 'quantity_plus' }
+              ],
+              [
+                { text: getMessage(language, 'actions.confirm'), callback_data: 'quantity_confirm' }
+              ]
+            ]
+          }
+        });
+        return;
+      } else if (step === 'product_quantity') {
+        // This step should not handle text input directly
+        // It should only show the inline keyboard
+        await ctx.reply(getMessage(language, 'validation.invalidFormat'));
+        return;
+      } else if (step === 'product_enter_quantity') {
+        const quantity = parseInt(ctx.message.text);
+        if (isNaN(quantity) || quantity < 1 || quantity > 10000) {
+          return ctx.reply(getMessage(language, 'validation.invalidQuantity'));
+        }
+
+        if (!ctx.session.productData) {
+          ctx.session.productData = {};
+        }
+        ctx.session.productData.quantity = quantity;
+
+        console.log('Enter quantity - setting quantity to:', quantity);
+
+        // Create product using the main bot flow
+        await this.createProductFromMainBot(ctx);
         return;
       }
     }
@@ -1317,7 +1309,19 @@ export class BotUpdate {
     
     if (!ctx.message || !('contact' in ctx.message)) return;
     
-    // Only handle user registration or non-scene contacts
+    // If user is in any scene, let the scene handle the contact
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle contact');
+      return; // Let the scene handle this contact
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle contact');
+      return; // Let the scene handle this contact
+    }
+    
+    // Only handle contacts when no scene is active
     if (ctx.session.registrationStep !== 'phone') return;
 
     const contact = ctx.message.contact;
@@ -1371,9 +1375,21 @@ export class BotUpdate {
     
     if (!ctx.message || !('photo' in ctx.message)) return;
     
+    // If user is in any scene, let the scene handle the photo
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle photo');
+      return; // Let the scene handle this photo
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle photo');
+      return; // Let the scene handle this photo
+    }
+    
     const language = ctx.session.language || 'uz';
     
-    // Handle seller store image upload after registration
+    // Handle seller store image upload after registration (only when no scene is active)
     if (ctx.session.registrationStep === 'store_image' && ctx.session.role === UserRole.SELLER) {
       const photos = ctx.message.photo;
       if (photos && photos.length > 0) {
@@ -1412,34 +1428,31 @@ export class BotUpdate {
     
     if (!ctx.message || !('location' in ctx.message)) return;
     
+    // If user is in any scene, let the scene handle the location
+    if (ctx.scene) {
+      console.log('User is in a scene - letting scene handle location');
+      return; // Let the scene handle this location
+    }
+    
+    // If user is in registration step, let the scene handle it
+    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
+      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle location');
+      return; // Let the scene handle this location
+    }
+    
     const location = ctx.message.location;
     console.log('Received location:', location);
     
     const language = ctx.session.language || 'uz';
     
-    // Handle finding stores action
+    // Handle finding stores action (only when no scene is active)
     if (ctx.session.action === 'finding_stores') {
       await this.handleFindStoresWithLocation(ctx, location);
       return;
     }
     
-    // Handle seller registration location
-    if (ctx.session.registrationStep === 'location' && ctx.session.role === UserRole.SELLER) {
-      // Handle location for seller registration
-      if (ctx.session.sellerData) {
-        ctx.session.sellerData.location = {
-          latitude: location.latitude,
-          longitude: location.longitude
-        };
-        
-        // Move to next step - ask for store image
-        ctx.session.registrationStep = 'store_image';
-        await ctx.reply(getMessage(language, 'registration.storeImageRequest'), {
-          reply_markup: getSkipImageKeyboard(language)
-        });
-      }
-      return;
-    }
+    // Let scenes handle their own location processing
+    // The seller registration scene will handle location for registration
   }
 
   @Action(/store_(\d+)/)
@@ -1683,8 +1696,10 @@ export class BotUpdate {
         ctx.session.sellerData = {};
       }
       ctx.session.sellerData.businessType = businessType as any;
-      ctx.session.registrationStep = 'opens_at';
-      await ctx.reply(getMessage(language, 'registration.businessTypeRequest'));
+      ctx.session.registrationStep = 'location';
+      await ctx.reply(getMessage(language, 'registration.locationRequest'), {
+        reply_markup: getLocationKeyboard(language)
+      });
     }
   }
 
@@ -1708,25 +1723,7 @@ export class BotUpdate {
     await ctx.reply(getMessage(language, 'registration.businessTypeRequest'), { reply_markup: getBusinessTypeKeyboard(language) });
   }
 
-  @Action('back_to_opens_at')
-  async onBackToOpensAt(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    const language = ctx.session.language || 'uz';
-    
-    // Go back to opens at step
-    ctx.session.registrationStep = 'opens_at';
-    await ctx.reply(getMessage(language, 'registration.opensAtRequest'));
-  }
 
-  @Action('back_to_closes_at')
-  async onBackToClosesAt(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    const language = ctx.session.language || 'uz';
-    
-    // Go back to closes at step
-    ctx.session.registrationStep = 'closes_at';
-    await ctx.reply(getMessage(language, 'registration.closesAtRequest'));
-  }
 
   @Action('skip_image')
   async onSkipImage(@Ctx() ctx: TelegramContext) {
@@ -1975,8 +1972,9 @@ export class BotUpdate {
       
       // Handle store hours (now optional)
       let hours = '';
+      
       if (seller.opensAt !== undefined && seller.closesAt !== undefined) {
-        hours = `${Math.floor(seller.opensAt / 60)}:${(seller.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(seller.closesAt / 60)}:${(seller.closesAt % 60).toString().padStart(2, '0')}`;
+        hours = `${Math.floor(seller.opensAt / 60)}:${(seller.opensAt % 60).toString().padStart(2, '0')} - ${Math.floor(seller.opensAt / 60)}:${(seller.opensAt % 60).toString().padStart(2, '0')}`;
       } else {
         hours = language === 'ru' ? 'Время работы не указано' : 'Ish vaqti ko\'rsatilmagan';
       }
@@ -2203,12 +2201,12 @@ export class BotUpdate {
       
       let productsList = '';
       products.forEach((product, index) => {
-        productsList += getMessage(language, 'admin.productItem', {
-          number: index + 1,
-          price: product.price,
-          description: product.description,
-          date: formatDateForDisplay(product.createdAt)
-        });
+        // Format available time
+        const availableFrom = product.availableFrom ? new Date(product.availableFrom).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+        const availableUntil = product.availableUntil ? new Date(product.availableUntil).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+        const timeRange = `${availableFrom} - ${availableUntil}`;
+        
+        productsList += `${index + 1}. 💰 ${product.price} so'm\n   📝 ${product.description}\n   🔢 Miqdor: ${product.quantity || 1} ta\n   ⏰ Mavjud: ${timeRange}\n   📅 ${formatDateForDisplay(product.createdAt)}\n\n`;
       });
       
       await ctx.reply(getMessage(language, 'admin.sellerProducts', { count: products.length }) + '\n\n' + productsList);
@@ -2426,8 +2424,6 @@ export class BotUpdate {
     for (const [index, store] of currentStores.entries()) {
       const storeNumber = startIndex + index + 1;
       const distance = store.distance;
-      const isOpen = store.isOpen;
-      const status = isOpen ? getMessage(language, 'stores.openStatus') : getMessage(language, 'stores.closedStatus');
       
       // Format distance - if distance is null, show "N/A", otherwise format properly
       const distanceText = distance === null ? 'N/A' : formatDistance(distance);
@@ -2450,8 +2446,7 @@ export class BotUpdate {
         number: storeNumber,
         businessName: store.businessName,
         businessType: store.businessType,
-        distance: distanceText,
-        status: status
+        distance: distanceText
       }) + ratingDisplay + '\n';
     }
 
@@ -2498,8 +2493,7 @@ export class BotUpdate {
       businessName: store.businessName,
       businessType: store.businessType,
       phoneNumber: store.phoneNumber,
-      hours: hours,
-      status: status
+      hours: hours
     }) + locationLink;
     
     // Add rating information if available
@@ -2614,6 +2608,8 @@ export class BotUpdate {
   private async handleBuyProduct(@Ctx() ctx: TelegramContext, productId: number) {
     if (!ctx.from) return;
     
+    this.initializeSession(ctx);
+    
     const telegramId = ctx.from.id.toString();
     const user = await this.usersService.findByTelegramId(telegramId);
     
@@ -2724,12 +2720,13 @@ export class BotUpdate {
         return;
       }
 
-      // Start product creation flow
-      ctx.session.registrationStep = 'product_price';
+      // Start product creation flow directly in main bot (scenes not working yet)
+      console.log('Starting product creation in main bot');
       ctx.session.productData = {};
+      ctx.session.registrationStep = 'product_price';
       
-      console.log('Set registration step to product_price');
-      console.log('New session step:', ctx.session.registrationStep);
+      // Update session in provider to persist initial setup
+      await this.sessionProvider.setSession(ctx.from!.id.toString(), ctx.session);
       
       await ctx.reply(getMessage(language, 'registration.priceRequest'));
     } catch (error) {
@@ -2764,14 +2761,25 @@ export class BotUpdate {
 
     let productsList = '';
     products.forEach((product, index) => {
-      productsList += getMessage(language, 'products.productItem', {
+      // Format available time
+      const availableFrom = product.availableFrom ? new Date(product.availableFrom).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+      const availableUntil = product.availableUntil ? new Date(product.availableUntil).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+      const timeRange = `${availableFrom} - ${availableUntil}`;
+      
+      productsList += getMessage(language, 'products.productItemWithBuy', {
         number: index + 1,
+        code: product.code,
+        description: product.description,
         price: product.price,
-        date: formatDateForDisplay(product.createdAt)
+        quantity: product.quantity || 1,
+        availableUntil: timeRange,
+        originalPriceText: product.originalPrice && product.originalPrice > product.price ? 
+          `💰 <s>${product.originalPrice} so'm</s> - <b>${product.price} so'm</b> (${Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% chegirma)` :
+          `💰 <b>${product.price} so'm</b>`
       });
     });
 
-    await ctx.reply(getMessage(language, 'products.myProducts', { productsList }));
+    await ctx.reply(getMessage(language, 'products.myProducts', { productsList }), { parse_mode: 'HTML' });
   }
 
   private async handleSellerStatistics(@Ctx() ctx: TelegramContext) {
@@ -2847,9 +2855,27 @@ export class BotUpdate {
   /**
    * Formats time range for display: "today 14:00 - 21:00"
    */
-  private formatTimeRange(availableFrom: string | undefined, availableUntil: string, language: 'uz' | 'ru'): string {
+  private formatTimeRange(availableFrom: Date | string | undefined, availableUntil: string, language: 'uz' | 'ru'): string {
     if (!availableFrom) {
       return availableUntil;
+    }
+    
+    // Convert availableFrom to time format
+    let fromTime: string;
+    try {
+      if (availableFrom instanceof Date) {
+        fromTime = availableFrom.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+      } else if (typeof availableFrom === 'string' && (availableFrom.includes('T') || availableFrom.includes('Z'))) {
+        // It's an ISO date string, extract time
+        const fromDate = new Date(availableFrom);
+        fromTime = fromDate.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+      } else {
+        // It's already a time string
+        fromTime = availableFrom;
+      }
+    } catch (error) {
+      console.error('Error parsing availableFrom date:', error);
+      fromTime = 'N/A';
     }
     
     // Extract the time part from availableUntil (remove "today", "tomorrow", etc.)
@@ -2860,38 +2886,38 @@ export class BotUpdate {
       if (language === 'ru') {
         // For Russian: "сегодня 14:00 - 21:00"
         if (availableUntil.includes('сегодня')) {
-          return `сегодня ${availableFrom} - ${endTime}`;
+          return `сегодня ${fromTime} - ${endTime}`;
         } else if (availableUntil.includes('завтра')) {
-          return `завтра ${availableFrom} - ${endTime}`;
+          return `завтра ${fromTime} - ${endTime}`;
         } else if (availableUntil.includes('вчера')) {
-          return `вчера ${availableFrom} - ${endTime}`;
+          return `вчера ${fromTime} - ${endTime}`;
         } else {
           // For specific dates: "10/08/2025 14:00 - 21:00"
           const dateMatch = availableUntil.match(/(\d{2}\/\d{2}\/\d{4})/);
           if (dateMatch) {
-            return `${dateMatch[1]} ${availableFrom} - ${endTime}`;
+            return `${dateMatch[1]} ${fromTime} - ${endTime}`;
           }
         }
       } else {
         // For Uzbek: "bugun 14:00 - 21:00"
         if (availableUntil.includes('bugun')) {
-          return `bugun ${availableFrom} - ${endTime}`;
+          return `bugun ${fromTime} - ${endTime}`;
         } else if (availableUntil.includes('ertaga')) {
-          return `ertaga ${availableFrom} - ${endTime}`;
+          return `ertaga ${fromTime} - ${endTime}`;
         } else if (availableUntil.includes('kecha')) {
-          return `kecha ${availableFrom} - ${endTime}`;
+          return `kecha ${fromTime} - ${endTime}`;
         } else {
           // For specific dates: "10/08/2025 14:00 - 21:00"
           const dateMatch = availableUntil.match(/(\d{2}\/\d{2}\/\d{4})/);
           if (dateMatch) {
-            return `${dateMatch[1]} ${availableFrom} - ${endTime}`;
+            return `${dateMatch[1]} ${fromTime} - ${endTime}`;
           }
         }
       }
     }
     
     // Fallback: just show the range
-    return `${availableFrom} - ${availableUntil}`;
+    return `${fromTime} - ${availableUntil}`;
   }
 
   private async handleSupport(@Ctx() ctx: TelegramContext) {
@@ -3740,7 +3766,7 @@ export class BotUpdate {
           // Fix the product by setting it to active and extending the date
           await this.productsService.update(product.id, {
             isActive: true,
-            availableUntil: futureDate.toISOString()
+            availableUntil: futureDate
           });
           fixedCount++;
           console.log(`Fixed product ${product.id}`);
@@ -3759,319 +3785,8 @@ export class BotUpdate {
     }
   }
 
-  @Command('testproductcreation')
-  async testProductCreationCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    // Check if this is an admin
-    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
-    if (!isAdmin) {
-      return;
-    }
-    
-    try {
-      console.log('=== TEST PRODUCT CREATION ===');
-      
-      // Test with sample product data
-      const testProductData = {
-        price: 10000,
-        originalPrice: 12000,
-        description: 'Test product description with special characters: < > & " \'',
-        availableUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
-      };
-      
-      console.log('Test product data:', testProductData);
-      
-      // Test sanitization
-      const sanitizedDescription = this.sanitizeInput(testProductData.description);
-      console.log('Original description:', testProductData.description);
-      console.log('Sanitized description:', sanitizedDescription);
-      
-      // Get a seller for testing
-      const sellers = await this.sellersService.findAll();
-      if (sellers.length === 0) {
-        return ctx.reply('❌ No sellers found for testing!');
-      }
-      
-      const testSeller = sellers[0];
-      console.log('Using seller for test:', testSeller.businessName);
-      
-      // Test DTO creation
-      const createProductDto = {
-        price: testProductData.price,
-        originalPrice: testProductData.originalPrice,
-        description: testProductData.description, // Use original description
-        availableUntil: testProductData.availableUntil,
-        sellerId: testSeller.id
-      };
-      
-      console.log('Creating product with DTO:', createProductDto);
-      
-      // Create the product
-      const createdProduct = await this.productsService.create(createProductDto);
-      
-      console.log('Product created successfully:', {
-        id: createdProduct.id,
-        description: createdProduct.description,
-        price: createdProduct.price,
-        code: createdProduct.code,
-        isActive: createdProduct.isActive
-      });
-      
-      await ctx.reply(`🧪 Test Product Creation Successful!\n\n📦 Product ID: ${createdProduct.id}\n📝 Description: ${createdProduct.description}\n💰 Price: ${createdProduct.price}\n🔢 Code: ${createdProduct.code}\n✅ Active: ${createdProduct.isActive}\n\nCheck console for detailed logs.`);
-      
-    } catch (error) {
-      console.error('Test product creation error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
 
-  @Command('testproduct')
-  async testProductCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    // Check if this is an admin
-    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
-    if (!isAdmin) {
-      return;
-    }
-    
-    try {
-      // Test the sanitizeInput function
-      const testInputs = [
-        'Normal text',
-        'Text with <script> tags',
-        'Text with javascript:alert()',
-        'Very long text that exceeds 500 characters ' + 'x'.repeat(600),
-        'Text with special characters: & < > " \''
-      ];
-      
-      let result = '🧪 Product Input Test Results:\n\n';
-      
-      testInputs.forEach((input, index) => {
-        const sanitized = this.sanitizeInput(input);
-        result += `${index + 1}. Original: "${input.substring(0, 50)}${input.length > 50 ? '...' : ''}"\n`;
-        result += `   Sanitized: "${sanitized.substring(0, 50)}${sanitized.length > 50 ? '...' : ''}"\n`;
-        result += `   Length: ${input.length} -> ${sanitized.length}\n\n`;
-      });
-      
-      await ctx.reply(result);
-      
-    } catch (error) {
-      console.error('Test product error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
 
-  @Command('testprice')
-  async testPriceCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    // Check if this is an admin
-    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
-    if (!isAdmin) {
-      return;
-    }
-    
-    try {
-      console.log('=== TEST PRICE PARSING ===');
-      
-      // Test various price inputs
-      const testPrices = [
-        '30000',
-        '30000.50',
-        '30000,50',
-        '30,000',
-        '30.000',
-        '30000 ',
-        ' 30000',
-        '30000\n',
-        '30000\t'
-      ];
-      
-      let result = '🧪 Price Parsing Test Results:\n\n';
-      
-      testPrices.forEach((priceInput, index) => {
-        const originalText = priceInput;
-        const sanitizedText = this.sanitizeInput(priceInput);
-        const originalParsed = parseFloat(originalText);
-        const sanitizedParsed = parseFloat(sanitizedText);
-        
-        result += `${index + 1}. Input: "${priceInput}"\n`;
-        result += `   Original parsed: ${originalParsed} (${isNaN(originalParsed) ? 'NaN' : 'Valid'})\n`;
-        result += `   Sanitized: "${sanitizedText}"\n`;
-        result += `   Sanitized parsed: ${sanitizedParsed} (${isNaN(sanitizedParsed) ? 'NaN' : 'Valid'})\n`;
-        result += `   Valid original: ${!isNaN(originalParsed) && originalParsed > 0}\n`;
-        result += `   Valid sanitized: ${!isNaN(sanitizedParsed) && sanitizedParsed > 0}\n\n`;
-      });
-      
-      await ctx.reply(result);
-      
-    } catch (error) {
-      console.error('Test price error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
-
-  @Command('testinput')
-  async testInputCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    try {
-      console.log('=== TEST INPUT COMMAND ===');
-      console.log('User ID:', ctx.from.id);
-      console.log('Session exists:', !!ctx.session);
-      console.log('Session language:', ctx.session?.language);
-      console.log('Session role:', ctx.session?.role);
-      console.log('Session step:', ctx.session?.registrationStep);
-      
-      await ctx.reply(`🧪 Test Input Command Working!\n\n📊 Session Info:\n- Language: ${ctx.session?.language || 'none'}\n- Role: ${ctx.session?.role || 'none'}\n- Step: ${ctx.session?.registrationStep || 'none'}\n\n✅ Bot is responding to commands!`);
-      
-    } catch (error) {
-      console.error('Test input error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
-
-  @Command('testpriceinput')
-  async testPriceInputCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    try {
-      console.log('=== TEST PRICE INPUT COMMAND ===');
-      
-      // Simulate the exact price validation logic
-      const testPrice = '30000';
-      console.log('Testing price:', testPrice);
-      
-      const price = parseFloat(testPrice);
-      console.log('Parsed price:', price);
-      console.log('Is NaN:', isNaN(price));
-      console.log('Is <= 0:', price <= 0);
-      
-      if (isNaN(price) || price <= 0) {
-        console.log('❌ Price validation failed');
-        await ctx.reply('❌ Price validation failed - price is invalid');
-      } else {
-        console.log('✅ Price validation passed');
-        await ctx.reply(`✅ Price validation passed!\n\n💰 Price: ${price}\n📊 Type: ${typeof price}\n🔢 Is NaN: ${isNaN(price)}\n📈 Is > 0: ${price > 0}`);
-      }
-      
-    } catch (error) {
-      console.error('Test price input error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
-
-  @Command('testproductflow')
-  async testProductFlowCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    try {
-      console.log('=== TEST PRODUCT FLOW COMMAND ===');
-      
-      // Set session to seller role and product_price step
-      ctx.session.role = UserRole.SELLER;
-      ctx.session.registrationStep = 'product_price';
-      ctx.session.productData = {};
-      
-      console.log('Set session role to SELLER');
-      console.log('Set registration step to product_price');
-      console.log('Current session state:', {
-        role: ctx.session.role,
-        step: ctx.session.registrationStep,
-        productData: ctx.session.productData
-      });
-      
-      await ctx.reply('🧪 Product flow test started!\n\n💰 Please enter a price (e.g., 30000):');
-      
-    } catch (error) {
-      console.error('Test product flow error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
-
-  @Command('testsession')
-  async testSessionCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    try {
-      console.log('=== TEST SESSION COMMAND ===');
-      
-      const telegramId = ctx.from.id.toString();
-      console.log('User ID:', telegramId);
-      
-      // Check database for user/seller
-      const existingUser = await this.usersService.findByTelegramId(telegramId);
-      const existingSeller = await this.sellersService.findByTelegramId(telegramId);
-      
-      console.log('Database check:');
-      console.log('- Existing user:', !!existingUser);
-      console.log('- Existing seller:', !!existingSeller);
-      
-      // Set session role based on database
-      if (existingSeller) {
-        ctx.session.role = UserRole.SELLER;
-        console.log('Set session role to SELLER');
-      } else if (existingUser) {
-        ctx.session.role = UserRole.USER;
-        console.log('Set session role to USER');
-      } else {
-        console.log('No existing user or seller found');
-      }
-      
-      await ctx.reply(`🧪 Session Test Results:\n\n📊 Database Check:\n- User exists: ${!!existingUser}\n- Seller exists: ${!!existingSeller}\n\n🎭 Session Role: ${ctx.session.role || 'undefined'}\n\n✅ Session role should now be set correctly!`);
-      
-    } catch (error) {
-      console.error('Test session error:', error);
-      await ctx.reply(`❌ Test failed: ${error.message}`);
-    }
-  }
-
-  @Command('teststorehours')
-  async testStoreHoursCommand(@Ctx() ctx: TelegramContext) {
-    if (!ctx.from) return;
-    
-    // Check if this is an admin
-    const isAdmin = await this.adminService.isAdmin(ctx.from.id.toString());
-    if (!isAdmin) {
-      return;
-    }
-    
-    try {
-      const { isStoreOpen, formatDateForDisplay } = await import('src/common/utils/store-hours.util');
-      
-      // Test different store hours scenarios
-      const testCases = [
-        { opensAt: 540, closesAt: 1080, name: '9:00 - 18:00 (same day)' },
-        { opensAt: 1320, closesAt: 360, name: '22:00 - 6:00 (cross midnight)' },
-        { opensAt: 0, closesAt: 1440, name: '0:00 - 24:00 (24 hours)' },
-        { opensAt: 600, closesAt: 1200, name: '10:00 - 20:00 (same day)' },
-        { opensAt: 1200, closesAt: 600, name: '20:00 - 10:00 (cross midnight)' }
-      ];
-      
-      let result = `🧪 Store Hours Test Results:\n\n`;
-      
-      testCases.forEach((testCase, index) => {
-        const isOpen = isStoreOpen(testCase.opensAt, testCase.closesAt);
-        result += `${index + 1}. ${testCase.name}\n   Hours: ${Math.floor(testCase.opensAt/60)}:${(testCase.opensAt%60).toString().padStart(2,'0')} - ${Math.floor(testCase.closesAt/60)}:${(testCase.closesAt%60).toString().padStart(2,'0')}\n   Status: ${isOpen ? '🟢 Open' : '🔴 Closed'}\n\n`;
-      });
-      
-      // Test date formatting
-      const now = new Date();
-      const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
-      const formattedDate = formatDateForDisplay(futureDate);
-      
-      result += `📅 Date Formatting Test:\n`;
-      result += `Original: ${futureDate.toISOString()}\n`;
-      result += `Formatted: ${formattedDate}\n`;
-      
-      await ctx.reply(result);
-    } catch (error) {
-      console.error('Store hours test error:', error);
-      await ctx.reply(`❌ Store hours test failed: ${error.message}`);
-    }
-  }
 
   @Command('testpricevalidation')
   async testPriceValidationCommand(@Ctx() ctx: TelegramContext) {
@@ -4376,6 +4091,8 @@ export class BotUpdate {
 
   @Action(/quantity_minus_(\d+)_(\d+)/)
   async onQuantityMinus(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     const match = ctx.match;
     if (!match) return;
     
@@ -4399,27 +4116,43 @@ export class BotUpdate {
 
   @Action(/quantity_plus_(\d+)_(\d+)/)
   async onQuantityPlus(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     const match = ctx.match;
     if (!match) return;
     
     const productId = parseInt(match[1]);
     const currentQuantity = parseInt(match[2]);
     
+    console.log('=== PRODUCT PURCHASE QUANTITY PLUS DEBUG ===');
+    console.log('Product ID:', productId);
+    console.log('Current quantity:', currentQuantity);
+    
+    // Get the product to check max quantity
     const product = await this.productsService.findOne(productId);
-    if (!product || currentQuantity >= product.quantity) return; // Can't go above max
+    if (!product) {
+      const language = ctx.session.language || 'uz';
+      return ctx.reply(getMessage(language, 'error.productNotFound'));
+    }
     
-    const newQuantity = currentQuantity + 1;
-    ctx.session.selectedQuantity = newQuantity;
-    
-    const language = ctx.session.language || 'uz';
-    
-    await ctx.editMessageReplyMarkup(
-      getQuantitySelectionKeyboard(productId, newQuantity, product.quantity, language)
-    );
+    // Check if we can increase quantity
+    if (currentQuantity < product.quantity && currentQuantity < 10000) {
+      const newQuantity = currentQuantity + 1;
+      console.log('New quantity after plus:', newQuantity);
+      
+      const language = ctx.session.language || 'uz';
+      
+      // Update the keyboard with new quantity
+      await ctx.editMessageReplyMarkup(
+        getQuantitySelectionKeyboard(productId, newQuantity, product.quantity, language)
+      );
+    }
   }
 
   @Action(/confirm_quantity_(\d+)_(\d+)/)
   async onConfirmQuantity(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     const match = ctx.match;
     if (!match) return;
     
@@ -4459,6 +4192,8 @@ export class BotUpdate {
 
   @Action(/purchase_confirm_(\d+)_(\d+)/)
   async onPurchaseConfirm(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     const match = ctx.match;
     if (!match) return;
     
@@ -4471,6 +4206,8 @@ export class BotUpdate {
 
   @Action(/purchase_cancel_(\d+)/)
   async onPurchaseCancel(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
     const match = ctx.match;
     if (!match) return;
     
@@ -4484,6 +4221,232 @@ export class BotUpdate {
       await this.handleStoreDetails(ctx, ctx.session.selectedStoreId);
     } else {
       await ctx.reply(getMessage(language, 'actions.cancelled'));
+    }
+  }
+
+  // Product creation Action handlers
+  @Action('quantity_minus')
+  async onQuantityMinusProduct(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (ctx.session.registrationStep !== 'product_quantity') return;
+    
+    if (!ctx.session.productData) {
+      ctx.session.productData = {};
+    }
+    
+    const currentQuantity = ctx.session.productData.quantity || 1;
+    if (currentQuantity > 1) {
+      ctx.session.productData.quantity = currentQuantity - 1;
+      
+      // Update session in provider to persist changes
+      await this.sessionProvider.setSession(ctx.from!.id.toString(), ctx.session);
+      
+      const language = ctx.session.language || 'uz';
+      
+      // Update the keyboard with new quantity
+      await ctx.editMessageReplyMarkup({
+        inline_keyboard: [
+          [
+            { text: '➖', callback_data: 'quantity_minus' },
+            { text: `${ctx.session.productData.quantity}`, callback_data: 'quantity_display' },
+            { text: '➕', callback_data: 'quantity_plus' }
+          ],
+          [
+            { text: getMessage(language, 'actions.confirm'), callback_data: 'quantity_confirm' }
+          ]
+        ]
+      });
+    }
+  }
+
+  @Action('quantity_plus')
+  async onQuantityPlusProduct(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (ctx.session.registrationStep !== 'product_quantity') return;
+    
+    if (!ctx.session.productData) {
+      ctx.session.productData = {};
+    }
+    
+    const currentQuantity = ctx.session.productData.quantity || 1;
+    if (currentQuantity < 10000) { // Max limit
+      ctx.session.productData.quantity = currentQuantity + 1;
+      
+      // Update session in provider to persist changes
+      await this.sessionProvider.setSession(ctx.from!.id.toString(), ctx.session);
+      
+      const language = ctx.session.language || 'uz';
+      
+      // Update the keyboard with new quantity
+      await ctx.editMessageReplyMarkup({
+        inline_keyboard: [
+          [
+            { text: '➖', callback_data: 'quantity_minus' },
+            { text: `${ctx.session.productData.quantity}`, callback_data: 'quantity_display' },
+            { text: '➕', callback_data: 'quantity_plus' }
+          ],
+          [
+            { text: getMessage(language, 'actions.confirm'), callback_data: 'quantity_confirm' }
+          ]
+        ]
+      });
+    }
+  }
+
+  @Action('quantity_display')
+  async onQuantityDisplay(@Ctx() ctx: TelegramContext) {
+    // Do nothing - this is just for display
+  }
+
+  @Action('quantity_confirm')
+  async onQuantityConfirmProduct(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (ctx.session.registrationStep !== 'product_quantity') return;
+    
+    if (!ctx.session.productData || !ctx.session.productData.quantity) {
+      ctx.session.productData = ctx.session.productData || {};
+      ctx.session.productData.quantity = 1;
+    }
+    
+    console.log('Final quantity before creating product:', ctx.session.productData.quantity);
+    
+    // Update session in provider to persist final quantity
+    await this.sessionProvider.setSession(ctx.from!.id.toString(), ctx.session);
+    console.log('Final quantity session updated in provider');
+    
+    // Create product
+    await this.createProductFromMainBot(ctx);
+  }
+
+  @Action('skip_quantity')
+  async onSkipQuantity(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (ctx.session.registrationStep !== 'product_quantity') return;
+    
+    if (!ctx.session.productData) {
+      ctx.session.productData = {};
+    }
+    ctx.session.productData.quantity = 1; // Default to 1
+    
+    console.log('Skip quantity - setting quantity to 1');
+    
+    // Create product with default quantity
+    await this.createProductFromMainBot(ctx);
+  }
+
+  @Action('enter_quantity')
+  async onEnterQuantity(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    
+    if (ctx.session.registrationStep !== 'product_quantity') return;
+    
+    const language = ctx.session.language || 'uz';
+    ctx.session.registrationStep = 'product_enter_quantity';
+    await ctx.reply(getMessage(language, 'registration.quantityRequest'));
+  }
+
+  private async createProductFromMainBot(ctx: TelegramContext) {
+    try {
+      if (!ctx.from) throw new Error('User not found');
+      if (!ctx.session.productData?.price || !ctx.session.productData?.description || 
+          !ctx.session.productData?.availableUntilTime || !ctx.session.productData?.quantity) {
+        throw new Error('Missing product data');
+      }
+
+      const telegramId = ctx.from.id.toString();
+      const seller = await this.sellersService.findByTelegramId(telegramId);
+      
+      if (!seller) {
+        throw new Error('Seller not found');
+      }
+
+      // Create availableFrom date (today at start time)
+      let availableFrom: Date | undefined;
+      if (ctx.session.productData.availableFrom) {
+        const [hours, minutes] = ctx.session.productData.availableFrom.split(':').map(Number);
+        availableFrom = new Date();
+        availableFrom.setHours(hours, minutes, 0, 0);
+        
+        // If start time has passed today, set for tomorrow
+        if (availableFrom <= new Date()) {
+          availableFrom.setDate(availableFrom.getDate() + 1);
+        }
+      }
+
+      // Create availableUntil date (today at end time)
+      let availableUntil: Date;
+      if (ctx.session.productData.availableUntilTime) {
+        const [hours, minutes] = ctx.session.productData.availableUntilTime.split(':').map(Number);
+        availableUntil = new Date();
+        availableUntil.setHours(hours, minutes, 0, 0);
+        
+        // If end time has passed today, set for tomorrow
+        if (availableUntil <= new Date()) {
+          availableUntil.setDate(availableUntil.getDate() + 1);
+        }
+      } else {
+        // Fallback to current time + 1 day if no time specified
+        availableUntil = new Date();
+        availableUntil.setDate(availableUntil.getDate() + 1);
+      }
+
+      const createProductDto = {
+        price: ctx.session.productData.price,
+        originalPrice: ctx.session.productData.originalPrice,
+        description: ctx.session.productData.description,
+        availableFrom: availableFrom,
+        availableUntil: availableUntil,
+        quantity: ctx.session.productData.quantity,
+        sellerId: seller.id
+      };
+
+      console.log('Creating product with data:', createProductDto);
+
+      const createdProduct = await this.productsService.create(createProductDto);
+
+      const language = ctx.session.language || 'uz';
+      
+      console.log('=== PRODUCT CREATION DEBUG ===');
+      console.log('User language:', language);
+      console.log('Success message key:', getMessage(language, 'success.productCreated'));
+      
+      // Show product creation success with details in proper language
+      let successMessage = '';
+      if (language === 'uz') {
+        successMessage = `${getMessage(language, 'success.productCreated')}\n\n` +
+          `📦 **Mahsulot ma'lumotlari:**\n` +
+          `🆔 ID: \`${createdProduct.id}\`\n` +
+          `💰 Narxi: ${createdProduct.price.toLocaleString()} so'm\n` +
+          `${createdProduct.originalPrice ? `💸 Asl narxi: ${createdProduct.originalPrice.toLocaleString()} so'm\n` : ''}` +
+          `📝 Tavsif: ${createdProduct.description}\n` +
+          `⏰ Mavjud bo'lish vaqti: ${createdProduct.availableFrom ? new Date(createdProduct.availableFrom).toLocaleString('uz-UZ') : 'N/A'} - ${createdProduct.availableUntil ? new Date(createdProduct.availableUntil).toLocaleString('uz-UZ') : 'N/A'}\n` +
+          `📊 Miqdori: ${createdProduct.quantity} ta\n` +
+          `🔢 Kodi: \`${createdProduct.code}\``;
+      } else {
+        successMessage = `${getMessage(language, 'success.productCreated')}\n\n` +
+          `📦 **Информация о продукте:**\n` +
+          `🆔 ID: \`${createdProduct.id}\`\n` +
+          `💰 Цена: ${createdProduct.price.toLocaleString()} сум\n` +
+          `${createdProduct.originalPrice ? `💸 Исходная цена: ${createdProduct.originalPrice.toLocaleString()} сум\n` : ''}` +
+          `📝 Описание: ${createdProduct.description}\n` +
+          `⏰ Время доступности: ${createdProduct.availableFrom ? new Date(createdProduct.availableFrom).toLocaleString('ru-RU') : 'N/A'} - ${createdProduct.availableUntil ? new Date(createdProduct.availableUntil).toLocaleString('ru-RU') : 'N/A'}\n` +
+          `📊 Количество: ${createdProduct.quantity} шт\n` +
+          `🔢 Код: \`${createdProduct.code}\``;
+      }
+      
+      await ctx.reply(successMessage, { parse_mode: 'Markdown' });
+      
+      // Clear product data and reset step
+      ctx.session.productData = {};
+      ctx.session.registrationStep = undefined;
+    } catch (error) {
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.productCreationFailed'));
+      console.error('Product creation error:', error);
     }
   }
 

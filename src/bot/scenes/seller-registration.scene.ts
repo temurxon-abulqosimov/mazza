@@ -15,11 +15,14 @@ export class SellerRegistrationScene {
   ) {}
 
   private initializeSession(ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    
     if (!ctx.session) {
-      ctx.session = {
-        language: 'uz'
-      };
+      ctx.session = this.sessionProvider.getSession(telegramId);
     }
+    
     if (!ctx.session.sellerData) {
       ctx.session.sellerData = {};
     }

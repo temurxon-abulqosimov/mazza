@@ -36,13 +36,13 @@ export function getBusinessTypeKeyboard(language: 'uz' | 'ru'): InlineKeyboardMa
     const row: any[] = [];
     row.push({
       text: getMessage(language, `businessTypes.${businessTypes[i]}`),
-      callback_data: `business_${businessTypes[i]}`
+      callback_data: `business_type_${businessTypes[i]}`
     });
     
     if (businessTypes[i + 1]) {
       row.push({
         text: getMessage(language, `businessTypes.${businessTypes[i + 1]}`),
-        callback_data: `business_${businessTypes[i + 1]}`
+        callback_data: `business_type_${businessTypes[i + 1]}`
       });
     }
     
@@ -107,7 +107,6 @@ export function getContactKeyboard(language: 'uz' | 'ru'): any {
 export function getLocationKeyboard(language: 'uz' | 'ru'): any {
   const locationText = getMessage(language, 'actions.shareLocation');
   const backText = getMessage(language, 'actions.back');
-  console.log(`Creating location keyboard for language: ${language}, text: ${locationText}`);
   
   const keyboard = {
     keyboard: [
@@ -117,25 +116,6 @@ export function getLocationKeyboard(language: 'uz' | 'ru'): any {
     resize_keyboard: true,
     one_time_keyboard: true
   };
-  
-  console.log('Final location keyboard:', JSON.stringify(keyboard));
-  console.log('Keyboard type:', typeof keyboard);
-  console.log('Keyboard structure:', {
-    hasKeyboard: !!keyboard.keyboard,
-    keyboardLength: keyboard.keyboard?.length,
-    firstButton: keyboard.keyboard?.[0]?.[0],
-    firstButtonHasRequestLocation: 'request_location' in (keyboard.keyboard?.[0]?.[0] || {})
-  });
-  
-  // Validate keyboard structure
-  if (!keyboard.keyboard || !Array.isArray(keyboard.keyboard)) {
-    throw new Error('Invalid location keyboard structure');
-  }
-  
-  // Ensure the first button has request_location: true
-  if (!keyboard.keyboard[0] || !keyboard.keyboard[0][0] || !('request_location' in keyboard.keyboard[0][0])) {
-    throw new Error('Location keyboard must have request_location: true for the first button');
-  }
   
   return keyboard;
 }
