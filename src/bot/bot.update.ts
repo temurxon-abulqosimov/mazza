@@ -1191,7 +1191,18 @@ export class BotUpdate {
         ctx.session.productData.price = priceValidation.price!;
         ctx.session.registrationStep = 'product_original_price';
         
-        await ctx.reply(getMessage(language, 'registration.priceSuccess'));
+        await ctx.reply(getMessage(language, 'registration.priceSuccess'), {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { 
+                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+                  callback_data: 'cancel_product_creation' 
+                }
+              ]
+            ]
+          }
+        });
         return;
       } else if (step === 'product_original_price') {
         const originalPriceValidation = cleanAndValidatePrice(ctx.message.text);
@@ -1205,7 +1216,18 @@ export class BotUpdate {
         ctx.session.productData.originalPrice = originalPriceValidation.price! > 0 ? originalPriceValidation.price! : undefined;
         ctx.session.registrationStep = 'product_description';
         
-        await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
+        await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'), {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { 
+                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+                  callback_data: 'cancel_product_creation' 
+                }
+              ]
+            ]
+          }
+        });
         return;
       } else if (step === 'product_description') {
         if (!ctx.session.productData) {
@@ -1214,7 +1236,18 @@ export class BotUpdate {
         ctx.session.productData.description = ctx.message.text;
         ctx.session.registrationStep = 'product_available_from';
 
-        await ctx.reply(getMessage(language, 'registration.availableFromRequest'));
+        await ctx.reply(getMessage(language, 'registration.availableFromRequest'), {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { 
+                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+                  callback_data: 'cancel_product_creation' 
+                }
+              ]
+            ]
+          }
+        });
         return;
       } else if (step === 'product_available_from') {
         const timeValidation = validateAndParseTime(ctx.message.text);
@@ -1229,7 +1262,18 @@ export class BotUpdate {
         ctx.session.productData.availableFrom = `${timeValidation.hours!.toString().padStart(2, '0')}:${timeValidation.minutes!.toString().padStart(2, '0')}`;
         ctx.session.registrationStep = 'product_available_until';
 
-        await ctx.reply(getMessage(language, 'registration.availableUntilRequest'));
+        await ctx.reply(getMessage(language, 'registration.availableUntilRequest'), {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { 
+                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+                  callback_data: 'cancel_product_creation' 
+                }
+              ]
+            ]
+          }
+        });
         return;
       } else if (step === 'product_available_until') {
         const timeValidation = validateAndParseTime(ctx.message.text);
@@ -1259,6 +1303,12 @@ export class BotUpdate {
               ],
               [
                 { text: getMessage(language, 'actions.confirm'), callback_data: 'quantity_confirm' }
+              ],
+              [
+                { 
+                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+                  callback_data: 'cancel_product_creation' 
+                }
               ]
             ]
           }
@@ -2947,7 +2997,21 @@ export class BotUpdate {
       // Update session in provider to persist initial setup
       await this.sessionProvider.setSession(ctx.from!.id.toString(), ctx.session);
       
-      await ctx.reply(getMessage(language, 'registration.priceRequest'));
+      // Show price request with back button
+      const priceRequestKeyboard = {
+        inline_keyboard: [
+          [
+            { 
+              text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+              callback_data: 'cancel_product_creation' 
+            }
+          ]
+        ]
+      };
+      
+      await ctx.reply(getMessage(language, 'registration.priceRequest'), {
+        reply_markup: priceRequestKeyboard
+      });
     } catch (error) {
       console.error('Error in handleAddProduct:', error);
       await this.handleError(ctx, error, 'handleAddProduct');
@@ -4646,7 +4710,22 @@ export class BotUpdate {
     
     const language = ctx.session.language || 'uz';
     ctx.session.registrationStep = 'product_enter_quantity';
-    await ctx.reply(getMessage(language, 'registration.quantityRequest'));
+    
+    // Show quantity request with back button
+    const quantityRequestKeyboard = {
+      inline_keyboard: [
+        [
+          { 
+            text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
+            callback_data: 'cancel_product_creation' 
+          }
+        ]
+      ]
+    };
+    
+    await ctx.reply(getMessage(language, 'registration.quantityRequest'), {
+      reply_markup: quantityRequestKeyboard
+    });
   }
 
   private async createProductFromMainBot(ctx: TelegramContext) {
@@ -4889,6 +4968,32 @@ export class BotUpdate {
     
     // Update the original message to remove the confirmation buttons
     await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+  }
+
+  // Cancel product creation
+  @Action('cancel_product_creation')
+  async onCancelProductCreation(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    await this.ensureSessionRole(ctx);
+    
+    console.log('=== CANCEL PRODUCT CREATION DEBUG ===');
+    console.log('Current session step:', ctx.session.registrationStep);
+    
+    // Clear product creation data
+    ctx.session.productData = {};
+    ctx.session.registrationStep = undefined;
+    
+    const language = ctx.session.language || 'uz';
+    
+    await ctx.reply(
+      language === 'uz' 
+        ? '✅ Mahsulot qo\'shish bekor qilindi.'
+        : '✅ Добавление продукта отменено.'
+    );
+    
+    // Show main menu again
+    const keyboard = getMainMenuKeyboard(language, ctx.session.role === UserRole.SELLER ? 'seller' : 'user');
+    await ctx.reply(getMessage(language, 'mainMenu.selectOption'), { reply_markup: keyboard });
   }
 
   // Cancel photo change
