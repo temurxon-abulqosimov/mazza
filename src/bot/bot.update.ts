@@ -75,15 +75,24 @@ export class BotUpdate {
     if (!ctx.from) return;
     
     const telegramId = ctx.from.id.toString();
+    console.log('=== INITIALIZE SESSION DEBUG ===');
+    console.log('Telegram ID:', telegramId);
+    console.log('Current ctx.session before:', ctx.session ? JSON.stringify(ctx.session, null, 2) : 'undefined');
+    
     const providerSession = this.sessionProvider.getSession(telegramId);
+    console.log('Provider session:', providerSession ? JSON.stringify(providerSession, null, 2) : 'undefined');
     
     // If ctx.session doesn't exist, use provider session
     if (!ctx.session) {
       ctx.session = providerSession;
+      console.log('Set ctx.session from provider');
     } else {
       // Merge provider session with local changes, preserving local changes
       ctx.session = { ...providerSession, ...ctx.session };
+      console.log('Merged provider session with local changes');
     }
+    
+    console.log('Final ctx.session after initialization:', ctx.session ? JSON.stringify(ctx.session, null, 2) : 'undefined');
   }
 
   private async ensureSessionRole(ctx: TelegramContext) {
@@ -1191,18 +1200,7 @@ export class BotUpdate {
         ctx.session.productData.price = priceValidation.price!;
         ctx.session.registrationStep = 'product_original_price';
         
-        await ctx.reply(getMessage(language, 'registration.priceSuccess'), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { 
-                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-                  callback_data: 'cancel_product_creation' 
-                }
-              ]
-            ]
-          }
-        });
+        await ctx.reply(getMessage(language, 'registration.priceSuccess'));
         return;
       } else if (step === 'product_original_price') {
         const originalPriceValidation = cleanAndValidatePrice(ctx.message.text);
@@ -1216,18 +1214,7 @@ export class BotUpdate {
         ctx.session.productData.originalPrice = originalPriceValidation.price! > 0 ? originalPriceValidation.price! : undefined;
         ctx.session.registrationStep = 'product_description';
         
-        await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { 
-                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-                  callback_data: 'cancel_product_creation' 
-                }
-              ]
-            ]
-          }
-        });
+        await ctx.reply(getMessage(language, 'registration.originalPriceSuccess'));
         return;
       } else if (step === 'product_description') {
         if (!ctx.session.productData) {
@@ -1236,18 +1223,7 @@ export class BotUpdate {
         ctx.session.productData.description = ctx.message.text;
         ctx.session.registrationStep = 'product_available_from';
 
-        await ctx.reply(getMessage(language, 'registration.availableFromRequest'), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { 
-                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-                  callback_data: 'cancel_product_creation' 
-                }
-              ]
-            ]
-          }
-        });
+        await ctx.reply(getMessage(language, 'registration.availableFromRequest'));
         return;
       } else if (step === 'product_available_from') {
         const timeValidation = validateAndParseTime(ctx.message.text);
@@ -1262,18 +1238,7 @@ export class BotUpdate {
         ctx.session.productData.availableFrom = `${timeValidation.hours!.toString().padStart(2, '0')}:${timeValidation.minutes!.toString().padStart(2, '0')}`;
         ctx.session.registrationStep = 'product_available_until';
 
-        await ctx.reply(getMessage(language, 'registration.availableUntilRequest'), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { 
-                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-                  callback_data: 'cancel_product_creation' 
-                }
-              ]
-            ]
-          }
-        });
+        await ctx.reply(getMessage(language, 'registration.availableUntilRequest'));
         return;
       } else if (step === 'product_available_until') {
         const timeValidation = validateAndParseTime(ctx.message.text);
@@ -1303,12 +1268,6 @@ export class BotUpdate {
               ],
               [
                 { text: getMessage(language, 'actions.confirm'), callback_data: 'quantity_confirm' }
-              ],
-              [
-                { 
-                  text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-                  callback_data: 'cancel_product_creation' 
-                }
               ]
             ]
           }
@@ -1518,9 +1477,25 @@ export class BotUpdate {
 
   @On('photo')
   async onPhoto(@Ctx() ctx: TelegramContext) {
+    console.log('=== PHOTO HANDLER TRIGGERED ===');
+    console.log('Message type:', ctx.message ? typeof ctx.message : 'No message');
+    console.log('Has photo:', ctx.message && 'photo' in ctx.message);
+    
+    // Send a test message to confirm the handler is working
+    try {
+      if (ctx.from) {
+        await ctx.reply('📸 Photo handler triggered! Processing...');
+      }
+    } catch (error) {
+      console.error('Failed to send test message:', error);
+    }
+    
     this.initializeSession(ctx);
     
-    if (!ctx.message || !('photo' in ctx.message)) return;
+    if (!ctx.message || !('photo' in ctx.message)) {
+      console.log('Photo handler: No message or no photo found, returning');
+      return;
+    }
     
     console.log('=== PHOTO HANDLER DEBUG ===');
     console.log('Registration step:', ctx.session.registrationStep);
@@ -1530,8 +1505,11 @@ export class BotUpdate {
     // If user is in any scene, let the scene handle the photo
     if (ctx.scene) {
       console.log('User is in a scene - letting scene handle photo');
+      console.log('Scene info:', ctx.scene);
       return; // Let the scene handle this photo
     }
+    
+    console.log('No scene detected, processing photo in main bot');
     
     const language = ctx.session.language || 'uz';
     const photos = ctx.message.photo;
@@ -1590,12 +1568,17 @@ export class BotUpdate {
     // Handle photo change (not during registration)
     if (ctx.session.registrationStep === 'change_photo') {
       console.log('Processing photo for change_photo step');
+      console.log('Current session:', JSON.stringify(ctx.session, null, 2));
+      console.log('User ID:', ctx.from?.id);
       
       try {
         if (!ctx.from) throw new Error('User not found');
         
         const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+        console.log('Found seller:', seller ? 'Yes' : 'No');
+        
         if (seller) {
+          console.log('Updating seller with new image...');
           // Store the file_id directly
           await this.sellersService.update(seller.id, { 
             imageUrl: photo.file_id
@@ -1607,11 +1590,20 @@ export class BotUpdate {
           // Clear the registration step
           ctx.session.registrationStep = undefined;
           
+          // Update session in provider to persist the change
+          try {
+            await this.sessionProvider.setSession(ctx.from.id.toString(), ctx.session);
+            console.log('Session updated in provider after photo change');
+          } catch (sessionError) {
+            console.error('Failed to update session in provider:', sessionError);
+          }
+          
           // Show main menu
           await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
             reply_markup: getMainMenuKeyboard(language, 'seller') 
           });
         } else {
+          console.log('Seller not found for photo change');
           await ctx.reply(getMessage(language, 'error.sellerNotFound'));
         }
       } catch (error) {
@@ -3002,8 +2994,8 @@ export class BotUpdate {
         inline_keyboard: [
           [
             { 
-              text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-              callback_data: 'cancel_product_creation' 
+              text: language === 'uz' ? '⬅️ Orqaga' : '⬅️ Назад', 
+              callback_data: 'back_from_product_creation' 
             }
           ]
         ]
@@ -3196,8 +3188,17 @@ export class BotUpdate {
     // Set the session step for photo change
     ctx.session.registrationStep = 'change_photo';
     
+    // Update session in provider to persist the change
+    try {
+      await this.sessionProvider.setSession(ctx.from.id.toString(), ctx.session);
+      console.log('Session step set to change_photo and saved in provider');
+    } catch (sessionError) {
+      console.error('Failed to save session in provider:', sessionError);
+    }
+    
     const language = ctx.session.language || 'uz';
     console.log('Sending photo change request in language:', language);
+    console.log('Current session step after setting:', ctx.session.registrationStep);
     
     await ctx.reply(getMessage(language, 'registration.changePhotoRequest'), {
       reply_markup: {
@@ -4711,21 +4712,7 @@ export class BotUpdate {
     const language = ctx.session.language || 'uz';
     ctx.session.registrationStep = 'product_enter_quantity';
     
-    // Show quantity request with back button
-    const quantityRequestKeyboard = {
-      inline_keyboard: [
-        [
-          { 
-            text: language === 'uz' ? '❌ Bekor qilish' : '❌ Отменить', 
-            callback_data: 'cancel_product_creation' 
-          }
-        ]
-      ]
-    };
-    
-    await ctx.reply(getMessage(language, 'registration.quantityRequest'), {
-      reply_markup: quantityRequestKeyboard
-    });
+    await ctx.reply(getMessage(language, 'registration.quantityRequest'));
   }
 
   private async createProductFromMainBot(ctx: TelegramContext) {
@@ -4970,13 +4957,13 @@ export class BotUpdate {
     await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
   }
 
-  // Cancel product creation
-  @Action('cancel_product_creation')
-  async onCancelProductCreation(@Ctx() ctx: TelegramContext) {
+  // Back from product creation
+  @Action('back_from_product_creation')
+  async onBackFromProductCreation(@Ctx() ctx: TelegramContext) {
     this.initializeSession(ctx);
     await this.ensureSessionRole(ctx);
     
-    console.log('=== CANCEL PRODUCT CREATION DEBUG ===');
+    console.log('=== BACK FROM PRODUCT CREATION DEBUG ===');
     console.log('Current session step:', ctx.session.registrationStep);
     
     // Clear product creation data
@@ -4987,8 +4974,8 @@ export class BotUpdate {
     
     await ctx.reply(
       language === 'uz' 
-        ? '✅ Mahsulot qo\'shish bekor qilindi.'
-        : '✅ Добавление продукта отменено.'
+        ? '⬅️ Mahsulot qo\'shish bekor qilindi. Asosiy menyuga qaytdingiz.'
+        : '⬅️ Добавление продукта отменено. Вы вернулись в главное меню.'
     );
     
     // Show main menu again
