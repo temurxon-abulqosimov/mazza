@@ -1472,57 +1472,106 @@ export class BotUpdate {
     
     if (!ctx.message || !('photo' in ctx.message)) return;
     
+    console.log('=== PHOTO HANDLER DEBUG ===');
+    console.log('Registration step:', ctx.session.registrationStep);
+    console.log('Session role:', ctx.session.role);
+    console.log('Has scene:', !!ctx.scene);
+    
     // If user is in any scene, let the scene handle the photo
     if (ctx.scene) {
       console.log('User is in a scene - letting scene handle photo');
       return; // Let the scene handle this photo
     }
     
-    // If user is in registration step, let the scene handle it
-    if (ctx.session.registrationStep && ctx.session.registrationStep !== 'undefined') {
-      console.log('User is in registration step:', ctx.session.registrationStep, '- letting scene handle photo');
-      return; // Let the scene handle this photo
+    const language = ctx.session.language || 'uz';
+    const photos = ctx.message.photo;
+    
+    if (!photos || photos.length === 0) {
+      await ctx.reply(getMessage(language, 'error.photoProcessingFailed'));
+      return;
     }
     
-    const language = ctx.session.language || 'uz';
+    // Get the largest photo (best quality)
+    const photo = photos[photos.length - 1];
+    console.log('Received photo with file_id:', photo.file_id);
     
-    // Handle seller store image upload after registration (only when no scene is active)
+    // Handle seller store image upload (both registration and change photo)
     if (ctx.session.registrationStep === 'store_image') {
+      console.log('Processing photo for store_image step');
+      
       // Ensure session role is set
       await this.ensureSessionRole(ctx);
       
       if (ctx.session.role !== UserRole.SELLER) {
-        return; // Not a seller
+        await ctx.reply(getMessage(language, 'error.notSeller'));
+        return;
       }
-      const photos = ctx.message.photo;
-      if (photos && photos.length > 0) {
-        // Get the largest photo (best quality)
-        const photo = photos[photos.length - 1];
+      
+      try {
+        if (!ctx.from) throw new Error('User not found');
         
-        try {
+        const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+        if (seller) {
           // Store the file_id directly - this is the most reliable way
-          // Telegram file_ids are valid for a long time and work best for sending photos
-          if (!ctx.from) throw new Error('User not found');
+          await this.sellersService.update(seller.id, { 
+            imageUrl: photo.file_id
+          });
           
-          const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
-          if (seller) {
-            // Store the file_id directly
-            await this.sellersService.update(seller.id, { 
-              imageUrl: photo.file_id
-            });
-            
-            console.log('Store image uploaded successfully, file_id:', photo.file_id);
-            await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
-          }
+          console.log('Store image uploaded successfully, file_id:', photo.file_id);
+          await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
           
-          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { reply_markup: getMainMenuKeyboard(language, 'seller') });
-        } catch (error) {
-          console.error('Store image processing error:', error);
-          await ctx.reply(getMessage(language, 'error.photoProcessingFailed'));
+          // Clear the registration step
+          ctx.session.registrationStep = undefined;
+          
+          // Show main menu
+          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+            reply_markup: getMainMenuKeyboard(language, 'seller') 
+          });
+        } else {
+          await ctx.reply(getMessage(language, 'error.sellerNotFound'));
         }
+      } catch (error) {
+        console.error('Store image processing error:', error);
+        await ctx.reply(getMessage(language, 'error.photoProcessingFailed'));
       }
       return;
     }
+    
+    // Handle photo change (not during registration)
+    if (ctx.session.registrationStep === 'change_photo') {
+      console.log('Processing photo for change_photo step');
+      
+      try {
+        if (!ctx.from) throw new Error('User not found');
+        
+        const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+        if (seller) {
+          // Store the file_id directly
+          await this.sellersService.update(seller.id, { 
+            imageUrl: photo.file_id
+          });
+          
+          console.log('Store photo changed successfully, file_id:', photo.file_id);
+          await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
+          
+          // Clear the registration step
+          ctx.session.registrationStep = undefined;
+          
+          // Show main menu
+          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+            reply_markup: getMainMenuKeyboard(language, 'seller') 
+          });
+        } else {
+          await ctx.reply(getMessage(language, 'error.sellerNotFound'));
+        }
+      } catch (error) {
+        console.error('Photo change error:', error);
+        await ctx.reply(getMessage(language, 'error.photoProcessingFailed'));
+      }
+      return;
+    }
+    
+    console.log('Photo not processed - no matching handler found');
   }
 
   @On('location')
@@ -1568,7 +1617,7 @@ export class BotUpdate {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '📸 Surat yuborish', callback_data: 'skip_photo' },
+                { text: '📸 Surat yuborish', callback_data: 'send_photo' },
                 { text: '⏭️ O\'tkazib yuborish', callback_data: 'skip_photo' }
               ]
             ]
@@ -2743,8 +2792,31 @@ export class BotUpdate {
       });
 
       ctx.session.selectedStoreId = storeId;
+      
+      // Create custom keyboard with matching product numbers
+      const productKeyboard = {
+        inline_keyboard: [
+          // Add buy buttons for each product with matching numbers
+          ...products.map((product, index) => [{
+            text: `${getMessage(language, 'actions.buy')} #${index + 1}`,
+            callback_data: `buy_${product.id}`
+          }]),
+          // Add back buttons
+          [
+            {
+              text: getMessage(language, 'actions.back'),
+              callback_data: 'back_to_stores'
+            },
+            {
+              text: getMessage(language, 'actions.backToMainMenu'),
+              callback_data: 'back_to_main_menu'
+            }
+          ]
+        ]
+      };
+      
       await ctx.reply(productsList, { 
-        reply_markup: getProductListKeyboard(products, language),
+        reply_markup: productKeyboard,
         parse_mode: 'HTML'
       });
     } else {
@@ -3058,7 +3130,7 @@ export class BotUpdate {
     }
 
     // Set the session step for photo change
-    ctx.session.registrationStep = 'store_image';
+    ctx.session.registrationStep = 'change_photo';
     
     const language = ctx.session.language || 'uz';
     console.log('Sending photo change request in language:', language);
@@ -4887,6 +4959,24 @@ export class BotUpdate {
 
 
 
+  // Send photo for seller registration
+  @Action('send_photo')
+  async onSendPhoto(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx);
+    await this.ensureSessionRole(ctx);
+    
+    console.log('=== SEND PHOTO DEBUG ===');
+    console.log('Current seller data:', ctx.session.sellerData);
+    
+    const language = ctx.session.language || 'uz';
+    
+    // Keep the registration step as 'store_image' so the photo handler can process it
+    const photoMessage = language === 'uz' 
+      ? '📸 Iltimos, do\'koningizning suratini yuboring yoki "O\'tkazib yuborish" tugmasini bosing.'
+      : '📸 Пожалуйста, отправьте фото вашего магазина или нажмите кнопку "Пропустить".';
+    await ctx.reply(photoMessage);
+  }
+
   // Skip photo for seller registration
   @Action('skip_photo')
   async onSkipPhoto(@Ctx() ctx: TelegramContext) {
@@ -4936,6 +5026,20 @@ export class BotUpdate {
       await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
         reply_markup: getMainMenuKeyboard(language, 'seller') 
       });
+      
+      // Send notification to admin about new seller registration
+      try {
+        const adminMessage = {
+          uz: `🆕 Yangi sotuvchi ro'yxatdan o'tdi!\n\n🏪 Do'kon nomi: ${seller.businessName}\n📱 Telefon: ${seller.phoneNumber}\n🏷️ Turi: ${seller.businessType}\n📍 Manzil: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun admin paneliga kiring.`,
+          ru: `🆕 Новый продавец зарегистрировался!\n\n🏪 Название магазина: ${seller.businessName}\n📱 Телефон: ${seller.phoneNumber}\n🏷️ Тип: ${seller.businessType}\n📍 Местоположение: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Войдите в админ панель для подтверждения или отклонения.`
+        };
+        
+        // Send to admin
+        await ctx.telegram.sendMessage(envVariables.ADMIN_TELEGRAM_ID, adminMessage[seller.language || 'uz']);
+        console.log('Admin notification sent for new seller registration');
+      } catch (error) {
+        console.error('Failed to send admin notification:', error);
+      }
       
       console.log('Seller registration completed successfully');
     } catch (error) {
