@@ -6,6 +6,8 @@ import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, formatRelativeTime, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
 import { SellersService } from 'src/sellers/sellers.service';
+import { User } from 'src/users/entities/user.entity';
+import { Seller } from 'src/sellers/entities/seller.entity';
 import { AdminService } from 'src/admin/admin.service';
 import { ProductsService } from 'src/products/products.service';
 import { OrdersService } from 'src/orders/orders.service';
@@ -1135,6 +1137,64 @@ export class BotUpdate {
       }
     }
 
+    // Handle admin broadcast
+    if (ctx.session.adminAction && ctx.session.adminAction.startsWith('broadcasting_')) {
+      if (!ctx.from) return;
+      
+      const telegramId = ctx.from.id.toString();
+      const isAdmin = await this.adminService.isAdmin(telegramId);
+      
+      if (!isAdmin) {
+        const language = ctx.session.language || 'uz';
+        return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+      }
+      
+      try {
+        let successCount = 0;
+        const language = ctx.session.language || 'uz';
+        
+        switch (ctx.session.adminAction) {
+          case 'broadcasting_all':
+            const allRecipients = await this.adminService.getBroadcastRecipients('all');
+            successCount = await this.sendBroadcastMessage(ctx, allRecipients.users, allRecipients.sellers, text);
+            break;
+          case 'broadcasting_sellers':
+            const sellerRecipients = await this.adminService.getBroadcastRecipients('sellers');
+            successCount = await this.sendBroadcastMessage(ctx, [], sellerRecipients.sellers, text);
+            break;
+          case 'broadcasting_users':
+            const userRecipients = await this.adminService.getBroadcastRecipients('users');
+            successCount = await this.sendBroadcastMessage(ctx, userRecipients.users, [], text);
+            break;
+          case 'broadcasting_approved':
+            const approvedRecipients = await this.adminService.getBroadcastRecipients('approved');
+            successCount = await this.sendBroadcastMessage(ctx, [], approvedRecipients.sellers, text);
+            break;
+        }
+        
+        // Clear the broadcast action
+        ctx.session.adminAction = undefined;
+        
+        await ctx.reply(getMessage(language, 'admin.broadcastSent', { count: successCount }));
+        
+        // Return to admin main menu
+        await ctx.reply(getMessage(language, 'admin.mainMenu'), {
+          reply_markup: getAdminMainKeyboard()
+        });
+      } catch (error) {
+        console.error('Broadcast error:', error);
+        const language = ctx.session.language || 'uz';
+        await ctx.reply(getMessage(language, 'admin.broadcastFailed'));
+        
+        // Clear the broadcast action and return to admin main menu
+        ctx.session.adminAction = undefined;
+        await ctx.reply(getMessage(language, 'admin.mainMenu'), {
+          reply_markup: getAdminMainKeyboard()
+        });
+      }
+      return;
+    }
+
     // Handle admin search
     if (ctx.session.adminAction === 'searching') {
       if (!ctx.from) return;
@@ -1527,36 +1587,43 @@ export class BotUpdate {
     if (ctx.session.registrationStep === 'store_image') {
       console.log('Processing photo for store_image step');
       
-      // Ensure session role is set
-      await this.ensureSessionRole(ctx);
-      
-      if (ctx.session.role !== UserRole.SELLER) {
-        await ctx.reply(getMessage(language, 'error.notSeller'));
-        return;
-      }
+      // During registration, we don't need to check the role yet
+      // The role will be set after successful registration
       
       try {
         if (!ctx.from) throw new Error('User not found');
         
-        const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
-        if (seller) {
-          // Store the file_id directly - this is the most reliable way
-          await this.sellersService.update(seller.id, { 
-            imageUrl: photo.file_id
-          });
-          
-          console.log('Store image uploaded successfully, file_id:', photo.file_id);
+        // During registration, the seller might not exist yet
+        // Store the image in the session for later use
+        if (ctx.session.sellerData) {
+          ctx.session.sellerData.imageUrl = photo.file_id;
+          console.log('Store image stored in session for registration, file_id:', photo.file_id);
           await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
           
-          // Clear the registration step
-          ctx.session.registrationStep = undefined;
-          
-          // Show main menu
-          await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
-            reply_markup: getMainMenuKeyboard(language, 'seller') 
-          });
+          // Continue with seller creation
+          await this.createSellerFromSession(ctx);
         } else {
-          await ctx.reply(getMessage(language, 'error.sellerNotFound'));
+          // Try to find existing seller for photo update
+          const seller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
+          if (seller) {
+            // Store the file_id directly - this is the most reliable way
+            await this.sellersService.update(seller.id, { 
+              imageUrl: photo.file_id
+            });
+            
+            console.log('Store image uploaded successfully, file_id:', photo.file_id);
+            await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
+            
+            // Clear the registration step
+            ctx.session.registrationStep = undefined;
+            
+            // Show main menu
+            await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+              reply_markup: getMainMenuKeyboard(language, 'seller') 
+            });
+          } else {
+            await ctx.reply(getMessage(language, 'error.sellerNotFound'));
+          }
         }
       } catch (error) {
         console.error('Store image processing error:', error);
@@ -2181,6 +2248,82 @@ export class BotUpdate {
     await ctx.reply(getMessage(language, 'admin.broadcastMessage'), {
       reply_markup: getAdminBroadcastKeyboard()
     });
+  }
+
+  @Action('admin_broadcast_all')
+  async onAdminBroadcastAll(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      const language = ctx.session?.language || 'uz';
+      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    }
+    
+    this.initializeSession(ctx);
+    ctx.session.adminAction = 'broadcasting_all';
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'admin.broadcastMessage'));
+  }
+
+  @Action('admin_broadcast_sellers')
+  async onAdminBroadcastSellers(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      const language = ctx.session?.language || 'uz';
+      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    }
+    
+    this.initializeSession(ctx);
+    ctx.session.adminAction = 'broadcasting_sellers';
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'admin.broadcastMessage'));
+  }
+
+  @Action('admin_broadcast_users')
+  async onAdminBroadcastUsers(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      const language = ctx.session?.language || 'uz';
+      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    }
+    
+    this.initializeSession(ctx);
+    ctx.session.adminAction = 'broadcasting_users';
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'admin.broadcastMessage'));
+  }
+
+  @Action('admin_broadcast_approved')
+  async onAdminBroadcastApproved(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    const telegramId = ctx.from.id.toString();
+    const isAdmin = await this.adminService.isAdmin(telegramId);
+    
+    if (!isAdmin) {
+      const language = ctx.session?.language || 'uz';
+      return ctx.reply(getMessage(language, 'admin.notAuthorized'));
+    }
+    
+    this.initializeSession(ctx);
+    ctx.session.adminAction = 'broadcasting_approved';
+    
+    const language = ctx.session.language || 'uz';
+    await ctx.reply(getMessage(language, 'admin.broadcastMessage'));
   }
 
   @Action(/admin_seller_(\d+)/)
@@ -5141,5 +5284,85 @@ export class BotUpdate {
     }
   }
 
+  private async sendBroadcastMessage(ctx: TelegramContext, users: User[], sellers: Seller[], message: string): Promise<number> {
+    let successCount = 0;
+    
+    // Send message to users
+    for (const user of users) {
+      try {
+        await ctx.telegram.sendMessage(user.telegramId, message);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send message to user ${user.telegramId}:`, error);
+      }
+    }
+    
+    // Send message to sellers
+    for (const seller of sellers) {
+      try {
+        await ctx.telegram.sendMessage(seller.telegramId, message);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to send message to seller ${seller.telegramId}:`, error);
+      }
+    }
+    
+    return successCount;
+  }
+
+  private async createSellerFromSession(ctx: TelegramContext) {
+    if (!ctx.from || !ctx.session.sellerData) return;
+    
+    try {
+      const createSellerDto = {
+        telegramId: ctx.from.id.toString(),
+        phoneNumber: ctx.session.sellerData.phoneNumber!,
+        businessName: ctx.session.sellerData.businessName!,
+        businessType: ctx.session.sellerData.businessType!,
+        location: ctx.session.sellerData.location,
+        imageUrl: ctx.session.sellerData.imageUrl,
+        language: ctx.session.language || 'uz'
+      };
+
+      const seller = await this.sellersService.create(createSellerDto);
+      
+      // Set the role to seller after successful creation
+      ctx.session.role = UserRole.SELLER;
+      
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'success.sellerRegistration'));
+      
+      // Clear registration data and show main menu
+      ctx.session.registrationStep = undefined;
+      ctx.session.sellerData = undefined;
+      
+      await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
+        reply_markup: getMainMenuKeyboard(language, 'seller') 
+      });
+      
+      // Send notification to admin about new seller registration
+      try {
+        const adminMessage = {
+          uz: `🆕 Yangi sotuvchi ro'yxatdan o'tdi!\n\n🏪 Do'kon nomi: ${seller.businessName}\n📱 Telefon: ${seller.phoneNumber}\n🏷️ Turi: ${seller.businessType}\n📍 Manzil: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun admin paneliga kiring.`,
+          ru: `🆕 Новый продавец зарегистрировался!\n\n🏪 Название магазина: ${seller.businessName}\n📱 Телефон: ${seller.phoneNumber}\n🏷️ Тип: ${seller.businessType}\n📍 Местоположение: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Войдите в админ панель для подтверждения или отклонения.`
+        };
+        
+        // Send to admin
+        await ctx.telegram.sendMessage(envVariables.ADMIN_TELEGRAM_ID, adminMessage[seller.language || 'uz']);
+        console.log('Admin notification sent for new seller registration');
+      } catch (error) {
+        console.error('Failed to send admin notification:', error);
+      }
+      
+      // Leave the scene if we're in one
+      if (ctx.scene) {
+        await ctx.scene.leave();
+      }
+    } catch (error) {
+      console.error('Seller creation error:', error);
+      const language = ctx.session.language || 'uz';
+      await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
 }
 

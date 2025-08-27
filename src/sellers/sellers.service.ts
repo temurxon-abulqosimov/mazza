@@ -46,6 +46,7 @@ export class SellersService {
     try {
       const savedSeller = await this.sellersRepository.save(seller);
       console.log('Saved seller location:', savedSeller.location);
+      console.log('🔔 NEW SELLER CREATED - ADMIN NOTIFICATION NEEDED:', savedSeller.businessName, savedSeller.telegramId);
       return savedSeller;
     } catch (error) {
       // Check if it's a unique constraint violation

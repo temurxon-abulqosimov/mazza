@@ -172,7 +172,7 @@ export class SellerRegistrationScene {
         language: ctx.session.language || 'uz'
       };
 
-      await this.sellersService.create(createSellerDto);
+      const seller = await this.sellersService.create(createSellerDto);
       
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.sellerRegistration'));
@@ -184,6 +184,8 @@ export class SellerRegistrationScene {
       await ctx.reply(getMessage(language, 'mainMenu.welcome'), { 
         reply_markup: getMainMenuKeyboard(language, 'seller') 
       });
+      
+
       
       // Leave the scene
       if (ctx.scene) {

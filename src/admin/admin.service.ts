@@ -211,8 +211,8 @@ export class AdminService {
         ])
         .getRawOne();
 
-      const totalRevenue = parseFloat(revenueResult.totalRevenue) || 0;
-      const averageOrderValue = parseFloat(revenueResult.averageOrderValue) || 0;
+      const totalRevenue = parseFloat(revenueResult?.totalRevenue || '0') || 0;
+      const averageOrderValue = parseFloat(revenueResult?.averageOrderValue || '0') || 0;
 
       // Get top sellers by revenue
       const topSellersResult = await this.ordersRepository
@@ -230,10 +230,17 @@ export class AdminService {
         .getRawMany();
 
       let topSellers = '';
-      topSellersResult.forEach((seller, index) => {
-        const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
-        topSellers += `${emoji} ${seller.businessName}: ${parseInt(seller.revenue).toLocaleString()} so'm (${seller.orderCount} buyurtma)\n`;
-      });
+      if (topSellersResult && topSellersResult.length > 0) {
+        topSellersResult.forEach((seller, index) => {
+          const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+          const revenue = parseInt(seller?.revenue || '0');
+          const orderCount = parseInt(seller?.orderCount || '0');
+          const businessName = seller?.businessName || 'Unknown';
+          topSellers += `${emoji} ${businessName}: ${revenue.toLocaleString()} so'm (${orderCount} buyurtma)\n`;
+        });
+      } else {
+        topSellers = 'Ma\'lumot mavjud emas';
+      }
 
       // Get daily activity (last 7 days)
       const dailyActivityResult = await this.ordersRepository
@@ -250,11 +257,16 @@ export class AdminService {
         .getRawMany();
 
       let dailyActivity = '';
-      dailyActivityResult.forEach(day => {
-        const date = new Date(day.date);
-        const dayName = date.toLocaleDateString('uz-UZ', { weekday: 'short' });
-        dailyActivity += `${dayName}: ${day.orderCount} buyurtma\n`;
-      });
+      if (dailyActivityResult && dailyActivityResult.length > 0) {
+        dailyActivityResult.forEach(day => {
+          const date = new Date(day?.date || new Date());
+          const dayName = date.toLocaleDateString('uz-UZ', { weekday: 'short' });
+          const orderCount = parseInt(day?.orderCount || '0');
+          dailyActivity += `${dayName}: ${orderCount} buyurtma\n`;
+        });
+      } else {
+        dailyActivity = 'Ma\'lumot mavjud emas';
+      }
 
       // Calculate conversion rate (orders / products viewed)
       const totalProducts = await this.productsRepository.count();
@@ -396,5 +408,60 @@ export class AdminService {
   async deleteRating(ratingId: number): Promise<boolean> {
     const result = await this.ratingsRepository.delete(ratingId);
     return (result.affected || 0) > 0;
+  }
+
+  // Broadcast methods - return lists of recipients for the bot to handle
+  async getBroadcastRecipients(type: 'all' | 'sellers' | 'users' | 'approved'): Promise<{ users: User[], sellers: Seller[] }> {
+    try {
+      let users: User[] = [];
+      let sellers: Seller[] = [];
+      
+      switch (type) {
+        case 'all':
+          users = await this.getAllUsers();
+          sellers = await this.getAllSellers();
+          break;
+        case 'sellers':
+          sellers = await this.getAllSellers();
+          break;
+        case 'users':
+          users = await this.getAllUsers();
+          break;
+        case 'approved':
+          sellers = await this.getSellersByStatus(SellerStatus.APPROVED);
+          break;
+      }
+      
+      return { users, sellers };
+    } catch (error) {
+      console.error('Get broadcast recipients error:', error);
+      throw error;
+    }
+  }
+
+  // Admin notification methods
+  async notifyAdminAboutNewSeller(seller: Seller): Promise<void> {
+    try {
+      const adminMessage = {
+        uz: `🆕 Yangi sotuvchi ro'yxatdan o'tdi!\n\n🏪 Do'kon nomi: ${seller.businessName}\n📱 Telefon: ${seller.phoneNumber}\n🏷️ Turi: ${seller.businessType}\n📍 Manzil: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun admin paneliga kiring.`,
+        ru: `🆕 Новый продавец зарегистрировался!\n\n🏪 Название магазина: ${seller.businessName}\n📱 Телефон: ${seller.phoneNumber}\n🏷️ Тип: ${seller.businessType}\n📍 Местоположение: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Войдите в админ панель для подтверждения или отклонения.`
+      };
+      
+      // This method will be called from the bot service with the telegram context
+      console.log('Admin notification prepared for new seller:', seller.businessName);
+      console.log('Message:', adminMessage[seller.language || 'uz']);
+    } catch (error) {
+      console.error('Error preparing admin notification:', error);
+    }
+  }
+
+  // Method to get admin notification message for a new seller
+  getNewSellerNotificationMessage(seller: Seller): string {
+    const adminMessage = {
+      uz: `🆕 Yangi sotuvchi ro'yxatdan o'tdi!\n\n🏪 Do'kon nomi: ${seller.businessName}\n📱 Telefon: ${seller.phoneNumber}\n🏷️ Turi: ${seller.businessType}\n📍 Manzil: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Tasdiqlash yoki ❌ Rad etish uchun admin paneliga kiring.`,
+      ru: `🆕 Новый продавец зарегистрировался!\n\n🏪 Название магазина: ${seller.businessName}\n📱 Телефон: ${seller.phoneNumber}\n🏷️ Тип: ${seller.businessType}\n📍 Местоположение: ${seller.location?.latitude}, ${seller.location?.longitude}\n👤 Telegram ID: ${seller.telegramId}\n\n✅ Войдите в админ панель для подтверждения или отклонения.`
+    };
+    
+    return adminMessage[seller.language || 'uz'];
   }
 } 
