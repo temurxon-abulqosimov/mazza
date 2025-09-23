@@ -145,6 +145,20 @@ export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'sell
   }
 }
 
+// Add this new function for mini app keyboard
+export function getMiniAppKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: '🍽️ Open Mini App', callback_data: 'open_mini_app' }
+      ],
+      [
+        { text: '📍 Share Location', callback_data: 'share_location' }
+      ]
+    ]
+  };
+}
+
 export function getStoreListKeyboard(stores: any[], currentPage: number, language: 'uz' | 'ru'): InlineKeyboardMarkup {
   const keyboard: any[][] = [];
   const itemsPerPage = 10;

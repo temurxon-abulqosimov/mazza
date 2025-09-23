@@ -9,6 +9,9 @@ export class Product {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column()
+  name: string;
+
   @Column('float')
   price: number;
 
@@ -17,6 +20,15 @@ export class Product {
 
   @Column({ type: 'text', nullable: true })
   description?: string;
+
+  @Column({ type: 'text', nullable: true })
+  imageUrl?: string;
+
+  @Column({ type: 'enum', enum: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'beverage', 'bakery', 'mixed'], default: 'mixed' })
+  category: string;
+
+  @Column({ type: 'enum', enum: ['vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'halal', 'kosher', 'none'], default: 'none' })
+  dietaryInfo: string;
 
   @Column({ type: 'timestamp', nullable: true })
   availableFrom?: Date;
@@ -32,6 +44,12 @@ export class Product {
 
   @Column({ type: 'int', default: 1 })
   quantity: number;
+
+  @Column({ type: 'int', default: 0 })
+  soldQuantity: number;
+
+  @Column({ type: 'float', default: 0 })
+  discountPercentage: number;
 
   @CreateDateColumn()
   createdAt: Date;

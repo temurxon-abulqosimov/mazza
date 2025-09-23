@@ -74,6 +74,29 @@ export class UsersService {
   }
 
   async remove(id: number): Promise<void> {
+    // First, delete related records
+    await this.usersRepository
+      .createQueryBuilder()
+      .delete()
+      .from('rating')
+      .where('userId = :id', { id })
+      .execute();
+
+    await this.usersRepository
+      .createQueryBuilder()
+      .delete()
+      .from('order')
+      .where('userId = :id', { id })
+      .execute();
+
+    // Then delete the user
     await this.usersRepository.delete(id);
+  }
+
+  async removeByTelegramId(telegramId: string): Promise<void> {
+    const user = await this.findByTelegramId(telegramId);
+    if (user) {
+      await this.remove(user.id);
+    }
   }
 }

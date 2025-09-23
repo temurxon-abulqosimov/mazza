@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { Seller } from 'src/sellers/entities/seller.entity';
@@ -24,11 +24,14 @@ export class Rating {
   updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.ratings)
+  @JoinColumn({ name: 'userId' })
   user: User;
 
   @ManyToOne(() => Product, (product) => product.ratings, { nullable: true })
+  @JoinColumn({ name: 'productId' })
   product: Product;
 
   @ManyToOne(() => Seller, { nullable: true })
+  @JoinColumn({ name: 'sellerId' })
   seller: Seller;
 } 

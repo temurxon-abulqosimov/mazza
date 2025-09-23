@@ -40,6 +40,7 @@ export class ProductsService {
     
     // Create product with explicit sellerId and generated code
     const product = this.productsRepository.create({
+      name: createProductDto.name,
       price: createProductDto.price,
       originalPrice: createProductDto.originalPrice,
       description: createProductDto.description,
@@ -103,20 +104,69 @@ export class ProductsService {
     });
   }
 
-  async findBySeller(sellerId: number): Promise<Product[]> {
+  async findBySeller(sellerId: number, limit?: number, offset?: number): Promise<Product[]> {
     console.log('ProductsService: Finding products for sellerId:', sellerId);
     
-    // Try using query builder for more explicit control
-    const products = await this.productsRepository
+    const queryBuilder = this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .orderBy('product.createdAt', 'DESC');
+
+    if (limit) {
+      queryBuilder.limit(limit);
+    }
+    if (offset) {
+      queryBuilder.offset(offset);
+    }
+    
+    const products = await queryBuilder.getMany();
+    console.log('ProductsService: Found products:', products);
+    return products;
+  }
+
+  async findActiveBySeller(sellerId: number, limit?: number, offset?: number): Promise<Product[]> {
+    const queryBuilder = this.productsRepository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.seller', 'seller')
       .where('seller.id = :sellerId', { sellerId })
       .andWhere('product.isActive = :isActive', { isActive: true })
-      .orderBy('product.createdAt', 'DESC')
-      .getMany();
+      .orderBy('product.createdAt', 'DESC');
+
+    if (limit) {
+      queryBuilder.limit(limit);
+    }
+    if (offset) {
+      queryBuilder.offset(offset);
+    }
     
-    console.log('ProductsService: Found products:', products);
-    return products;
+    return queryBuilder.getMany();
+  }
+
+  async findInactiveBySeller(sellerId: number, limit?: number, offset?: number): Promise<Product[]> {
+    const queryBuilder = this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('product.isActive = :isActive', { isActive: false })
+      .orderBy('product.createdAt', 'DESC');
+
+    if (limit) {
+      queryBuilder.limit(limit);
+    }
+    if (offset) {
+      queryBuilder.offset(offset);
+    }
+    
+    return queryBuilder.getMany();
+  }
+
+  async countBySeller(sellerId: number): Promise<number> {
+    return this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoin('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .getCount();
   }
 
   async findActiveProducts(): Promise<Product[]> {

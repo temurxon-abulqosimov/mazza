@@ -2,6 +2,11 @@ import { Transform } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, Min, Max, Length, IsDateString, IsBoolean } from 'class-validator';
 
 export class CreateProductDto {
+  @IsString()
+  @Length(1, 255) // Max 255 characters for name
+  @Transform(({ value }) => String(value).trim())
+  name: string;
+
   @IsNumber()
   @Min(0)
   @Max(1000000000) // 1 billion max price
@@ -39,7 +44,10 @@ export class CreateProductDto {
   @Max(10000) // Max 10,000 items per product
   quantity?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(1)
-  sellerId: number;
+  sellerId?: number;
 }
+
+

@@ -1,0 +1,11 @@
+    const itemsPerPage = 10;
+    const startIndex = currentPage * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentStores = stores.slice(startIndex, endIndex);
+
+    for (const [index, store] of Array.from(currentStores.entries())) {
+      const storeNumber = startIndex + index + 1;
+      const distance = store.distance;
+      
+      // Format distance - if distance is null, show "N/A", otherwise format properly
+      const distanceText = distance === null ? 'N/A' : formatDistance(distance);

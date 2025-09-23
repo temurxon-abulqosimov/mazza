@@ -10,8 +10,9 @@ export class CreateRatingDto {
   @IsString()
   comment?: string;
 
+  @IsOptional()
   @IsNumber()
-  userId: number;
+  userId?: number; // Make this optional since it's set by controller
 
   @IsOptional()
   @IsNumber()

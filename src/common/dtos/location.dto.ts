@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsNumber, Min, Max, IsOptional } from 'class-validator';
+import { IsNumber, Min, Max, IsOptional, IsObject } from 'class-validator';
 
 export class LocationDto {
   @IsNumber({ maxDecimalPlaces: 6 })

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Rating } from './entities/rating.entity';
@@ -14,22 +14,15 @@ export class RatingsService {
   async create(createRatingDto: CreateRatingDto): Promise<Rating> {
     console.log('Creating rating with DTO:', createRatingDto);
     
-    // Create a new Rating entity instance
-    const rating = new Rating();
-    rating.rating = createRatingDto.rating;
-    rating.user = { id: createRatingDto.userId } as any;
-    rating.type = createRatingDto.type || 'product';
-
-    if (createRatingDto.comment) {
-      rating.comment = createRatingDto.comment;
-    }
-
-    // Set product or seller based on type
-    if (createRatingDto.type === 'seller' && createRatingDto.sellerId) {
-      rating.seller = { id: createRatingDto.sellerId } as any;
-    } else if (createRatingDto.productId) {
-      rating.product = { id: createRatingDto.productId } as any;
-    }
+    // Create rating using repository.create() method
+    const rating = this.ratingsRepository.create({
+      rating: createRatingDto.rating,
+      comment: createRatingDto.comment,
+      type: createRatingDto.type || 'product',
+      user: { id: createRatingDto.userId },
+      product: createRatingDto.productId ? { id: createRatingDto.productId } : undefined,
+      seller: createRatingDto.sellerId ? { id: createRatingDto.sellerId } : undefined,
+    });
 
     console.log('Rating entity to save:', rating);
     
@@ -70,11 +63,14 @@ export class RatingsService {
   }
 
   async findBySeller(sellerId: number): Promise<Rating[]> {
-    return this.ratingsRepository.find({
-      where: { seller: { id: sellerId } },
-      relations: ['user'],
-      order: { createdAt: 'DESC' },
-    });
+    return this.ratingsRepository
+      .createQueryBuilder('rating')
+      .leftJoinAndSelect('rating.user', 'user')
+      .leftJoinAndSelect('rating.product', 'product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('rating.seller.id = :sellerId OR product.seller.id = :sellerId', { sellerId })
+      .orderBy('rating.createdAt', 'DESC')
+      .getMany();
   }
 
   async getAverageRatingByProduct(productId: number): Promise<number> {
@@ -152,11 +148,42 @@ export class RatingsService {
   }
 
   async update(id: number, updateRatingDto: Partial<CreateRatingDto>): Promise<Rating | null> {
-    await this.ratingsRepository.update(id, updateRatingDto);
-    return this.findOne(id);
+    try {
+      // First, check if the rating exists
+      const existingRating = await this.findOne(id);
+      if (!existingRating) {
+        return null;
+      }
+
+      // Update only the provided fields
+      const updateData: any = {};
+      
+      if (updateRatingDto.rating !== undefined) {
+        updateData.rating = updateRatingDto.rating;
+      }
+      
+      if (updateRatingDto.comment !== undefined) {
+        updateData.comment = updateRatingDto.comment;
+      }
+      
+      if (updateRatingDto.type !== undefined) {
+        updateData.type = updateRatingDto.type;
+      }
+
+      // Don't update userId, productId, or sellerId
+      // These should remain the same
+
+      await this.ratingsRepository.update(id, updateData);
+      
+      // Return the updated rating with relations
+      return await this.findOne(id);
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
     await this.ratingsRepository.delete(id);
   }
-} 
+}

@@ -1,0 +1,27 @@
+﻿  @Command('webapp')
+  async webappCommand(@Ctx() ctx: TelegramContext) {
+    if (!ctx.from) return;
+    
+    this.initializeSession(ctx);
+    const language = ctx.session.language || 'uz';
+    
+    // Create web app button
+    const webAppUrl = process.env.WEBAPP_URL || 'https://your-frontend-domain.com';
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: language === 'uz' ? ' Web App ni ochish' : ' Открыть Web App',
+            web_app: { url: webAppUrl }
+          }
+        ]
+      ]
+    };
+    
+    const message = language === 'uz' 
+      ? ' Web App orqali do\'konlarni ko\'ring va mahsulotlarni sotib oling!'
+      : ' Просматривайте магазины и покупайте товары через Web App!';
+    
+    await ctx.reply(message, { reply_markup: keyboard });
+  }

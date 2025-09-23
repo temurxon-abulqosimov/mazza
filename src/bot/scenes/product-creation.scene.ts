@@ -193,6 +193,7 @@ export class ProductCreationScene {
       }
 
       const createProductDto: CreateProductDto = {
+        name: ctx.session.productData.description, // Use description as name
         price: ctx.session.productData.price,
         originalPrice: ctx.session.productData.originalPrice,
         description: ctx.session.productData.description,

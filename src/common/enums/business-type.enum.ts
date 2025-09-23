@@ -1,8 +1,12 @@
 export enum BusinessType {
-    CAFE = 'cafe',
-    RESTAURANT = 'restaurant',
-    MARKET = 'market',
-    BAKERY = 'bakery',
-    OTHER = 'other',
-  }
+  RESTAURANT = 'restaurant',
+  CAFE = 'cafe',
+  BAKERY = 'bakery',
+  MARKET = 'market',
+  GROCERY = 'grocery',
+  HOTEL = 'hotel',
+  FOOD_TRUCK = 'food_truck',
+  DELI = 'deli',
+  OTHER = 'other',
+}
   

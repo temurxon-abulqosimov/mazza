@@ -238,6 +238,17 @@ export const messages = {
       loginFailed: '❌ Noto\'g\'ri foydalanuvchi nomi yoki parol.',
       logoutSuccess: '👋 Tizimdan chiqildi.',
       sessionExpired: '⏰ Sessiya muddati tugadi. Qaytadan kirish kerak.'
+    },
+    
+    // Mini App Messages
+    miniApp: {
+      welcome: '🚀 Mini ilovani ochish',
+      openApp: '🍽️ Mini ilovani ochish',
+      shareLocation: '📍 Manzilni ulashish',
+      locationUpdated: '✅ Manzil yangilandi! Endi yaqin do\'konlarni ko\'rishingiz mumkin:',
+      locationRequest: '📍 Yaqin do\'konlarni topish uchun manzilingizni yuboring:',
+      appNotAvailable: '❌ Mini ilova hozircha mavjud emas. Iltimos, keyinroq urinib ko\'ring.',
+      registrationRequired: '❌ Mini ilovani ishlatish uchun avval ro\'yxatdan o\'ting!'
     }
   },
   
@@ -478,6 +489,17 @@ export const messages = {
       loginFailed: '❌ Неправильное имя пользователя или пароль.',
       logoutSuccess: '👋 Вы вышли из системы.',
       sessionExpired: '⏰ Срок сессии истек. Требуется повторный вход.'
+    },
+    
+    // Mini App Messages
+    miniApp: {
+      welcome: '🚀 Открыть мини-приложение',
+      openApp: '🍽️ Открыть мини-приложение',
+      shareLocation: '📍 Поделиться местоположением',
+      locationUpdated: '✅ Местоположение обновлено! Теперь вы можете просматривать ближайшие магазины:',
+      locationRequest: '📍 Поделитесь своим местоположением, чтобы найти ближайшие магазины:',
+      appNotAvailable: '❌ Мини-приложение пока недоступно. Попробуйте позже.',
+      registrationRequired: '❌ Для использования мини-приложения сначала зарегистрируйтесь!'
     }
   }
 };

@@ -48,13 +48,39 @@ export function calculateDistance(
 
 export function formatDistance(distance: number): string {
   if (distance < 1) {
-    // Convert to meters and round to nearest meter
-    const meters = Math.round(distance * 1000);
-    return `${meters} m`;
+    return `${Math.round(distance * 1000)} m`;
   } else {
-    // Show in kilometers with 1 decimal place
     return `${distance.toFixed(1)} km`;
   }
+}
+
+// Enhanced distance calculation with walking time estimation
+export function calculateWalkingTime(distanceKm: number): string {
+  const walkingSpeedKmh = 5; // Average walking speed
+  const walkingTimeHours = distanceKm / walkingSpeedKmh;
+  const walkingTimeMinutes = Math.round(walkingTimeHours * 60);
+  
+  if (walkingTimeMinutes < 60) {
+    return `${walkingTimeMinutes} min walk`;
+  } else {
+    const hours = Math.floor(walkingTimeMinutes / 60);
+    const minutes = walkingTimeMinutes % 60;
+    return `${hours}h ${minutes}min walk`;
+  }
+}
+
+// Get distance with formatted string
+export function getDistanceInfo(lat1: number, lon1: number, lat2: number, lon2: number): {
+  distance: number;
+  formattedDistance: string;
+  walkingTime: string;
+} {
+  const distance = calculateDistance(lat1, lon1, lat2, lon2);
+  return {
+    distance,
+    formattedDistance: formatDistance(distance),
+    walkingTime: calculateWalkingTime(distance)
+  };
 }
 
 // Alternative simpler distance calculation using Math.hypot
@@ -76,15 +102,16 @@ export function calculateDistanceSimple(
 }
 
 export function parseLocationString(locationString: string): { latitude: number; longitude: number } | null {
-  if (!locationString) return null;
-  
-  // Handle format "(longitude,latitude)"
-  const match = locationString.match(/\(([^,]+),([^)]+)\)/);
-  if (match) {
-    return {
-      longitude: parseFloat(match[1]),
-      latitude: parseFloat(match[2])
-    };
+  try {
+    const coords = locationString.split(',').map(coord => parseFloat(coord.trim()));
+    if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+      return {
+        latitude: coords[0],
+        longitude: coords[1]
+      };
+    }
+  } catch (error) {
+    console.error('Error parsing location string:', error);
   }
   
   return null;

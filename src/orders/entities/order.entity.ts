@@ -20,6 +20,9 @@ export class Order {
   @Column({ type: 'int', default: 1 })
   quantity: number;
 
+  @Column({ nullable: true })
+  confirmationCode: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

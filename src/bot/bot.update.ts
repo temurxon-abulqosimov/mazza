@@ -1,7 +1,7 @@
 // src/bot/bot.update.ts
 import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
-import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard, getQuantitySelectionKeyboard, getPurchaseConfirmationKeyboard } from 'src/common/utils/keyboard.util';
+import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard, getQuantitySelectionKeyboard, getPurchaseConfirmationKeyboard, getMiniAppKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
 import { isStoreOpen, formatDateForDisplay, formatRelativeTime, cleanAndValidatePrice, validateAndParseTime } from 'src/common/utils/store-hours.util';
 import { UsersService } from 'src/users/users.service';
@@ -201,6 +201,7 @@ export class BotUpdate {
       
       // Create a test product for the seller
       const testProduct = await this.productsService.create({
+        name: 'Test Product - Delicious food',
         price: 15000,
         description: 'Test Product - Delicious food',
         availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // Available for 24 hours
@@ -1685,68 +1686,40 @@ export class BotUpdate {
 
   @On('location')
   async onLocation(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx);
-    
-    if (!ctx.message || !('location' in ctx.message)) return;
-    
-    console.log('=== LOCATION HANDLER DEBUG ===');
-    console.log('Registration step:', ctx.session.registrationStep);
-    console.log('Session role:', ctx.session.role);
-    console.log('Has scene:', !!ctx.scene);
-    
-    // If user is in any scene, let the scene handle the location
-    if (ctx.scene) {
-      console.log('User is in a scene - letting scene handle location');
-      return; // Let the scene handle this location
-    }
-    
-    const location = ctx.message.location;
-    console.log('Received location:', location);
-    
-    const language = ctx.session.language || 'uz';
-    
-    // Handle seller registration location step
-    if (ctx.session.registrationStep === 'location' && ctx.session.role === UserRole.SELLER) {
-      console.log('Processing location for seller registration');
-      
-      try {
-        if (!ctx.from) throw new Error('User not found');
-        
-        // Store location in session and move directly to photo step
-        if (!ctx.session.sellerData) {
-          ctx.session.sellerData = {};
-        }
-        ctx.session.sellerData.location = location;
-        ctx.session.registrationStep = 'store_image';
-        
-        console.log('Location stored, moving directly to photo step');
-        
-        // Request store photo
-        await ctx.reply(getMessage(language, 'registration.storeImageRequest'), {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '📸 Surat yuborish', callback_data: 'send_photo' },
-                { text: '⏭️ O\'tkazib yuborish', callback_data: 'skip_photo' }
-              ]
-            ]
-          }
-        });
-        return;
-      } catch (error) {
-        console.error('Location processing error:', error);
-        await ctx.reply(getMessage(language, 'error.general'));
+    try {
+      const user = ctx.from;
+      if (!user) {
+        await ctx.reply('❌ User information not available.');
         return;
       }
+
+      const message = ctx.message;
+      if (!message || !('location' in message)) {
+        await ctx.reply('❌ Location not found in message.');
+        return;
+      }
+
+      const location = message.location;
+      const telegramId = user.id.toString();
+      
+      // Update user location
+      const existingUser = await this.usersService.findByTelegramId(telegramId);
+      if (existingUser) {
+        await this.usersService.update(existingUser.id, {
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude
+          }
+        });
+        
+        await ctx.reply('✅ Location updated! You can now find nearby stores in the mini app.');
+      } else {
+        await ctx.reply('❌ User not found. Please register first.');
+      }
+    } catch (error) {
+      console.error('Location update error:', error);
+      await ctx.reply('❌ Failed to update location. Please try again.');
     }
-    
-    // Handle finding stores action (only when no scene is active)
-    if (ctx.session.action === 'finding_stores') {
-      await this.handleFindStoresWithLocation(ctx, location);
-      return;
-    }
-    
-    console.log('Location not processed - no matching handler found');
   }
 
   @Action(/store_(\d+)/)
@@ -2802,7 +2775,7 @@ export class BotUpdate {
     const endIndex = startIndex + itemsPerPage;
     const currentStores = stores.slice(startIndex, endIndex);
 
-    for (const [index, store] of currentStores.entries()) {
+    for (const [index, store] of Array.from(currentStores.entries())) {
       const storeNumber = startIndex + index + 1;
       const distance = store.distance;
       
@@ -4904,6 +4877,7 @@ export class BotUpdate {
       }
 
       const createProductDto = {
+        name: ctx.session.productData.description, // Use description as name
         price: ctx.session.productData.price,
         originalPrice: ctx.session.productData.originalPrice,
         description: ctx.session.productData.description,
@@ -5362,6 +5336,107 @@ export class BotUpdate {
       console.error('Seller creation error:', error);
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'error.general'));
+    }
+  }
+
+  // Mini App button handler
+  @Action('open_mini_app')
+  async handleOpenMiniApp(@Ctx() ctx: TelegramContext) {
+    try {
+      const user = ctx.from;
+      if (!user) {
+        return ctx.reply('Unable to identify user.');
+      }
+      const telegramId = user.id.toString();
+      
+      // Check if user is registered
+      const existingUser = await this.usersService.findByTelegramId(telegramId);
+      const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+      
+      if (!existingUser && !existingSeller) {
+        await ctx.answerCbQuery('Please register first!');
+        return ctx.reply('Please use /start to register first.');
+      }
+      
+      // Create mini app URL
+      const miniAppUrl = `${envVariables.WEBHOOK_URL}/webapp/mini-app/entry`;
+      
+      // Send mini app button
+      await ctx.reply('🚀 Open Mini App', {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: '🍽️ Open Food Delivery App',
+              web_app: { url: miniAppUrl }
+            }
+          ]]
+        }
+      });
+      
+    } catch (error) {
+      console.error('Mini app error:', error);
+      await ctx.reply('❌ Failed to open mini app. Please try again.');
+    }
+  }
+
+  // Location sharing handler
+  @Action('share_location')
+  async handleShareLocation(@Ctx() ctx: TelegramContext) {
+    try {
+      await ctx.reply('📍 Please share your location to find nearby stores:', {
+        reply_markup: {
+          keyboard: [[
+            {
+              text: '📍 Share Location',
+              request_location: true
+            }
+          ]],
+          resize_keyboard: true,
+          one_time_keyboard: true
+        }
+      });
+    } catch (error) {
+      console.error('Location sharing error:', error);
+      await ctx.reply('❌ Failed to request location. Please try again.');
+    }
+  }
+
+  // Location handler
+  @On('location')
+  async handleLocation(@Ctx() ctx: TelegramContext) {
+    try {
+      const user = ctx.from;
+      if (!user) {
+        await ctx.reply('❌ User information not available.');
+        return;
+      }
+
+      const message = ctx.message;
+      if (!message || !('location' in message)) {
+        await ctx.reply('❌ Location not found in message.');
+        return;
+      }
+
+      const location = message.location;
+      const telegramId = user.id.toString();
+      
+      // Update user location
+      const existingUser = await this.usersService.findByTelegramId(telegramId);
+      if (existingUser) {
+        await this.usersService.update(existingUser.id, {
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude
+          }
+        });
+        
+        await ctx.reply('✅ Location updated! You can now find nearby stores in the mini app.');
+      } else {
+        await ctx.reply('❌ User not found. Please register first.');
+      }
+    } catch (error) {
+      console.error('Location update error:', error);
+      await ctx.reply('❌ Failed to update location. Please try again.');
     }
   }
 }

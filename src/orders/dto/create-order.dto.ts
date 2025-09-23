@@ -1,8 +1,10 @@
-import { IsNumber, Min } from 'class-validator';
+import { IsNumber, Min, IsOptional, IsEnum } from 'class-validator';
+import { OrderStatus } from 'src/common/enums/order-status.enum';
 
 export class CreateOrderDto {
+  @IsOptional()
   @IsNumber()
-  userId: number;
+  userId?: number;
 
   @IsNumber()
   productId: number;
@@ -11,7 +13,12 @@ export class CreateOrderDto {
   @Min(1)
   quantity: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  totalPrice: number;
+  totalPrice?: number;
+
+  @IsOptional()
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
 } 

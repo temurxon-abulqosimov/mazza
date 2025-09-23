@@ -16,4 +16,30 @@ export class BotService implements OnModuleInit {
     console.log('✅ Session middleware configured');
     console.log('✅ Bot service initialized');
   }
+
+  // Add this method to send notifications to admin
+  async sendMessageToAdmin(adminTelegramId: string, message: string): Promise<void> {
+    try {
+      await this.bot.telegram.sendMessage(adminTelegramId, message, {
+        parse_mode: 'HTML'
+      });
+      console.log('✅ Admin notification sent successfully');
+    } catch (error) {
+      console.error('❌ Failed to send admin notification:', error);
+      throw error;
+    }
+  }
+
+  // Add this method to send notifications to sellers
+  async sendMessageToSeller(sellerTelegramId: string, message: string): Promise<void> {
+    try {
+      await this.bot.telegram.sendMessage(sellerTelegramId, message, {
+        parse_mode: 'HTML'
+      });
+      console.log('✅ Seller notification sent successfully');
+    } catch (error) {
+      console.error('❌ Failed to send seller notification:', error);
+      throw error;
+    }
+  }
 }

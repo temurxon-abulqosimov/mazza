@@ -30,6 +30,11 @@ export const envVariables = {
     ADMIN_USERNAME: process.env.ADMIN_USERNAME || '@avtemur',
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
     
+    // JWT Configuration
+    JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-here',
+    JWT_EXPIRATION_TIME: process.env.JWT_EXPIRATION_TIME || '1h',
+    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'your-refresh-secret-key-here',
+    
     // Validation
     validate() {
         if (!this.TELEGRAM_BOT_TOKEN) {

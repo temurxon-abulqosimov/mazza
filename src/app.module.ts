@@ -1,6 +1,5 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppService } from './app.service';
 import { BotModule } from './bot/bot.module';
 import { UsersModule } from './users/users.module';
 import { SellersModule } from './sellers/sellers.module';
@@ -8,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { RatingsModule } from './ratings/ratings.module';
+import { WebappModule } from './webapp/webapp.module';
 import { envVariables } from './config/env.variables';
 
 // Import all entities explicitly
@@ -53,7 +53,7 @@ import { Rating } from './ratings/entities/rating.entity';
     ProductsModule,
     OrdersModule,
     RatingsModule,
+    WebappModule,
   ],
-  providers: [AppService],
 })
 export class AppModule {}
