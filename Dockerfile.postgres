@@ -1,0 +1,7 @@
+FROM postgres:15-alpine
+
+ENV POSTGRES_DB=ulgur_db
+ENV POSTGRES_USER=ulgur_user
+ENV POSTGRES_PASSWORD=your_password_here
+
+EXPOSE 5432 
