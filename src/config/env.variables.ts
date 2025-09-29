@@ -11,12 +11,8 @@ export const envVariables = {
     WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || '',
     USE_WEBHOOK: process.env.USE_WEBHOOK === 'true',
     
-    // Database Configuration
-    DB_HOST: process.env.DB_HOST || 'localhost',
-    DB_PORT: parseInt(process.env.DB_PORT || '5432', 10),
-    DB_USERNAME: process.env.DB_USERNAME || 'postgres',
-    DB_PASSWORD: process.env.DB_PASSWORD || 'password',
-    DB_NAME: process.env.DB_NAME || 'ulgur_bot',
+    // Database Configuration - Single URL
+    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ulgur_bot',
     
     // Application Configuration
     PORT: process.env.PORT || '3000',
@@ -40,11 +36,8 @@ export const envVariables = {
         if (!this.TELEGRAM_BOT_TOKEN) {
             throw new Error('TELEGRAM_BOT_TOKEN is required');
         }
-        if (!this.DB_USERNAME) {
-            throw new Error('DB_USERNAME is required');
-        }
-        if (!this.DB_PASSWORD) {
-            throw new Error('DB_PASSWORD is required');
+        if (!this.DATABASE_URL) {
+            throw new Error('DATABASE_URL is required');
         }
         if (!this.ADMIN_PASSWORD) {
             throw new Error('ADMIN_PASSWORD is required');

@@ -13,7 +13,6 @@ import { envVariables } from './config/env.variables';
 // Import all entities explicitly
 import { User } from './users/entities/user.entity';
 import { Seller } from './sellers/entities/seller.entity';
-
 import { Product } from './products/entities/product.entity';
 import { Order } from './orders/entities/order.entity';
 import { Rating } from './ratings/entities/rating.entity';
@@ -22,11 +21,7 @@ import { Rating } from './ratings/entities/rating.entity';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: envVariables.DB_HOST,
-      port: envVariables.DB_PORT || 5432,
-      username: envVariables.DB_USERNAME,
-      password: envVariables.DB_PASSWORD,
-      database: envVariables.DB_NAME,
+      url: envVariables.DATABASE_URL,
       entities: [User, Seller, Product, Order, Rating],
       synchronize: true, // Enable for table creation
       logging: envVariables.NODE_ENV === 'development',
