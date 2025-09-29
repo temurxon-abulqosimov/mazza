@@ -8,6 +8,7 @@ import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { WebappModule } from './webapp/webapp.module';
+import { HealthController } from './health.controller';
 import { envVariables } from './config/env.variables';
 
 // Import all entities explicitly
@@ -50,5 +51,6 @@ import { Rating } from './ratings/entities/rating.entity';
     RatingsModule,
     WebappModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
