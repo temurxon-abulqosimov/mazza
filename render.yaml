@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ulgur-backend
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+
+  - type: pserv
+    name: ulgur-database
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile.postgres
+    envVars:
+      - key: POSTGRES_DB
+        value: ulgur_db
+      - key: POSTGRES_USER
+        value: ulgur_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true 

@@ -13,13 +13,18 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     
-    // Enable CORS for web app
+    // Enable CORS for web app with production domains
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://your-frontend-domain.com', // Replace with your actual frontend domain
+      'https://mazza-frontend.onrender.com', // Render frontend URL
+      'https://mazza-frontend.vercel.app', // Vercel frontend URL
+      'https://mazza-frontend.netlify.app', // Netlify frontend URL
+    ];
+    
     app.enableCors({
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://your-frontend-domain.com', // Replace with your actual frontend domain
-      ],
+      origin: allowedOrigins,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data'],
       credentials: true,
@@ -51,6 +56,7 @@ async function bootstrap() {
     console.log(`Environment: ${envVariables.NODE_ENV}`);
     console.log('Web App API available at /webapp/*');
     console.log('Bot API available at /bot/*');
+    console.log('Health check available at /health');
     
   } catch (error) {
     console.error('Failed to start application:', error.message);
