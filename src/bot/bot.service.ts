@@ -14,25 +14,10 @@ export class BotService implements OnModuleInit {
     this.bot.use(session());
     
     // Set up scene middleware with all scenes
-    const stage = new Scenes.Stage();
-    
-    // Manually register scenes since nestjs-telegraf auto-registration is not working
-    const { LanguageScene } = require('./scenes/language.scene');
-    const { RoleScene } = require('./scenes/role.scene');
-    const { UserRegistrationScene } = require('./scenes/user-registration.scene');
-    const { SellerRegistrationScene } = require('./scenes/seller-registration.scene');
-    const { ProductCreationScene } = require('./scenes/product-creation.scene');
-    const { PhotoChangeScene } = require('./scenes/photo-change.scene');
-    
-    // Register scenes manually
-    stage.register(
-      new LanguageScene(),
-      new RoleScene(),
-      new UserRegistrationScene(),
-      new SellerRegistrationScene(),
-      new ProductCreationScene(),
-      new PhotoChangeScene()
-    );
+    const stage = new Scenes.Stage([
+      // Scenes will be registered automatically by nestjs-telegraf
+      // The @Scene decorator handles the registration
+    ]);
     
     this.bot.use(stage.middleware());
     

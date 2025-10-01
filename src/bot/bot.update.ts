@@ -5455,7 +5455,7 @@ export class BotUpdate {
   // Location handler
   @On('location')
   async handleLocation(@Ctx() ctx: TelegramContext) {
-    this.initializeSession(ctx); // ✅ ADD THIS LINE
+    this.initializeSession(ctx);
     
     try {
       const user = ctx.from;
@@ -5478,11 +5478,51 @@ export class BotUpdate {
       
       const location = message.location;
       const telegramId = user.id.toString();
+      const language = ctx.session.language || 'uz';
       
-      // ✅ CHECK IF USER IS IN REGISTRATION FLOW FIRST
-      if (ctx.session.registrationStep) {
-        console.log('User is in registration flow - handling location for registration');
-        // Handle location during registration (this should be handled by the scene)
+      console.log('=== LOCATION HANDLER DEBUG ===');
+      console.log('Registration step:', ctx.session.registrationStep);
+      console.log('Session role:', ctx.session.role);
+      console.log('Location received:', location);
+      
+      // Handle seller registration location step
+      if (ctx.session.registrationStep === 'location' && ctx.session.role === UserRole.SELLER) {
+        console.log('Processing location for seller registration');
+        
+        try {
+          if (!ctx.from) throw new Error('User not found');
+          
+          // Store location in session and move directly to photo step
+          if (!ctx.session.sellerData) {
+            ctx.session.sellerData = {};
+          }
+          ctx.session.sellerData.location = location;
+          ctx.session.registrationStep = 'store_image';
+          
+          console.log('Location stored, moving directly to photo step');
+          
+          // Request store photo
+          await ctx.reply(getMessage(language, 'registration.storeImageRequest'), {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '📸 Surat yuborish', callback_data: 'send_photo' },
+                  { text: '⏭️ O\'tkazib yuborish', callback_data: 'skip_photo' }
+                ]
+              ]
+            }
+          });
+          return;
+        } catch (error) {
+          console.error('Location processing error:', error);
+          await ctx.reply(getMessage(language, 'error.general'));
+          return;
+        }
+      }
+      
+      // Handle finding stores action (only when no scene is active)
+      if (ctx.session.action === 'finding_stores') {
+        await this.handleFindStoresWithLocation(ctx, location);
         return;
       }
       
