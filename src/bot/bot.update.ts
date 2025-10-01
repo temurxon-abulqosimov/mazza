@@ -5370,16 +5370,22 @@ export class BotUpdate {
     try {
       const user = ctx.from;
       if (!user) {
-        await ctx.reply('❌ User information not available.');
+        await ctx.reply(' User information not available.');
         return;
       }
-
+      
+      // Check if user is in a scene - if so, let the scene handle location
+      if (ctx.scene) {
+        console.log('User is in a scene - letting scene handle location');
+        return; // Let the scene handle this location
+      }
+      
       const message = ctx.message;
       if (!message || !('location' in message)) {
-        await ctx.reply('❌ Location not found in message.');
+        await ctx.reply(' Location not found in message.');
         return;
       }
-
+      
       const location = message.location;
       const telegramId = user.id.toString();
       
@@ -5396,7 +5402,7 @@ export class BotUpdate {
           }
         });
         
-        await ctx.reply('✅ Location updated! You can now find nearby stores in the mini app.');
+        await ctx.reply(' Location updated! You can now find nearby stores in the mini app.');
       } else if (existingSeller) {
         // Update seller location
         await this.sellersService.update(existingSeller.id, {
@@ -5406,13 +5412,13 @@ export class BotUpdate {
           }
         });
         
-        await ctx.reply('✅ Store location updated successfully!');
+        await ctx.reply(' Store location updated successfully!');
       } else {
-        await ctx.reply('❌ User not found. Please register first.');
+        await ctx.reply(' User not found. Please register first.');
       }
     } catch (error) {
       console.error('Location update error:', error);
-      await ctx.reply('❌ Failed to update location. Please try again.');
+      await ctx.reply(' Failed to update location. Please try again.');
     }
   }
 }
