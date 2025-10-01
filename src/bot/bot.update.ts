@@ -1684,43 +1684,6 @@ export class BotUpdate {
     console.log('Photo not processed - no matching handler found');
   }
 
-  @On('location')
-  async onLocation(@Ctx() ctx: TelegramContext) {
-    try {
-      const user = ctx.from;
-      if (!user) {
-        await ctx.reply('❌ User information not available.');
-        return;
-      }
-
-      const message = ctx.message;
-      if (!message || !('location' in message)) {
-        await ctx.reply('❌ Location not found in message.');
-        return;
-      }
-
-      const location = message.location;
-      const telegramId = user.id.toString();
-      
-      // Update user location
-      const existingUser = await this.usersService.findByTelegramId(telegramId);
-      if (existingUser) {
-        await this.usersService.update(existingUser.id, {
-          location: {
-            latitude: location.latitude,
-            longitude: location.longitude
-          }
-        });
-        
-        await ctx.reply('✅ Location updated! You can now find nearby stores in the mini app.');
-      } else {
-        await ctx.reply('❌ User not found. Please register first.');
-      }
-    } catch (error) {
-      console.error('Location update error:', error);
-      await ctx.reply('❌ Failed to update location. Please try again.');
-    }
-  }
 
   @Action(/store_(\d+)/)
   async onStoreSelect(@Ctx() ctx: TelegramContext) {
@@ -5420,9 +5383,12 @@ export class BotUpdate {
       const location = message.location;
       const telegramId = user.id.toString();
       
-      // Update user location
+      // Check if user or seller exists and update location
       const existingUser = await this.usersService.findByTelegramId(telegramId);
+      const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+      
       if (existingUser) {
+        // Update user location
         await this.usersService.update(existingUser.id, {
           location: {
             latitude: location.latitude,
@@ -5431,6 +5397,16 @@ export class BotUpdate {
         });
         
         await ctx.reply('✅ Location updated! You can now find nearby stores in the mini app.');
+      } else if (existingSeller) {
+        // Update seller location
+        await this.sellersService.update(existingSeller.id, {
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude
+          }
+        });
+        
+        await ctx.reply('✅ Store location updated successfully!');
       } else {
         await ctx.reply('❌ User not found. Please register first.');
       }
