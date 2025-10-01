@@ -1471,6 +1471,12 @@ export class BotUpdate {
           console.log('Creating user with DTO:', createUserDto);
           await this.usersService.create(createUserDto);
           
+          // ✅ ADD THIS LINE - Set the session role after successful user creation
+          ctx.session.role = UserRole.USER;
+
+          // Save the updated session to the provider
+          this.sessionProvider.setSession(ctx.from.id.toString(), ctx.session);
+          
           // Clear registration data
           ctx.session.registrationStep = undefined;
           ctx.session.userData = undefined;
@@ -5249,11 +5255,14 @@ export class BotUpdate {
 
       const seller = await this.sellersService.create(createSellerDto);
       
-      // Set the role to seller after successful creation
+      // ✅ Set the session role after successful seller creation
       ctx.session.role = UserRole.SELLER;
       
       const language = ctx.session.language || 'uz';
       await ctx.reply(getMessage(language, 'success.sellerRegistration'));
+      
+      // Save the updated session to the provider  
+      this.sessionProvider.setSession(ctx.from.id.toString(), ctx.session);
       
       // Clear registration data and show main menu
       ctx.session.registrationStep = undefined;
