@@ -5416,6 +5416,8 @@ export class BotUpdate {
   // Location handler
   @On('location')
   async handleLocation(@Ctx() ctx: TelegramContext) {
+    this.initializeSession(ctx); // ✅ ADD THIS LINE
+    
     try {
       const user = ctx.from;
       if (!user) {
