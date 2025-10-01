@@ -1896,9 +1896,23 @@ export class BotUpdate {
     
     console.log(`Language selected during registration: ${language}`);
     
-    // Continue to role selection
+    // ✅ REDIRECT TO ROLE SCENE INSTEAD OF SHOWING ROLE SELECTION DIRECTLY
     await ctx.reply(getMessage(language, 'languageSelected'));
-    await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
+    
+    if (ctx.scene) {
+      try {
+        console.log('Entering role scene after language selection');
+        await ctx.scene.enter('role');
+      } catch (error) {
+        console.error('Error entering role scene:', error);
+        // Fallback to direct role selection if scene entry fails
+        await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
+      }
+    } else {
+      console.log('No scene context - using direct role selection');
+      // Fallback to direct role selection
+      await ctx.reply(getMessage(language, 'selectRole'), { reply_markup: getRoleKeyboard(language) });
+    }
   }
 
   @Action('back_to_language')
