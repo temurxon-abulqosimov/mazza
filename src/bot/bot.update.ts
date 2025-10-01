@@ -116,12 +116,18 @@ export class BotUpdate {
   }
 
   private async ensureSessionRole(ctx: TelegramContext) {
-    if (!ctx.from || ctx.session.role) return;
+    if (!ctx.from) return;
     
     // ✅ DON'T check database during registration
     // Only check database for existing users, not during registration
     if (ctx.session.registrationStep) {
       console.log('Registration in progress - skipping database check');
+      return;
+    }
+    
+    // ✅ ALSO skip if user has a role but is in registration flow
+    if (ctx.session.role && (ctx.session.role === UserRole.USER || ctx.session.role === UserRole.SELLER)) {
+      console.log('User has role set - skipping database check');
       return;
     }
     
