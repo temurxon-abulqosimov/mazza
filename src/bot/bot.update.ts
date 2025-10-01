@@ -108,11 +108,17 @@ export class BotUpdate {
   private initializeSession(ctx: TelegramContext) {
     if (!ctx.from) return;
     
-    // Don't reinitialize if session already exists
-    if (ctx.session) return;
-    
     const telegramId = ctx.from.id.toString();
-    ctx.session = this.sessionProvider.getSession(telegramId);
+    
+    // Always load the latest session from the provider to ensure role persistence
+    const providerSession = this.sessionProvider.getSession(telegramId);
+    
+    // Merge with existing session if it exists, otherwise use provider session
+    if (ctx.session) {
+      ctx.session = { ...ctx.session, ...providerSession };
+    } else {
+      ctx.session = providerSession;
+    }
   }
 
   private async ensureSessionRole(ctx: TelegramContext) {
