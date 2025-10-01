@@ -1,5 +1,7 @@
 // src/bot/bot.update.ts
-import { Update, Ctx, Start, Command, On, Action, Message } from 'nestjs-telegraf';
+import { Update, Ctx, Start, Command, On, Action, Message, InjectBot } from 'nestjs-telegraf';
+import { Telegraf } from 'telegraf';
+import { BotContext } from './bot.context';
 import { TelegramContext } from 'src/common/interfaces/telegram-context.interface';
 import { getMainMenuKeyboard, getLocationKeyboard, getStoreListKeyboard, getProductActionKeyboard, getRatingKeyboard, getProductRatingKeyboard, getStoreRatingKeyboard, getLanguageKeyboard, getRoleKeyboard, getBusinessTypeKeyboard, getPaymentMethodKeyboard, getContactKeyboard, getProductListKeyboard, getNoStoresKeyboard, getSupportKeyboard, getSkipImageKeyboard, getAdminMainKeyboard, getAdminSellerActionKeyboard, getAdminSellerDetailsKeyboard, getAdminSellerListKeyboard, getAdminConfirmationKeyboard, getAdminBroadcastKeyboard, getAdminLoginKeyboard, getAdminLogoutKeyboard, getOrderConfirmationKeyboard, getQuantitySelectionKeyboard, getPurchaseConfirmationKeyboard, getMiniAppKeyboard } from 'src/common/utils/keyboard.util';
 import { formatDistance } from 'src/common/utils/distance.util';
@@ -20,6 +22,11 @@ import { getMessage } from 'src/config/messages';
 import { envVariables } from 'src/config/env.variables';
 import { SessionProvider } from './providers/session.provider';
 
+
+
+
+
+
 @Update()
 export class BotUpdate {
   private userMessageCounts = new Map<string, { count: number; resetTime: number }>();
@@ -35,7 +42,32 @@ export class BotUpdate {
     private readonly ordersService: OrdersService,
     private readonly ratingsService: RatingsService,
     private readonly sessionProvider: SessionProvider,
+    @InjectBot() private bot: Telegraf<BotContext>,
   ) {}
+
+  async sendMessageToAdmin(adminTelegramId: string, message: string): Promise<void> {
+    try {
+      await this.bot.telegram.sendMessage(adminTelegramId, message, {
+        parse_mode: 'HTML'
+      });
+      console.log(' Admin notification sent successfully');
+    } catch (error) {
+      console.error(' Failed to send admin notification:', error);
+      throw error;
+    }
+  }
+
+  async sendMessageToSeller(sellerTelegramId: string, message: string): Promise<void> {
+    try {
+      await this.bot.telegram.sendMessage(sellerTelegramId, message, {
+        parse_mode: 'HTML'
+      });
+      console.log(' Seller notification sent successfully');
+    } catch (error) {
+      console.error(' Failed to send seller notification:', error);
+      throw error;
+    }
+  }
 
   private checkRateLimit(telegramId: string): boolean {
     const now = Date.now();
