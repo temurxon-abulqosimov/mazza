@@ -1543,13 +1543,9 @@ export class BotUpdate {
         try {
           if (!ctx.from) throw new Error('User not found');
           
-          // Check if seller already exists
-          const existingSeller = await this.sellersService.findByTelegramId(ctx.from.id.toString());
-          if (existingSeller) {
-            await ctx.reply(getMessage(language, 'error.sellerAlreadyExists'));
-            return;
-          }
-
+          // ✅ NO DATABASE CHECK DURING REGISTRATION
+          // Users can register directly as sellers without being users first
+          
           // Store phone number in session and move to next step
           if (!ctx.session.sellerData) {
             ctx.session.sellerData = {};
