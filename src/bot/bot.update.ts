@@ -1958,7 +1958,7 @@ export class BotUpdate {
     }
   }
 
-  private async handleDirectRegistration(ctx: TelegramContext, roleString: string, language: string) {
+  private async handleDirectRegistration(ctx: TelegramContext, roleString: string, language: 'uz' | 'ru') {
     console.log('Using direct registration fallback');
     ctx.session.registrationStep = 'phone';
     await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
