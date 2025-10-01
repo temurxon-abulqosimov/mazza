@@ -5438,6 +5438,13 @@ export class BotUpdate {
       const location = message.location;
       const telegramId = user.id.toString();
       
+      // ✅ CHECK IF USER IS IN REGISTRATION FLOW FIRST
+      if (ctx.session.registrationStep) {
+        console.log('User is in registration flow - handling location for registration');
+        // Handle location during registration (this should be handled by the scene)
+        return;
+      }
+      
       // Check if user or seller exists and update location
       const existingUser = await this.usersService.findByTelegramId(telegramId);
       const existingSeller = await this.sellersService.findByTelegramId(telegramId);
