@@ -47,16 +47,26 @@ export class RoleScene {
         }
       }
     } else {
+      console.log('=== SCENE ENTRY DEBUG ===');
+      console.log('User selected seller role');
+      console.log('Scene context available:', !!ctx.scene);
+      
       if (ctx.scene) {
         try {
+          console.log('Attempting to enter seller-registration scene');
+          
           // Leave current scene first
           await ctx.scene.leave();
+          console.log('Left current scene');
           
           // Enter seller registration scene
           await ctx.scene.enter('seller-registration');
+          console.log('Successfully entered seller-registration scene');
         } catch (error) {
           console.error('Error entering seller-registration scene:', error);
         }
+      } else {
+        console.log('No scene context available - user not in a scene');
       }
     }
   }
