@@ -113,11 +113,18 @@ export class BotUpdate {
     // Always load the latest session from the provider to ensure role persistence
     const providerSession = this.sessionProvider.getSession(telegramId);
     
+    console.log('=== INITIALIZE SESSION DEBUG ===');
+    console.log('Telegram ID:', telegramId);
+    console.log('Existing ctx.session:', ctx.session);
+    console.log('Provider session:', providerSession);
+    
     // Merge with existing session if it exists, otherwise use provider session
     if (ctx.session) {
       ctx.session = { ...ctx.session, ...providerSession };
+      console.log('Merged session:', ctx.session);
     } else {
       ctx.session = providerSession;
+      console.log('Using provider session:', ctx.session);
     }
   }
 
