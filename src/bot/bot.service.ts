@@ -1,6 +1,6 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+﻿import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
-import { Telegraf, session } from 'telegraf';
+import { Telegraf, session, Scenes } from 'telegraf';
 import { BotContext } from './bot.context';
 
 @Injectable()
@@ -13,8 +13,17 @@ export class BotService implements OnModuleInit {
     // Set up session middleware for scenes
     this.bot.use(session());
     
-    console.log('✅ Session middleware configured');
-    console.log('✅ Bot service initialized');
+    // Set up scene middleware with all scenes
+    const stage = new Scenes.Stage([
+      // Scenes will be registered automatically by nestjs-telegraf
+      // The @Scene decorator handles the registration
+    ]);
+    
+    this.bot.use(stage.middleware());
+    
+    console.log(' Session middleware configured');
+    console.log(' Scene middleware configured');
+    console.log(' Bot service initialized');
   }
 
   // Add this method to send notifications to admin
@@ -23,9 +32,9 @@ export class BotService implements OnModuleInit {
       await this.bot.telegram.sendMessage(adminTelegramId, message, {
         parse_mode: 'HTML'
       });
-      console.log('✅ Admin notification sent successfully');
+      console.log(' Admin notification sent successfully');
     } catch (error) {
-      console.error('❌ Failed to send admin notification:', error);
+      console.error(' Failed to send admin notification:', error);
       throw error;
     }
   }
@@ -36,9 +45,9 @@ export class BotService implements OnModuleInit {
       await this.bot.telegram.sendMessage(sellerTelegramId, message, {
         parse_mode: 'HTML'
       });
-      console.log('✅ Seller notification sent successfully');
+      console.log(' Seller notification sent successfully');
     } catch (error) {
-      console.error('❌ Failed to send seller notification:', error);
+      console.error(' Failed to send seller notification:', error);
       throw error;
     }
   }
