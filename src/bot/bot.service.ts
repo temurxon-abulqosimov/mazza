@@ -1,4 +1,4 @@
-﻿import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf, session, Scenes } from 'telegraf';
 import { BotContext } from './bot.context';
