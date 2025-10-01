@@ -118,6 +118,13 @@ export class BotUpdate {
   private async ensureSessionRole(ctx: TelegramContext) {
     if (!ctx.from || ctx.session.role) return;
     
+    // ✅ DON'T check database during registration
+    // Only check database for existing users, not during registration
+    if (ctx.session.registrationStep) {
+      console.log('Registration in progress - skipping database check');
+      return;
+    }
+    
     const telegramId = ctx.from.id.toString();
     console.log('=== ENSURE SESSION ROLE DEBUG ===');
     console.log('Telegram ID:', telegramId);

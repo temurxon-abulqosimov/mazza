@@ -138,6 +138,7 @@ export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'sell
     return {
       keyboard: [
         [getMessage(language, 'mainMenu.findStores')],
+        [getMessage(language, 'mainMenu.becomeSeller')], // NEW LINE
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
       resize_keyboard: true
