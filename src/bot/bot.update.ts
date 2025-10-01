@@ -76,25 +76,11 @@ export class BotUpdate {
   private initializeSession(ctx: TelegramContext) {
     if (!ctx.from) return;
     
+    // Don't reinitialize if session already exists
+    if (ctx.session) return;
+    
     const telegramId = ctx.from.id.toString();
-    console.log('=== INITIALIZE SESSION DEBUG ===');
-    console.log('Telegram ID:', telegramId);
-    console.log('Current ctx.session before:', ctx.session ? JSON.stringify(ctx.session, null, 2) : 'undefined');
-    
-    const providerSession = this.sessionProvider.getSession(telegramId);
-    console.log('Provider session:', providerSession ? JSON.stringify(providerSession, null, 2) : 'undefined');
-    
-    // If ctx.session doesn't exist, use provider session
-    if (!ctx.session) {
-      ctx.session = providerSession;
-      console.log('Set ctx.session from provider');
-    } else {
-      // Merge provider session with local changes, preserving local changes
-      ctx.session = { ...providerSession, ...ctx.session };
-      console.log('Merged provider session with local changes');
-    }
-    
-    console.log('Final ctx.session after initialization:', ctx.session ? JSON.stringify(ctx.session, null, 2) : 'undefined');
+    ctx.session = this.sessionProvider.getSession(telegramId);
   }
 
   private async ensureSessionRole(ctx: TelegramContext) {

@@ -11,9 +11,17 @@ export class SessionMiddleware {
     return async (ctx: TelegramContext, next: () => Promise<void>) => {
       const telegramId = ctx.from?.id.toString();
       if (telegramId) {
+        // Load session from provider
         ctx.session = this.sessionProvider.getSession(telegramId);
       }
+      
+      // Process the request
       await next();
+      
+      // Save session changes back to provider
+      if (telegramId && ctx.session) {
+        this.sessionProvider.setSession(telegramId, ctx.session);
+      }
     };
   }
 } 
