@@ -4,6 +4,7 @@ import { getRoleKeyboard } from 'src/common/utils/keyboard.util';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { getMessage } from 'src/config/messages';
 import { SessionProvider } from '../providers/session.provider';
+import { getContactKeyboard } from 'src/common/utils/keyboard.util';
 
 @Scene('role')
 export class RoleScene {
@@ -21,53 +22,48 @@ export class RoleScene {
   async onRoleSelect(@Ctx() ctx: TelegramContext) {
     if (!ctx.match) return;
     
-    const role = ctx.match[1] as UserRole;
+    console.log('=== MAIN BOT ROLE SELECTION DEBUG ===');
+    console.log('Role selected in main bot handler:', ctx.match[1]);
+    console.log('Scene context available:', !!ctx.scene);
     
-    // Set the role in the session
+    this.initializeSession(ctx);
+    const roleString = ctx.match[1] as 'user' | 'seller';
+    const language = ctx.session.language || 'uz';
+    
+    // Convert string to UserRole enum
+    const role = roleString === 'user' ? UserRole.USER : UserRole.SELLER;
     ctx.session.role = role;
     
-    // Update the session provider
-    if (ctx.from) {
-      this.sessionProvider.setSession(ctx.from.id.toString(), ctx.session);
-    }
+    console.log('Role set in session:', role);
+    console.log('Attempting to enter appropriate registration scene...');
     
-    const language = ctx.session.language || 'uz';
-    await ctx.reply(getMessage(language, `roleSelected.${role}`));
-    
-    if (role === UserRole.USER) {
-      if (ctx.scene) {
-        try {
-          // Leave current scene first
-          await ctx.scene.leave();
-          
-          // Enter user registration scene
+    // ✅ REDIRECT TO SCENES INSTEAD OF HANDLING DIRECTLY
+    if (ctx.scene) {
+      try {
+        if (roleString === 'user') {
+          console.log('Entering user-registration scene');
           await ctx.scene.enter('user-registration');
-        } catch (error) {
-          console.error('Error entering user-registration scene:', error);
+        } else {
+          console.log('Entering seller-registration scene');
+          await ctx.scene.enter('seller-registration');
         }
+      } catch (error) {
+        console.error('Error entering registration scene:', error);
+        // Fallback to direct registration if scene entry fails
+        await this.handleDirectRegistration(ctx, roleString, language);
       }
     } else {
-      console.log('=== SCENE ENTRY DEBUG ===');
-      console.log('User selected seller role');
-      console.log('Scene context available:', !!ctx.scene);
-      
-      if (ctx.scene) {
-        try {
-          console.log('Attempting to enter seller-registration scene');
-          
-          // Leave current scene first
-          await ctx.scene.leave();
-          console.log('Left current scene');
-          
-          // Enter seller registration scene
-          await ctx.scene.enter('seller-registration');
-          console.log('Successfully entered seller-registration scene');
-        } catch (error) {
-          console.error('Error entering seller-registration scene:', error);
-        }
-      } else {
-        console.log('No scene context available - user not in a scene');
-      }
+      console.log('No scene context - using direct registration');
+      // Fallback to direct registration
+      await this.handleDirectRegistration(ctx, roleString, language);
     }
+  }
+
+  private async handleDirectRegistration(ctx: TelegramContext, roleString: string, language: string) {
+    console.log('Using direct registration fallback');
+    ctx.session.registrationStep = 'phone';
+    await ctx.reply(getMessage(language, 'registration.phoneRequest'), { 
+      reply_markup: getContactKeyboard(language) 
+    });
   }
 }
