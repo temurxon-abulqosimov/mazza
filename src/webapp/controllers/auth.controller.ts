@@ -148,6 +148,55 @@ export class AuthController {
     };
   }
 
+  @Post('telegram')
+  @UsePipes(new ValidationPipe({ 
+    transform: true, 
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    validateCustomDecorators: true
+  }))
+  async telegramAuth(@Body() body: { initData: string }): Promise<AuthResponse> {
+    try {
+      console.log('Telegram authentication attempt with initData:', body.initData?.substring(0, 50) + '...');
+      
+      if (!body.initData) {
+        throw new HttpException('Telegram initData is required', HttpStatus.BAD_REQUEST);
+      }
+      
+      // Parse the initData to extract user information
+      const urlParams = new URLSearchParams(body.initData);
+      const userParam = urlParams.get('user');
+      
+      if (!userParam) {
+        throw new HttpException('User data not found in initData', HttpStatus.BAD_REQUEST);
+      }
+      
+      const userData = JSON.parse(userParam);
+      const telegramId = userData.id.toString();
+      
+      console.log('Extracted user data:', { telegramId, firstName: userData.first_name });
+      
+      // Check if user exists in database
+      const existingUser = await this.usersService.findByTelegramId(telegramId);
+      const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+      
+      if (existingUser) {
+        console.log('Found existing user, logging in as USER');
+        return await this.authService.login(telegramId, 'USER');
+      } else if (existingSeller) {
+        console.log('Found existing seller, logging in as SELLER');
+        return await this.authService.login(telegramId, 'SELLER');
+      } else {
+        // User doesn't exist, they need to register
+        throw new HttpException('User not found. Please register first.', HttpStatus.NOT_FOUND);
+      }
+    } catch (error) {
+      console.error('Telegram authentication error:', error);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(`Telegram authentication failed: ${error.message}`, HttpStatus.UNAUTHORIZED);
+    }
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout() {
