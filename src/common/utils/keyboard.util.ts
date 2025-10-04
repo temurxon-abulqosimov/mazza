@@ -138,20 +138,31 @@ export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'sell
     return {
       keyboard: [
         [getMessage(language, 'mainMenu.findStores')],
-        [getMessage(language, 'mainMenu.becomeSeller')], // NEW LINE
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
-      resize_keyboard: true
+      resize_keyboard: true,
+      // Add inline keyboard for mini app
+      inline_keyboard: [
+        [
+          { 
+            text: '🏠 Open Mini App', 
+            web_app: { url: process.env.WEBAPP_URL || 'https://your-webapp-url.com' }
+          }
+        ]
+      ]
     };
   }
 }
 
 // Add this new function for mini app keyboard
-export function getMiniAppKeyboard(language: 'uz' | 'ru'): InlineKeyboardMarkup {
+export function getMiniAppKeyboard(language: 'uz' | 'ru', webAppUrl: string): InlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: '🍽️ Open Mini App', callback_data: 'open_mini_app' }
+        { 
+          text: '🏠 Open Mini App', 
+          web_app: { url: webAppUrl }
+        }
       ],
       [
         { text: '📍 Share Location', callback_data: 'share_location' }
