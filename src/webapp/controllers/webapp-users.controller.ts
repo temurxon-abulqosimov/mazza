@@ -36,7 +36,7 @@ export class WebappUsersController {
   }
 
   @Get('admin/telegram/:telegramId')
-  @UseGuards(JwtAuthGuard, AdminAuthGuard)
+  // @UseGuards(JwtAuthGuard, AdminAuthGuard)
   async findByTelegramId(@Param('telegramId') telegramId: string) {
     try {
       const user = await this.usersService.findByTelegramId(telegramId);

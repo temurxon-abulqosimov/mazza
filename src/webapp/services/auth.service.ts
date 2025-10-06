@@ -88,17 +88,34 @@ export class AuthService {
       expiresIn: '7d',
     });
 
+    // Return complete user data based on role
+    const userResponse: any = {
+      id: user.id,
+      telegramId: user.telegramId,
+      role: role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+
+    // Add role-specific data
+    if (role === 'SELLER') {
+      userResponse.businessName = user.businessName;
+      userResponse.phoneNumber = user.phoneNumber;
+      userResponse.businessType = user.businessType;
+      userResponse.location = user.location;
+      userResponse.language = user.language;
+      userResponse.status = user.status;
+      userResponse.imageUrl = user.imageUrl;
+    } else if (role === 'USER') {
+      userResponse.phoneNumber = user.phoneNumber;
+      userResponse.language = user.language;
+      userResponse.location = user.location;
+    }
+
     return {
       access_token,
       refresh_token,
-      user: {
-        id: user.id,
-        telegramId: user.telegramId,
-        role: role,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        businessName: user.businessName,
-      },
+      user: userResponse,
     };
   }
 
