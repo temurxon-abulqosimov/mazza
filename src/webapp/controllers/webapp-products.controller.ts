@@ -95,10 +95,32 @@ export class WebappProductsController {
   async create(@Req() req, @Body() createProductDto: CreateProductDto) {
     try {
       const telegramId = req.user.telegramId;
+      const userRole = req.user.role;
       
-      const seller = await this.sellersService.findByTelegramId(telegramId);
-      if (!seller) {
-        throw new HttpException('Seller not found. Please register as a seller first.', HttpStatus.NOT_FOUND);
+      // Check if user has SELLER role (new system) or exists in sellers table (old system)
+      let seller;
+      if (userRole === 'SELLER') {
+        // New system: user with SELLER role in users table
+        const user = await this.sellersService.findByTelegramId(telegramId);
+        if (!user) {
+          // Create a seller record for this user
+          const createSellerDto = {
+            telegramId: telegramId,
+            phoneNumber: req.user.phoneNumber || '+998901234567', // Default phone
+            businessName: req.user.firstName || 'Business',
+            businessType: 'OTHER',
+            language: req.user.language || 'uz'
+          };
+          seller = await this.sellersService.create(createSellerDto);
+        } else {
+          seller = user;
+        }
+      } else {
+        // Old system: check sellers table
+        seller = await this.sellersService.findByTelegramId(telegramId);
+        if (!seller) {
+          throw new HttpException('Seller not found. Please register as a seller first.', HttpStatus.NOT_FOUND);
+        }
       }
       
       createProductDto.sellerId = seller.id;
