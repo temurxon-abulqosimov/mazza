@@ -20,6 +20,7 @@ import { AdminAuthGuard } from '../guard/admin.guard';
 import { AdminOrSellerGuard } from '../guard/adminOrSeller.guard';
 import { CreateProductDto } from '../../products/dto/create-product.dto';
 import { UpdateProductDto } from '../../products/dto/update-product.dto';
+import { BusinessType } from '../../common/enums/business-type.enum';
 
 @Controller('webapp/products')
 export class WebappProductsController {
@@ -108,7 +109,7 @@ export class WebappProductsController {
             telegramId: telegramId,
             phoneNumber: req.user.phoneNumber || '+998901234567', // Default phone
             businessName: req.user.firstName || 'Business',
-            businessType: 'OTHER',
+            businessType: BusinessType.OTHER,
             language: req.user.language || 'uz'
           };
           seller = await this.sellersService.create(createSellerDto);
