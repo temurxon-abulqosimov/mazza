@@ -93,8 +93,8 @@ export class AuthService {
       id: user.id,
       telegramId: user.telegramId,
       role: role,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      // Note: firstName and lastName come from Telegram WebApp, not database
+      // They will be set by the frontend using Telegram user data
     };
 
     // Add role-specific data
