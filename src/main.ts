@@ -21,10 +21,43 @@ async function bootstrap() {
       'https://mazza-frontend.onrender.com', // Render frontend URL
       'https://mazza-frontend.vercel.app', // Vercel frontend URL
       'https://mazza-frontend.netlify.app', // Netlify frontend URL
+      // Add current Vercel deployment domains
+      'https://mazza-frontend-clean.vercel.app',
+      'https://mazza-frontend-clean-git-main-temurxs-projects.vercel.app',
+      'https://mazza-frontend-clean-xrrjhoywb-temurxs-projects.vercel.app',
+      'https://mazza-frontend-clean-n668m2w88-temurxs-projects.vercel.app',
+      'https://mazza-frontend-clean-lt846lnmc-temurxs-projects.vercel.app',
+      'https://mazza-frontend-clean-pnsvghu1r-temurxs-projects.vercel.app',
     ];
     
     app.enableCors({
-      origin: allowedOrigins,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        
+        // Allow all Vercel deployments
+        if (origin.includes('mazza-frontend-clean') && origin.includes('.vercel.app')) {
+          return callback(null, true);
+        }
+        
+        // Allow localhost for development
+        if (origin.includes('localhost')) {
+          return callback(null, true);
+        }
+        
+        // Allow Telegram WebApp (no origin)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        console.log('CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Telegram-Init-Data'],
       credentials: true,
