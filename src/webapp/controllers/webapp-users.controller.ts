@@ -63,7 +63,7 @@ export class WebappUsersController {
       } else if (user) {
         return {
           ...user,
-          role: 'USER'
+          role: user.role || 'USER' // Use role from database, fallback to USER
         };
       } else if (seller) {
         return {

@@ -115,6 +115,7 @@ export class AuthController {
           telegramId: telegramId,
           phoneNumber: registerDto.phoneNumber,
           language: registerDto.language,
+          role: registerDto.role,
           location: registerDto.location,
         });
       } else if (registerDto.role === 'SELLER') {

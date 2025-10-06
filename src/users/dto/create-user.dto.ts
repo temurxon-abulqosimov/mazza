@@ -29,4 +29,8 @@ export class CreateUserDto {
   @IsString()
   @IsEnum(['uz', 'ru'])
   language: 'uz' | 'ru';
+
+  @IsOptional()
+  @IsEnum(['USER', 'SELLER', 'ADMIN'])
+  role?: 'USER' | 'SELLER' | 'ADMIN';
 }

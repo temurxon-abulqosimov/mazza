@@ -21,6 +21,9 @@ export class User {
   @Column({ type: 'enum', enum: ['uz', 'ru'], default: 'uz' })
   language: 'uz' | 'ru';
 
+  @Column({ type: 'enum', enum: ['USER', 'SELLER', 'ADMIN'], default: 'USER' })
+  role: 'USER' | 'SELLER' | 'ADMIN';
+
   @Column('jsonb', { nullable: true })
   location?: { latitude: number; longitude: number } | null;
 
