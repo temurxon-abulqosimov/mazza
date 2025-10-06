@@ -13,6 +13,8 @@
   HttpStatus 
 } from '@nestjs/common';
 import { UsersService } from '../../users/users.service';
+import { SellersService } from '../../sellers/sellers.service';
+import { AdminService } from '../../admin/admin.service';
 import { JwtAuthGuard } from '../guard/auth.guard';
 import { UserAuthGuard } from '../guard/user.guard';
 import { AdminAuthGuard } from '../guard/admin.guard';
@@ -22,7 +24,11 @@ import { UpdateUserDto } from '../../users/dto/update-user.dto';
 
 @Controller('webapp/users')
 export class WebappUsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly sellersService: SellersService,
+    private readonly adminService: AdminService
+  ) {}
 
   // Admin-only endpoints
   @Get()
@@ -39,11 +45,34 @@ export class WebappUsersController {
   // @UseGuards(JwtAuthGuard, AdminAuthGuard)
   async findByTelegramId(@Param('telegramId') telegramId: string) {
     try {
-      const user = await this.usersService.findByTelegramId(telegramId);
-      if (!user) {
+      // Check all three tables to determine user's role
+      const [user, seller] = await Promise.all([
+        this.usersService.findByTelegramId(telegramId),
+        this.sellersService.findByTelegramId(telegramId)
+      ]);
+      
+      // Check if user is admin (based on environment variables)
+      const isAdmin = await this.adminService.isAdmin(telegramId);
+
+      if (isAdmin) {
+        return {
+          id: 1,
+          telegramId: telegramId,
+          role: 'ADMIN'
+        };
+      } else if (user) {
+        return {
+          ...user,
+          role: 'USER'
+        };
+      } else if (seller) {
+        return {
+          ...seller,
+          role: 'SELLER'
+        };
+      } else {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
-      return user;
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new HttpException('Failed to fetch user', HttpStatus.INTERNAL_SERVER_ERROR);
