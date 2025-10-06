@@ -20,6 +20,7 @@ import { WebappProductDiscoveryController } from './controllers/webapp-product-d
 import { WebappOrderManagementController } from './controllers/webapp-order-management.controller';
 import { WebappAdminPanelController } from './controllers/webapp-admin-panel.controller';
 import { WebappMiniAppController } from './controllers/webapp-mini-app.controller';
+import { WebappTestController } from './controllers/webapp-test.controller';
 import { TelegramWebappAuthGuard } from '../common/guards/telegram-webapp-auth.guard';
 import { AuthService } from './services/auth.service';
 import { JwtAuthGuard } from './guard/auth.guard';
@@ -62,6 +63,7 @@ import { LocalizationService } from '../common/services/localization.service';
     WebappOrderManagementController,
     WebappAdminPanelController,
     WebappMiniAppController,
+    WebappTestController,
   ],
   providers: [
     TelegramWebappAuthGuard,
