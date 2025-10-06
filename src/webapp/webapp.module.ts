@@ -31,6 +31,7 @@ import { AllAuthGuard } from './guard/all.guard';
 import { AdminOrUserGuard } from './guard/userOrAdmin.guard';
 import { envVariables } from './config/env.variables';
 import { BotService } from '../bot/bot.service';
+import { LocalizationService } from '../common/services/localization.service';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { BotService } from '../bot/bot.service';
     AllAuthGuard,
     AdminOrUserGuard,
     BotService,
+    LocalizationService,
   ],
   exports: [AuthService, JwtModule],
 })

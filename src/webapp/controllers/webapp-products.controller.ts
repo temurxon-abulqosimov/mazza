@@ -14,6 +14,7 @@
 } from '@nestjs/common';
 import { ProductsService } from '../../products/products.service';
 import { SellersService } from '../../sellers/sellers.service';
+import { UsersService } from '../../users/users.service';
 import { JwtAuthGuard } from '../guard/auth.guard';
 import { SellerAuthGuard } from '../guard/seller.guard';
 import { AdminAuthGuard } from '../guard/admin.guard';
@@ -21,12 +22,15 @@ import { AdminOrSellerGuard } from '../guard/adminOrSeller.guard';
 import { CreateProductDto } from '../../products/dto/create-product.dto';
 import { UpdateProductDto } from '../../products/dto/update-product.dto';
 import { BusinessType } from '../../common/enums/business-type.enum';
+import { LocalizationService } from '../../common/services/localization.service';
 
 @Controller('webapp/products')
 export class WebappProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly sellersService: SellersService,
+    private readonly usersService: UsersService,
+    private readonly localizationService: LocalizationService,
   ) {}
 
   // Public endpoints - no authentication required
@@ -97,39 +101,61 @@ export class WebappProductsController {
     try {
       const telegramId = req.user.telegramId;
       const userRole = req.user.role;
+      const language = this.localizationService.getLanguageFromRequest(req);
       
       // Check if user has SELLER role (new system) or exists in sellers table (old system)
       let seller;
       if (userRole === 'SELLER') {
         // New system: user with SELLER role in users table
-        const user = await this.sellersService.findByTelegramId(telegramId);
-        if (!user) {
+        const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+        if (!existingSeller) {
+          // Get user data from users table to create seller record
+          const userData = await this.usersService.findByTelegramId(telegramId);
+          if (!userData) {
+            throw new HttpException(
+              this.localizationService.translate('user.not.found', language), 
+              HttpStatus.NOT_FOUND
+            );
+          }
+          
           // Create a seller record for this user
           const createSellerDto = {
             telegramId: telegramId,
-            phoneNumber: req.user.phoneNumber || '+998901234567', // Default phone
-            businessName: req.user.firstName || 'Business',
+            phoneNumber: userData.phoneNumber || '+998901234567',
+            businessName: `Business_${telegramId}`, // Use telegramId as business name
             businessType: BusinessType.OTHER,
-            language: req.user.language || 'uz'
+            language: userData.language || 'uz'
           };
           seller = await this.sellersService.create(createSellerDto);
         } else {
-          seller = user;
+          seller = existingSeller;
         }
       } else {
         // Old system: check sellers table
         seller = await this.sellersService.findByTelegramId(telegramId);
         if (!seller) {
-          throw new HttpException('Seller not found. Please register as a seller first.', HttpStatus.NOT_FOUND);
+          throw new HttpException(
+            this.localizationService.translate('seller.not.found', language), 
+            HttpStatus.NOT_FOUND
+          );
         }
       }
       
       createProductDto.sellerId = seller.id;
       
-      return await this.productsService.create(createProductDto);
+      const product = await this.productsService.create(createProductDto);
+      
+      return {
+        ...product,
+        message: this.localizationService.translate('product.created', language)
+      };
     } catch (error) {
       if (error instanceof HttpException) throw error;
-      throw new HttpException('Failed to create product', HttpStatus.INTERNAL_SERVER_ERROR);
+      const language = this.localizationService.getLanguageFromRequest(req);
+      throw new HttpException(
+        this.localizationService.translate('product.creation.failed', language), 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
