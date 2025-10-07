@@ -51,7 +51,7 @@ import { Rating } from './ratings/entities/rating.entity';
       // Graceful connection handling
       keepConnectionAlive: true,
     }),
-    BotModule,
+    // BotModule, // Temporarily disabled to prevent Telegram bot conflicts
     UsersModule,
     SellersModule,
     AdminModule,
