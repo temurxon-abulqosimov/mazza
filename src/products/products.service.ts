@@ -8,10 +8,56 @@ import { generateProductCode } from 'src/common/utils/code-generator.util';
 
 @Injectable()
 export class ProductsService {
+  private cachedCategoryValues: string[] | null = null;
+  private lastCategoryFetchAt: number | null = null;
+
   constructor(
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
   ) {}
+
+  private async getAllowedCategoryValues(): Promise<string[]> {
+    try {
+      const now = Date.now();
+      if (this.cachedCategoryValues && this.lastCategoryFetchAt && (now - this.lastCategoryFetchAt) < 5 * 60 * 1000) {
+        return this.cachedCategoryValues;
+      }
+      // Query Postgres enum labels for product_category_enum
+      const rows: Array<{ enumlabel: string }> = await this.productsRepository.manager.query(
+        `SELECT e.enumlabel
+         FROM pg_type t
+         JOIN pg_enum e ON t.oid = e.enumtypid
+         JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+         WHERE t.typname = 'product_category_enum'
+         ORDER BY e.enumsortorder;`
+      );
+      const values = rows.map(r => r.enumlabel);
+      this.cachedCategoryValues = values;
+      this.lastCategoryFetchAt = now;
+      return values;
+    } catch (err) {
+      console.warn('⚠️ Failed to fetch category enum values from DB. Proceeding without normalization.', err?.message || err);
+      return [];
+    }
+  }
+
+  private async normalizeCategory(inputCategory?: string): Promise<string | undefined> {
+    const allowed = await this.getAllowedCategoryValues();
+    if (!inputCategory) {
+      // No input; let DB default apply
+      return undefined;
+    }
+    if (allowed.length === 0) {
+      // Could not introspect; pass through to let DB validate or default
+      return inputCategory;
+    }
+    if (allowed.includes(inputCategory)) {
+      return inputCategory;
+    }
+    // Prefer 'other' if present; else first allowed
+    const fallback = allowed.includes('other') ? 'other' : allowed[0];
+    return fallback;
+  }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     console.log('🔧 ProductsService: Creating product with DTO:', createProductDto);
@@ -52,6 +98,9 @@ export class ProductsService {
     }
     
     console.log('🔧 Generated product code:', productCode);
+
+    // Normalize category safely against DB enum values
+    const normalizedCategory = await this.normalizeCategory(createProductDto.category);
     
     // Create product with explicit sellerId and generated code
     const productData = {
@@ -62,7 +111,7 @@ export class ProductsService {
       availableFrom: createProductDto.availableFrom ? new Date(createProductDto.availableFrom) : undefined,
       availableUntil: new Date(createProductDto.availableUntil),
       quantity: createProductDto.quantity || 1,
-      category: createProductDto.category, // let DB default apply if undefined
+      category: normalizedCategory, // either valid enum, fallback, or undefined to use DB default
       isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
       code: productCode,
       seller: { id: createProductDto.sellerId }
@@ -118,8 +167,9 @@ export class ProductsService {
       }
       
       if (isUnique) {
-        await this.productsRepository.update(product.id, { code: productCode });
-        console.log(`Updated product ${product.id} with code: ${productCode}`);
+        product.code = productCode;
+        await this.productsRepository.save(product);
+        console.log(`Updated product ${product.id} with code ${productCode}`);
       }
     }
   }

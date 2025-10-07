@@ -60,7 +60,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['bread_bakery', 'pastry', 'main_dishes', 'desserts', 'beverages', 'other'])
+  // Removed IsIn constraint to allow backend normalization to DB enum
   category?: string;
 
   @IsOptional()
