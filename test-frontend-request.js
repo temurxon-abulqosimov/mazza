@@ -23,7 +23,7 @@ async function testProductCreation() {
       price: 10000,
       originalPrice: 12000,
       quantity: 5,
-      availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now as string
+      availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 19) + 'Z', // 24 hours from now in ISO format
       availableFrom: undefined,
       category: 'other'
       // sellerId will be set by backend automatically
