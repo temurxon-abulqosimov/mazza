@@ -28,6 +28,7 @@ export class CreateProductDto {
   @Transform(({ value }) => value ? new Date(value) : undefined)
   availableFrom?: Date;
 
+  @IsString()
   @Transform(({ value }) => new Date(value))
   availableUntil: Date;
 
