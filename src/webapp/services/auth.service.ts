@@ -4,6 +4,8 @@ import { UsersService } from '../../users/users.service';
 import { SellersService } from '../../sellers/sellers.service';
 import { AdminService } from '../../admin/admin.service';
 import { envVariables } from '../config/env.variables';
+import { BusinessType } from '../../common/enums/business-type.enum';
+import { SellerStatus } from '../../common/enums/seller-status.enum';
 
 export interface JwtPayload {
   sub: number;
@@ -44,7 +46,30 @@ export class AuthService {
         user = await this.usersService.findByTelegramId(telegramId);
         break;
       case 'SELLER':
+        // First check if seller exists
         user = await this.sellersService.findByTelegramId(telegramId);
+        
+        // If seller doesn't exist, check if user exists in users table with SELLER role
+        if (!user) {
+          console.log('🔧 No seller found, checking users table for SELLER role...');
+          const userWithSellerRole = await this.usersService.findByTelegramId(telegramId);
+          
+          if (userWithSellerRole && userWithSellerRole.role === 'SELLER') {
+            console.log('🔧 Found user with SELLER role, creating seller record...');
+            // Create a seller record for this user
+            const createSellerDto = {
+              telegramId: telegramId,
+              phoneNumber: userWithSellerRole.phoneNumber || '+998901234567',
+              businessName: `Business_${telegramId}`,
+              businessType: BusinessType.OTHER,
+              language: userWithSellerRole.language || 'uz',
+              status: SellerStatus.PENDING
+            };
+            
+            user = await this.sellersService.create(createSellerDto);
+            console.log('✅ Created seller record for user:', user.id);
+          }
+        }
         break;
       case 'ADMIN':
         // Check admin credentials from environment variables
