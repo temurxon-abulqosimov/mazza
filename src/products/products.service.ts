@@ -62,7 +62,7 @@ export class ProductsService {
       availableFrom: createProductDto.availableFrom ? new Date(createProductDto.availableFrom) : undefined,
       availableUntil: new Date(createProductDto.availableUntil),
       quantity: createProductDto.quantity || 1,
-      category: createProductDto.category || 'other',
+      category: createProductDto.category, // let DB default apply if undefined
       isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
       code: productCode,
       seller: { id: createProductDto.sellerId }

@@ -233,9 +233,6 @@ export class WebappProductsController {
       console.log('🔧 availableFrom after conversion:', productData.availableFrom);
       
       // Set default values for required fields
-      if (!productData.category) {
-        productData.category = 'other';
-      }
       if (productData.isActive === undefined) {
         productData.isActive = true;
       }
