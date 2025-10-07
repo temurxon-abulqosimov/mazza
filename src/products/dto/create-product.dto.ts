@@ -29,8 +29,6 @@ export class CreateProductDto {
   @Transform(({ value }) => value ? new Date(value) : undefined)
   availableFrom?: Date;
 
-  @IsString()
-  @IsNotEmpty()
   availableUntil: string;
 
   @IsOptional()
