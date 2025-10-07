@@ -14,7 +14,20 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    console.log('ProductsService: Creating product with DTO:', createProductDto);
+    console.log('🔧 ProductsService: Creating product with DTO:', createProductDto);
+    
+    // Validate required fields
+    if (!createProductDto.sellerId) {
+      throw new Error('Seller ID is required');
+    }
+    if (!createProductDto.name) {
+      throw new Error('Product name is required');
+    }
+    if (!createProductDto.price) {
+      throw new Error('Product price is required');
+    }
+    
+    console.log('🔧 All validations passed, generating product code...');
     
     // Generate unique product code
     let productCode: string = '';
@@ -38,8 +51,10 @@ export class ProductsService {
       throw new Error('Failed to generate unique product code after 10 attempts');
     }
     
+    console.log('🔧 Generated product code:', productCode);
+    
     // Create product with explicit sellerId and generated code
-    const product = this.productsRepository.create({
+    const productData = {
       name: createProductDto.name,
       price: createProductDto.price,
       originalPrice: createProductDto.originalPrice,
@@ -51,12 +66,29 @@ export class ProductsService {
       isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
       code: productCode,
       seller: { id: createProductDto.sellerId }
-    });
+    };
     
-    console.log('ProductsService: Created product entity:', product);
-    const savedProduct = await this.productsRepository.save(product);
-    console.log('ProductsService: Saved product:', savedProduct);
-    return savedProduct;
+    console.log('🔧 Product data to create:', productData);
+    
+    const product = this.productsRepository.create(productData);
+    console.log('🔧 Created product entity:', product);
+    
+    try {
+      console.log('🔧 Saving product to database...');
+      const savedProduct = await this.productsRepository.save(product);
+      console.log('✅ Product created successfully:', savedProduct.id);
+      return savedProduct;
+    } catch (error) {
+      console.error('❌ Error creating product:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   async updateProductCodes(): Promise<void> {

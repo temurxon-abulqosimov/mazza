@@ -24,6 +24,7 @@ import { AdminOrSellerGuard } from '../guard/adminOrSeller.guard';
 import { CreateProductDto } from '../../products/dto/create-product.dto';
 import { UpdateProductDto } from '../../products/dto/update-product.dto';
 import { BusinessType } from '../../common/enums/business-type.enum';
+import { SellerStatus } from '../../common/enums/seller-status.enum';
 import { LocalizationService } from '../../common/services/localization.service';
 
 @Controller('webapp/products')
@@ -159,12 +160,20 @@ export class WebappProductsController {
       
       // Check if user has SELLER role (new system) or exists in sellers table (old system)
       let seller;
+      console.log('🔧 Checking seller for telegramId:', telegramId, 'userRole:', userRole);
+      
       if (userRole === 'SELLER') {
         // New system: user with SELLER role in users table
+        console.log('🔧 Using new system - checking for existing seller...');
         const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+        console.log('🔧 Existing seller found:', !!existingSeller);
+        
         if (!existingSeller) {
+          console.log('🔧 No existing seller, creating new one...');
           // Get user data from users table to create seller record
           const userData = await this.usersService.findByTelegramId(telegramId);
+          console.log('🔧 User data found:', !!userData);
+          
           if (!userData) {
             throw new HttpException(
               this.localizationService.translate('user.not.found', language), 
@@ -178,24 +187,39 @@ export class WebappProductsController {
             phoneNumber: userData.phoneNumber || '+998901234567',
             businessName: `Business_${telegramId}`, // Use telegramId as business name
             businessType: BusinessType.OTHER,
-            language: userData.language || 'uz'
+            language: userData.language || 'uz',
+            status: SellerStatus.PENDING // Set initial status
           };
+          
+          console.log('🔧 Creating seller with DTO:', createSellerDto);
           seller = await this.sellersService.create(createSellerDto);
-          console.log('✅ Created new seller record:', seller.id);
+          console.log('✅ Created new seller record:', seller.id, 'Status:', seller.status);
         } else {
           seller = existingSeller;
-          console.log('✅ Found existing seller:', seller.id);
+          console.log('✅ Found existing seller:', seller.id, 'Status:', seller.status);
         }
       } else {
         // Old system: check sellers table
+        console.log('🔧 Using old system - checking sellers table...');
         seller = await this.sellersService.findByTelegramId(telegramId);
+        console.log('🔧 Seller found in old system:', !!seller);
+        
         if (!seller) {
           throw new HttpException(
             this.localizationService.translate('seller.not.found', language), 
             HttpStatus.NOT_FOUND
           );
         }
-        console.log('✅ Found seller in old system:', seller.id);
+        console.log('✅ Found seller in old system:', seller.id, 'Status:', seller.status);
+      }
+      
+      // Check if seller is approved
+      if (seller.status !== 'APPROVED') {
+        console.log('❌ Seller not approved. Status:', seller.status);
+        throw new HttpException(
+          this.localizationService.translate('seller.not.approved', language), 
+          HttpStatus.FORBIDDEN
+        );
       }
       
       createProductDto.sellerId = seller.id;
