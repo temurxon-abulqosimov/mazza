@@ -219,11 +219,18 @@ export class WebappProductsController {
       createProductDto.sellerId = seller.id;
       
       // Convert string dates to Date objects for the service
+      console.log('🔧 Converting dates...');
+      console.log('🔧 availableUntil before conversion:', createProductDto.availableUntil);
+      console.log('🔧 availableFrom before conversion:', createProductDto.availableFrom);
+      
       const productData = {
         ...createProductDto,
         availableUntil: createProductDto.availableUntil ? new Date(createProductDto.availableUntil) : undefined,
         availableFrom: createProductDto.availableFrom ? new Date(createProductDto.availableFrom) : undefined,
       };
+      
+      console.log('🔧 availableUntil after conversion:', productData.availableUntil);
+      console.log('🔧 availableFrom after conversion:', productData.availableFrom);
       
       // Set default values for required fields
       if (!productData.category) {
