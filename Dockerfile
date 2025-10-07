@@ -29,5 +29,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/health/minimal || exit 1
 
-# Start with hybrid server (health checks + bot functionality)
-CMD ["node", "src/hybrid-server.js"]
+# Start the application directly
+CMD ["node", "dist/main.js"]

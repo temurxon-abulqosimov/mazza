@@ -11,28 +11,29 @@ async function bootstrap() {
     console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
     console.log('🔧 Port:', process.env.PORT || '3000');
     
+    // Log environment variables for debugging
+    console.log('🔧 Environment variables check:');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('PORT:', process.env.PORT);
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    console.log('TELEGRAM_BOT_TOKEN exists:', !!process.env.TELEGRAM_BOT_TOKEN);
+    console.log('ADMIN_PASSWORD exists:', !!process.env.ADMIN_PASSWORD);
+    console.log('WEBHOOK_URL exists:', !!process.env.WEBHOOK_URL);
+    
     // Validate environment variables before starting
     console.log('🔧 Validating environment variables...');
     try {
       envVariables.validate();
       console.log('✅ Environment variables validated');
     } catch (validationError) {
-      console.warn('⚠️ Environment validation failed:', validationError.message);
-      console.warn('⚠️ Continuing with default values...');
-      
-      // Set default values for missing required variables
-      if (!process.env.TELEGRAM_BOT_TOKEN) {
-        console.warn('⚠️ TELEGRAM_BOT_TOKEN not set, using placeholder');
-        process.env.TELEGRAM_BOT_TOKEN = 'placeholder-token';
-      }
-      if (!process.env.ADMIN_PASSWORD) {
-        console.warn('⚠️ ADMIN_PASSWORD not set, using default');
-        process.env.ADMIN_PASSWORD = 'admin123';
-      }
-      if (!process.env.DATABASE_URL) {
-        console.warn('⚠️ DATABASE_URL not set, using default');
-        process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5432/ulgur_bot';
-      }
+      console.error('❌ Environment validation failed:', validationError.message);
+      console.error('❌ Required environment variables are missing!');
+      console.error('❌ Please set the following in Railway environment variables:');
+      console.error('   - TELEGRAM_BOT_TOKEN');
+      console.error('   - DATABASE_URL');
+      console.error('   - ADMIN_PASSWORD');
+      console.error('   - WEBHOOK_URL (if using webhooks)');
+      throw new Error('Missing required environment variables');
     }
     
     console.log('🔧 Creating NestJS application...');

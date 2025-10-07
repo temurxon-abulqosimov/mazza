@@ -24,7 +24,7 @@ import { Rating } from './ratings/entities/rating.entity';
       type: 'postgres',
       url: envVariables.DATABASE_URL,
       entities: [User, Seller, Product, Order, Rating],
-      synchronize: true, // Enable for table creation
+      synchronize: envVariables.NODE_ENV !== 'production', // Only sync in development
       logging: envVariables.NODE_ENV === 'development',
       // Connection pooling for high load
       extra: {
@@ -42,19 +42,16 @@ import { Rating } from './ratings/entities/rating.entity';
       // SSL configuration for production
       ssl: envVariables.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       // Retry connection on failure
-      retryAttempts: 3,
-      retryDelay: 3000,
+      retryAttempts: 5,
+      retryDelay: 5000,
       // Auto-reconnect
       autoLoadEntities: true,
-      // Don't fail on connection errors during startup
-      connectTimeoutMS: 10000,
+      // Connection timeout
+      connectTimeoutMS: 30000,
       // Graceful connection handling
       keepConnectionAlive: true,
-      // Don't fail if database is not available
-      dropSchema: false,
     }),
-    // Only import BotModule if we have a valid bot token
-    ...(envVariables.TELEGRAM_BOT_TOKEN && envVariables.TELEGRAM_BOT_TOKEN !== 'placeholder-token' ? [BotModule] : []),
+    BotModule,
     UsersModule,
     SellersModule,
     AdminModule,

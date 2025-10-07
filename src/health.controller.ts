@@ -117,7 +117,8 @@ export class HealthController {
   minimal() {
     return { 
       status: 'ok',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      message: 'Minimal health check passed'
     };
   }
 } 
