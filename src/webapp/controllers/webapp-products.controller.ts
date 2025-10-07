@@ -145,7 +145,7 @@ export class WebappProductsController {
           this.localizationService.translate('product.price.required', language), 
           HttpStatus.BAD_REQUEST
         );
-      }
+      } 
       
       if (createProductDto.price > 1000000000) {
         throw new HttpException(
