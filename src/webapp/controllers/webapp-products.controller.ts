@@ -218,28 +218,27 @@ export class WebappProductsController {
       
       createProductDto.sellerId = seller.id;
       
-      // Convert string dates to Date objects
-      if (createProductDto.availableUntil) {
-        createProductDto.availableUntil = new Date(createProductDto.availableUntil);
-      }
-      if (createProductDto.availableFrom) {
-        createProductDto.availableFrom = new Date(createProductDto.availableFrom);
-      }
+      // Convert string dates to Date objects for the service
+      const productData = {
+        ...createProductDto,
+        availableUntil: createProductDto.availableUntil ? new Date(createProductDto.availableUntil) : undefined,
+        availableFrom: createProductDto.availableFrom ? new Date(createProductDto.availableFrom) : undefined,
+      };
       
       // Set default values for required fields
-      if (!createProductDto.category) {
-        createProductDto.category = 'other';
+      if (!productData.category) {
+        productData.category = 'other';
       }
-      if (createProductDto.isActive === undefined) {
-        createProductDto.isActive = true;
+      if (productData.isActive === undefined) {
+        productData.isActive = true;
       }
-      if (!createProductDto.quantity) {
-        createProductDto.quantity = 1;
+      if (!productData.quantity) {
+        productData.quantity = 1;
       }
       
       console.log('🔧 Creating product with seller ID:', seller.id);
-      console.log('🔧 Product data:', createProductDto);
-      const product = await this.productsService.create(createProductDto);
+      console.log('🔧 Product data:', productData);
+      const product = await this.productsService.create(productData);
       console.log('✅ Product created successfully:', product.id);
       
       return {
