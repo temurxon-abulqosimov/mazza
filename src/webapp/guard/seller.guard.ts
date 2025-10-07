@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
 
@@ -12,13 +12,23 @@ export class SellerAuthGuard implements CanActivate {
   ): boolean | Promise<boolean> | Observable<boolean> {
     const req = context.switchToHttp().getRequest();
     const token = req.headers['authorization']?.split(' ')[1]
-    if(!token) return false
-
-    const decode = this.jwtService.verify(token)
-    if(decode.role !== "SELLER"){
-        return false
+    
+    if(!token) {
+      throw new UnauthorizedException('Token not found');
     }
-    req.user = decode
-    return true
+
+    try {
+      const decode = this.jwtService.verify(token);
+      if(decode.role !== "SELLER"){
+        throw new UnauthorizedException('Access denied. Seller role required.');
+      }
+      req.user = decode;
+      return true;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid or expired token');
+    }
   }
 }

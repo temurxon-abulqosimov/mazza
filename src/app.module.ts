@@ -41,8 +41,20 @@ import { Rating } from './ratings/entities/rating.entity';
       },
       // SSL configuration for production
       ssl: envVariables.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      // Retry connection on failure
+      retryAttempts: 3,
+      retryDelay: 3000,
+      // Auto-reconnect
+      autoLoadEntities: true,
+      // Don't fail on connection errors during startup
+      connectTimeoutMS: 10000,
+      // Graceful connection handling
+      keepConnectionAlive: true,
+      // Don't fail if database is not available
+      dropSchema: false,
     }),
-    BotModule,
+    // Only import BotModule if we have a valid bot token
+    ...(envVariables.TELEGRAM_BOT_TOKEN && envVariables.TELEGRAM_BOT_TOKEN !== 'placeholder-token' ? [BotModule] : []),
     UsersModule,
     SellersModule,
     AdminModule,

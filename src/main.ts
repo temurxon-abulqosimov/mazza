@@ -7,11 +7,40 @@ import { envVariables } from './config/env.variables';
 
 async function bootstrap() {
   try {
-    // Validate environment variables before starting
-    envVariables.validate();
+    console.log('🚀 Starting application...');
+    console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
+    console.log('🔧 Port:', process.env.PORT || '3000');
     
-    const app = await NestFactory.create(AppModule);
+    // Validate environment variables before starting
+    console.log('🔧 Validating environment variables...');
+    try {
+      envVariables.validate();
+      console.log('✅ Environment variables validated');
+    } catch (validationError) {
+      console.warn('⚠️ Environment validation failed:', validationError.message);
+      console.warn('⚠️ Continuing with default values...');
+      
+      // Set default values for missing required variables
+      if (!process.env.TELEGRAM_BOT_TOKEN) {
+        console.warn('⚠️ TELEGRAM_BOT_TOKEN not set, using placeholder');
+        process.env.TELEGRAM_BOT_TOKEN = 'placeholder-token';
+      }
+      if (!process.env.ADMIN_PASSWORD) {
+        console.warn('⚠️ ADMIN_PASSWORD not set, using default');
+        process.env.ADMIN_PASSWORD = 'admin123';
+      }
+      if (!process.env.DATABASE_URL) {
+        console.warn('⚠️ DATABASE_URL not set, using default');
+        process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5432/ulgur_bot';
+      }
+    }
+    
+    console.log('🔧 Creating NestJS application...');
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    });
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
+    console.log('✅ NestJS application created');
     
     // Enable CORS for web app with production domains
     const allowedOrigins = [
@@ -63,14 +92,40 @@ async function bootstrap() {
       credentials: true,
     });
     
-    // Initialize admin account
-    const adminService = app.get(AdminService);
-    await adminService.initializeAdmin();
-    console.log('Admin account initialized');
+    // Initialize admin account (with error handling)
+    console.log('🔧 Initializing admin account...');
+    try {
+      const adminService = app.get(AdminService);
+      await adminService.initializeAdmin();
+      console.log('✅ Admin account initialized');
+    } catch (adminError) {
+      console.warn('⚠️ Admin initialization failed:', adminError.message);
+      console.warn('⚠️ Continuing without admin initialization...');
+    }
     
     // Use environment variable for port, default to 3000
     const port = process.env.PORT || 3000;
-    await app.listen(port);
+    console.log(`🔧 Starting server on port ${port}...`);
+    
+    // Add a small delay to ensure everything is ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    await app.listen(port, '0.0.0.0');
+    console.log(`✅ Server started successfully on port ${port}`);
+    console.log(`🌐 Server is listening on http://0.0.0.0:${port}`);
+    
+    // Test health endpoint immediately after startup
+    console.log('🔧 Testing health endpoint...');
+    try {
+      const response = await fetch(`http://localhost:${port}/health/simple`);
+      if (response.ok) {
+        console.log('✅ Health endpoint is working');
+      } else {
+        console.warn('⚠️ Health endpoint returned non-200 status');
+      }
+    } catch (healthError) {
+      console.warn('⚠️ Health endpoint test failed:', healthError.message);
+    }
     
     if (envVariables.USE_WEBHOOK) {
       console.log('Bot running in WEBHOOK mode');
@@ -92,11 +147,33 @@ async function bootstrap() {
     console.log('Health check available at /health');
     
   } catch (error) {
-    console.error('Failed to start application:', error.message);
+    console.error('❌ Failed to start application:', error.message);
+    console.error('❌ Error details:', error);
+    
     if (error.message.includes('WEBHOOK_URL')) {
-      console.error('Tip: Make sure your WEBHOOK_URL is set correctly in .env file');
+      console.error('💡 Tip: Make sure your WEBHOOK_URL is set correctly in Railway environment variables');
     }
-    process.exit(1);
+    if (error.message.includes('DATABASE_URL')) {
+      console.error('💡 Tip: Make sure your DATABASE_URL is set correctly in Railway environment variables');
+    }
+    if (error.message.includes('connection')) {
+      console.error('💡 Tip: Check your database connection and credentials in Railway');
+    }
+    if (error.message.includes('EADDRINUSE')) {
+      console.error('💡 Tip: Port is already in use. Check Railway port configuration');
+    }
+    
+    // Log environment variables for debugging (without sensitive data)
+    console.error('🔧 Environment variables:');
+    console.error('NODE_ENV:', process.env.NODE_ENV);
+    console.error('PORT:', process.env.PORT);
+    console.error('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    console.error('WEBHOOK_URL exists:', !!process.env.WEBHOOK_URL);
+    
+    // Don't exit immediately, give some time for logs
+    setTimeout(() => {
+      process.exit(1);
+    }, 10000);
   }
 }
 

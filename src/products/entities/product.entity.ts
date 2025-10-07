@@ -24,7 +24,7 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   imageUrl?: string;
 
-  @Column({ type: 'enum', enum: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'beverage', 'bakery', 'mixed'], default: 'mixed' })
+  @Column({ type: 'enum', enum: ['bread_bakery', 'pastry', 'main_dishes', 'desserts', 'beverages', 'other'], default: 'other' })
   category: string;
 
   @Column({ type: 'enum', enum: ['vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'halal', 'kosher', 'none'], default: 'none' })

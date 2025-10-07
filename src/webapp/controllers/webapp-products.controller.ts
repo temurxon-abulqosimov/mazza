@@ -103,6 +103,49 @@ export class WebappProductsController {
       const userRole = req.user.role;
       const language = this.localizationService.getLanguageFromRequest(req);
       
+      console.log('🔧 Product creation request:', {
+        telegramId,
+        userRole,
+        language,
+        productData: createProductDto
+      });
+      
+      // Validate required fields
+      if (!createProductDto.name || createProductDto.name.trim().length === 0) {
+        throw new HttpException(
+          this.localizationService.translate('product.name.required', language), 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
+      if (createProductDto.name.length > 255) {
+        throw new HttpException(
+          this.localizationService.translate('product.name.too.long', language), 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
+      if (!createProductDto.price || createProductDto.price <= 0) {
+        throw new HttpException(
+          this.localizationService.translate('product.price.required', language), 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
+      if (createProductDto.price > 1000000000) {
+        throw new HttpException(
+          this.localizationService.translate('product.price.too.high', language), 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
+      if (!createProductDto.availableUntil) {
+        throw new HttpException(
+          this.localizationService.translate('product.available.until.required', language), 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
       // Check if user has SELLER role (new system) or exists in sellers table (old system)
       let seller;
       if (userRole === 'SELLER') {
@@ -127,8 +170,10 @@ export class WebappProductsController {
             language: userData.language || 'uz'
           };
           seller = await this.sellersService.create(createSellerDto);
+          console.log('✅ Created new seller record:', seller.id);
         } else {
           seller = existingSeller;
+          console.log('✅ Found existing seller:', seller.id);
         }
       } else {
         // Old system: check sellers table
@@ -139,19 +184,27 @@ export class WebappProductsController {
             HttpStatus.NOT_FOUND
           );
         }
+        console.log('✅ Found seller in old system:', seller.id);
       }
       
       createProductDto.sellerId = seller.id;
       
+      console.log('🔧 Creating product with seller ID:', seller.id);
       const product = await this.productsService.create(createProductDto);
+      console.log('✅ Product created successfully:', product.id);
       
       return {
         ...product,
         message: this.localizationService.translate('product.created', language)
       };
     } catch (error) {
-      if (error instanceof HttpException) throw error;
+      console.error('❌ Product creation error:', error);
+      if (error instanceof HttpException) {
+        console.error('❌ HTTP Exception:', error.message);
+        throw error;
+      }
       const language = this.localizationService.getLanguageFromRequest(req);
+      console.error('❌ Generic error, language:', language);
       throw new HttpException(
         this.localizationService.translate('product.creation.failed', language), 
         HttpStatus.INTERNAL_SERVER_ERROR

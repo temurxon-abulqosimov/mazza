@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Min, Max, Length, IsDateString, IsBoolean } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, Max, Length, IsDateString, IsBoolean, IsIn } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -43,6 +43,11 @@ export class CreateProductDto {
   @Min(1)
   @Max(10000) // Max 10,000 items per product
   quantity?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['bread_bakery', 'pastry', 'main_dishes', 'desserts', 'beverages', 'other'])
+  category?: string;
 
   @IsOptional()
   @IsNumber()

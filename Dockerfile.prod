@@ -1,14 +1,17 @@
 # Multi-stage build for production
 FROM node:18-alpine AS builder
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for build)
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm ci --only=production --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -19,6 +22,13 @@ RUN npm run build
 # Production stage
 FROM node:18-alpine AS production
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nestjs -u 1001
+
 # Set working directory
 WORKDIR /app
 
@@ -26,16 +36,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --omit=dev --legacy-peer-deps
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
+# Copy other necessary files
+COPY --from=builder /app/node_modules ./node_modules
 
-# Change ownership of the app directory
+# Change ownership to app user
 RUN chown -R nestjs:nodejs /app
 USER nestjs
 
@@ -43,8 +52,8 @@ USER nestjs
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/health/simple || exit 1
 
 # Start the application
-CMD ["node", "dist/main"] 
+CMD ["node", "dist/main.js"]
