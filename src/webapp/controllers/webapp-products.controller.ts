@@ -122,6 +122,9 @@ export class WebappProductsController {
         productData: createProductDto
       });
       
+      console.log('🔧 availableUntil value:', createProductDto.availableUntil);
+      console.log('🔧 availableUntil type:', typeof createProductDto.availableUntil);
+      
       // Validate required fields
       if (!createProductDto.name || createProductDto.name.trim().length === 0) {
         throw new HttpException(
