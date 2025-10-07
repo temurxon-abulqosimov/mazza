@@ -26,8 +26,13 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value ? new Date(value) : undefined)
-  availableFrom?: Date;
+  @Transform(({ value }) => {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return value;
+  })
+  availableFrom?: string;
 
   @IsNotEmpty()
   @Transform(({ value }) => {
