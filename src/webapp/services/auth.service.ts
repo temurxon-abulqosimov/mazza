@@ -39,20 +39,27 @@ export class AuthService {
   ) {}
 
   async validateUser(telegramId: string, role: 'USER' | 'SELLER' | 'ADMIN', password?: string): Promise<any> {
+    console.log('🔧 validateUser called with:', { telegramId, role, password });
     let user: any = null;
     
     switch (role) {
       case 'USER':
+        console.log('🔧 Validating USER role...');
         user = await this.usersService.findByTelegramId(telegramId);
+        console.log('🔧 User found:', !!user);
         break;
       case 'SELLER':
+        console.log('🔧 Validating SELLER role...');
         // First check if seller exists
         user = await this.sellersService.findByTelegramId(telegramId);
+        console.log('🔧 Seller found in sellers table:', !!user);
         
         // If seller doesn't exist, check if user exists in users table with SELLER role
         if (!user) {
           console.log('🔧 No seller found, checking users table for SELLER role...');
           const userWithSellerRole = await this.usersService.findByTelegramId(telegramId);
+          console.log('🔧 User found in users table:', !!userWithSellerRole);
+          console.log('🔧 User role:', userWithSellerRole?.role);
           
           if (userWithSellerRole && userWithSellerRole.role === 'SELLER') {
             console.log('🔧 Found user with SELLER role, creating seller record...');
@@ -66,12 +73,16 @@ export class AuthService {
               status: SellerStatus.PENDING
             };
             
+            console.log('🔧 Creating seller with DTO:', createSellerDto);
             user = await this.sellersService.create(createSellerDto);
             console.log('✅ Created seller record for user:', user.id);
+          } else {
+            console.log('❌ No user found with SELLER role');
           }
         }
         break;
       case 'ADMIN':
+        console.log('🔧 Validating ADMIN role...');
         // Check admin credentials from environment variables
         if (!password) {
           throw new UnauthorizedException('Password is required for admin login');
@@ -88,60 +99,74 @@ export class AuthService {
         break;
     }
 
+    console.log('🔧 Final user result:', !!user);
     if (!user) {
+      console.log('❌ No user found, throwing UnauthorizedException');
       throw new UnauthorizedException('User not found');
     }
 
+    console.log('✅ User validated successfully:', { id: user.id, telegramId: user.telegramId });
     return user;
   }
 
   async login(telegramId: string, role: 'USER' | 'SELLER' | 'ADMIN', password?: string): Promise<AuthResponse> {
-    const user = await this.validateUser(telegramId, role, password);
+    console.log('🔧 login method called with:', { telegramId, role, password });
     
-    const payload: JwtPayload = {
-      sub: user.id,
-      telegramId: user.telegramId,
-      role: role,
-    };
+    try {
+      const user = await this.validateUser(telegramId, role, password);
+      console.log('🔧 User validated, creating JWT tokens...');
+      
+      const payload: JwtPayload = {
+        sub: user.id,
+        telegramId: user.telegramId,
+        role: role,
+      };
 
-    const access_token = this.jwtService.sign(payload, {
-      expiresIn: envVariables.JWT_EXPIRATION_TIME,
-    });
+      const access_token = this.jwtService.sign(payload, {
+        expiresIn: envVariables.JWT_EXPIRATION_TIME,
+      });
 
-    const refresh_token = this.jwtService.sign(payload, {
-      secret: envVariables.JWT_REFRESH_SECRET || envVariables.JWT_SECRET,
-      expiresIn: '7d',
-    });
+      const refresh_token = this.jwtService.sign(payload, {
+        secret: envVariables.JWT_REFRESH_SECRET || envVariables.JWT_SECRET,
+        expiresIn: '7d',
+      });
+      
+      console.log('🔧 JWT tokens created successfully');
 
-    // Return complete user data based on role
-    const userResponse: any = {
-      id: user.id,
-      telegramId: user.telegramId,
-      role: role,
-      // Note: firstName and lastName come from Telegram WebApp, not database
-      // They will be set by the frontend using Telegram user data
-    };
+      // Return complete user data based on role
+      const userResponse: any = {
+        id: user.id,
+        telegramId: user.telegramId,
+        role: role,
+        // Note: firstName and lastName come from Telegram WebApp, not database
+        // They will be set by the frontend using Telegram user data
+      };
 
-    // Add role-specific data
-    if (role === 'SELLER') {
-      userResponse.businessName = user.businessName;
-      userResponse.phoneNumber = user.phoneNumber;
-      userResponse.businessType = user.businessType;
-      userResponse.location = user.location;
-      userResponse.language = user.language;
-      userResponse.status = user.status;
-      userResponse.imageUrl = user.imageUrl;
-    } else if (role === 'USER') {
-      userResponse.phoneNumber = user.phoneNumber;
-      userResponse.language = user.language;
-      userResponse.location = user.location;
+      // Add role-specific data
+      if (role === 'SELLER') {
+        userResponse.businessName = user.businessName;
+        userResponse.phoneNumber = user.phoneNumber;
+        userResponse.businessType = user.businessType;
+        userResponse.location = user.location;
+        userResponse.language = user.language;
+        userResponse.status = user.status;
+        userResponse.imageUrl = user.imageUrl;
+      } else if (role === 'USER') {
+        userResponse.phoneNumber = user.phoneNumber;
+        userResponse.language = user.language;
+        userResponse.location = user.location;
+      }
+
+      console.log('✅ Login successful, returning response');
+      return {
+        access_token,
+        refresh_token,
+        user: userResponse,
+      };
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      throw error;
     }
-
-    return {
-      access_token,
-      refresh_token,
-      user: userResponse,
-    };
   }
 
   async refreshToken(refreshToken: string): Promise<{ access_token: string }> {
