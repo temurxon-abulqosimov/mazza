@@ -84,6 +84,22 @@ export class WebappProductsController {
   }
 
   // Seller-only endpoints
+  @Get('seller/my')
+  @UseGuards(JwtAuthGuard, SellerAuthGuard)
+  async findMyProducts(@Req() req) {
+    try {
+      const telegramId = req.user.telegramId;
+      const seller = await this.sellersService.findByTelegramId(telegramId);
+      if (!seller) {
+        throw new HttpException('Seller not found', HttpStatus.NOT_FOUND);
+      }
+      return await this.productsService.findBySeller(seller.id);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException('Failed to fetch seller products', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Get('seller/:sellerId')
   async findBySeller(@Param('sellerId') sellerId: string) {
     try {
