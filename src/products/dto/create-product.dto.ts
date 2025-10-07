@@ -25,8 +25,10 @@ export class CreateProductDto {
   description?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value ? new Date(value) : undefined)
   availableFrom?: Date;
 
+  @Transform(({ value }) => new Date(value))
   availableUntil: Date;
 
   @IsOptional()

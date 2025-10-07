@@ -8,6 +8,8 @@
   Query, 
   Body, 
   UseGuards, 
+  UsePipes,
+  ValidationPipe,
   Req,
   HttpException,
   HttpStatus
@@ -97,6 +99,15 @@ export class WebappProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, SellerAuthGuard)
+  @UsePipes(new ValidationPipe({ 
+    transform: true, 
+    whitelist: true,
+    forbidNonWhitelisted: false,
+    validateCustomDecorators: true,
+    transformOptions: {
+      enableImplicitConversion: true
+    }
+  }))
   async create(@Req() req, @Body() createProductDto: CreateProductDto) {
     try {
       const telegramId = req.user.telegramId;
@@ -189,7 +200,19 @@ export class WebappProductsController {
       
       createProductDto.sellerId = seller.id;
       
+      // Set default values for required fields
+      if (!createProductDto.category) {
+        createProductDto.category = 'other';
+      }
+      if (createProductDto.isActive === undefined) {
+        createProductDto.isActive = true;
+      }
+      if (!createProductDto.quantity) {
+        createProductDto.quantity = 1;
+      }
+      
       console.log('🔧 Creating product with seller ID:', seller.id);
+      console.log('🔧 Product data:', createProductDto);
       const product = await this.productsService.create(createProductDto);
       console.log('✅ Product created successfully:', product.id);
       
@@ -199,14 +222,31 @@ export class WebappProductsController {
       };
     } catch (error) {
       console.error('❌ Product creation error:', error);
+      console.error('❌ Error stack:', error.stack);
+      console.error('❌ Error message:', error.message);
+      
       if (error instanceof HttpException) {
         console.error('❌ HTTP Exception:', error.message);
         throw error;
       }
+      
       const language = this.localizationService.getLanguageFromRequest(req);
       console.error('❌ Generic error, language:', language);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Product creation failed';
+      if (error.message.includes('duplicate key')) {
+        errorMessage = 'Product with this code already exists';
+      } else if (error.message.includes('foreign key')) {
+        errorMessage = 'Invalid seller ID';
+      } else if (error.message.includes('not-null')) {
+        errorMessage = 'Required field is missing';
+      } else if (error.message.includes('invalid input')) {
+        errorMessage = 'Invalid data format';
+      }
+      
       throw new HttpException(
-        this.localizationService.translate('product.creation.failed', language), 
+        errorMessage, 
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

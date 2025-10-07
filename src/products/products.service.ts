@@ -46,7 +46,9 @@ export class ProductsService {
       description: createProductDto.description,
       availableFrom: createProductDto.availableFrom,
       availableUntil: createProductDto.availableUntil,
-      quantity: createProductDto.quantity,
+      quantity: createProductDto.quantity || 1,
+      category: createProductDto.category || 'other',
+      isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
       code: productCode,
       seller: { id: createProductDto.sellerId }
     });
