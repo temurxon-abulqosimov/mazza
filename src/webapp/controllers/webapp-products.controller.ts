@@ -88,13 +88,39 @@ export class WebappProductsController {
   @UseGuards(JwtAuthGuard, SellerAuthGuard)
   async findMyProducts(@Req() req) {
     try {
+      console.log('🔧 JWT Token payload for products:', req.user);
+      console.log('🔧 Available user properties:', Object.keys(req.user));
+      console.log('🔧 telegramId from token:', req.user.telegramId);
+      console.log('🔧 sub from token:', req.user.sub);
+      console.log('🔧 role from token:', req.user.role);
+      
       const telegramId = req.user.telegramId;
+      const userRole = req.user.role;
+      
+      console.log('🔧 Fetching seller products for:', {
+        telegramId,
+        userRole,
+        timestamp: new Date().toISOString()
+      });
+      
       const seller = await this.sellersService.findByTelegramId(telegramId);
+      console.log('🔧 Seller found:', !!seller, seller ? { id: seller.id, status: seller.status } : null);
+      
       if (!seller) {
+        console.log('❌ Seller not found for telegramId:', telegramId);
         throw new HttpException('Seller not found', HttpStatus.NOT_FOUND);
       }
-      return await this.productsService.findBySeller(seller.id);
+      
+      const products = await this.productsService.findBySeller(seller.id);
+      console.log('✅ Found products for seller:', {
+        sellerId: seller.id,
+        productCount: products.length,
+        products: products.map(p => ({ id: p.id, name: p.name, isActive: p.isActive }))
+      });
+      
+      return products;
     } catch (error) {
+      console.error('❌ Error fetching seller products:', error);
       if (error instanceof HttpException) throw error;
       throw new HttpException('Failed to fetch seller products', HttpStatus.INTERNAL_SERVER_ERROR);
     }

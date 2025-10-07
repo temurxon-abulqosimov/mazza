@@ -105,6 +105,42 @@ export class WebappSellersController {
     }
   }
 
+  // Seller profile endpoint
+  @Get('profile')
+  @UseGuards(JwtAuthGuard, SellerAuthGuard)
+  async getSellerProfile(@Req() req) {
+    try {
+      console.log('🔧 JWT Token payload:', req.user);
+      console.log('🔧 Available user properties:', Object.keys(req.user));
+      console.log('🔧 telegramId from token:', req.user.telegramId);
+      console.log('🔧 sub from token:', req.user.sub);
+      console.log('🔧 role from token:', req.user.role);
+      
+      const telegramId = req.user.telegramId;
+      console.log('🔧 Fetching seller profile for telegramId:', telegramId);
+      
+      const seller = await this.sellersService.findByTelegramId(telegramId);
+      console.log('🔧 Seller found:', !!seller, seller ? { id: seller.id, businessName: seller.businessName, status: seller.status } : null);
+      
+      if (!seller) {
+        console.log('❌ Seller not found for telegramId:', telegramId);
+        throw new HttpException('Seller not found', HttpStatus.NOT_FOUND);
+      }
+      
+      console.log('✅ Returning seller profile:', {
+        id: seller.id,
+        businessName: seller.businessName,
+        status: seller.status
+      });
+      
+      return seller;
+    } catch (error) {
+      console.error('❌ Error fetching seller profile:', error);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException('Failed to fetch seller profile', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   async create(@Req() req, @Body() createSellerDto: CreateSellerDto) {
