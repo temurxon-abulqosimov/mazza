@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Min, Max, Length, IsDateString, IsBoolean, IsIn, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, Max, Length, IsDateString, IsBoolean, IsIn, IsNotEmpty, ValidateIf } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -28,8 +28,7 @@ export class CreateProductDto {
   @Transform(({ value }) => value ? new Date(value) : undefined)
   availableFrom?: Date;
 
-  @Transform(({ value }) => new Date(value))
-  availableUntil: Date;
+  availableUntil: string;
 
   @IsOptional()
   @IsString()

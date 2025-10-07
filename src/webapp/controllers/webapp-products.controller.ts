@@ -218,6 +218,14 @@ export class WebappProductsController {
       
       createProductDto.sellerId = seller.id;
       
+      // Convert string dates to Date objects
+      if (createProductDto.availableUntil) {
+        createProductDto.availableUntil = new Date(createProductDto.availableUntil);
+      }
+      if (createProductDto.availableFrom) {
+        createProductDto.availableFrom = new Date(createProductDto.availableFrom);
+      }
+      
       // Set default values for required fields
       if (!createProductDto.category) {
         createProductDto.category = 'other';
