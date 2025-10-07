@@ -214,13 +214,16 @@ export class WebappProductsController {
       }
       
       // Check if seller is approved
+      console.log('🔧 Checking seller status:', seller.status);
       if (seller.status !== 'APPROVED') {
         console.log('❌ Seller not approved. Status:', seller.status);
+        console.log('❌ Seller needs to be approved by admin before creating products');
         throw new HttpException(
           this.localizationService.translate('seller.not.approved', language), 
           HttpStatus.FORBIDDEN
         );
       }
+      console.log('✅ Seller is approved, proceeding with product creation');
       
       createProductDto.sellerId = seller.id;
       
