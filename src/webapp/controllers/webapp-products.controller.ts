@@ -154,12 +154,7 @@ export class WebappProductsController {
         );
       }
       
-      if (!createProductDto.availableUntil) {
-        throw new HttpException(
-          this.localizationService.translate('product.available.until.required', language), 
-          HttpStatus.BAD_REQUEST
-        );
-      }
+      // availableUntil validation is handled by DTO
       
       // Check if user has SELLER role (new system) or exists in sellers table (old system)
       let seller;
