@@ -197,8 +197,8 @@ export class ProductCreationScene {
         price: ctx.session.productData.price,
         originalPrice: ctx.session.productData.originalPrice,
         description: ctx.session.productData.description,
-        availableFrom: availableFrom,
-        availableUntil: availableUntil,
+        availableFrom: availableFrom?.toISOString(),
+        availableUntil: availableUntil.toISOString(),
         quantity: ctx.session.productData.quantity,
         sellerId: seller.id
       };

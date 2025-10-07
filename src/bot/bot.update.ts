@@ -248,7 +248,7 @@ export class BotUpdate {
         name: 'Test Product - Delicious food',
         price: 15000,
         description: 'Test Product - Delicious food',
-        availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000), // Available for 24 hours
+        availableUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Available for 24 hours
         sellerId: testSeller.id
       });
       
@@ -4295,7 +4295,7 @@ export class BotUpdate {
           // Fix the product by setting it to active and extending the date
           await this.productsService.update(product.id, {
             isActive: true,
-            availableUntil: futureDate
+            availableUntil: futureDate.toISOString()
           });
           fixedCount++;
           console.log(`Fixed product ${product.id}`);
@@ -4929,8 +4929,8 @@ export class BotUpdate {
         price: ctx.session.productData.price,
         originalPrice: ctx.session.productData.originalPrice,
         description: ctx.session.productData.description,
-        availableFrom: availableFrom,
-        availableUntil: availableUntil,
+        availableFrom: availableFrom?.toISOString(),
+        availableUntil: availableUntil.toISOString(),
         quantity: ctx.session.productData.quantity,
         sellerId: seller.id
       };
