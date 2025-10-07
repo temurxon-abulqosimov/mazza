@@ -245,7 +245,7 @@ export class WebappProductsController {
       
       console.log('🔧 Creating product with seller ID:', seller.id);
       console.log('🔧 Product data:', productData);
-      const product = await this.productsService.create(productData);
+      const product = await this.productsService.create(createProductDto);
       console.log('✅ Product created successfully:', product.id);
       
       return {

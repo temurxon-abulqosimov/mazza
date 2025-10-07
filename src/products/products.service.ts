@@ -60,7 +60,7 @@ export class ProductsService {
       originalPrice: createProductDto.originalPrice,
       description: createProductDto.description,
       availableFrom: createProductDto.availableFrom,
-      availableUntil: createProductDto.availableUntil,
+      availableUntil: new Date(createProductDto.availableUntil),
       quantity: createProductDto.quantity || 1,
       category: createProductDto.category || 'other',
       isActive: createProductDto.isActive !== undefined ? createProductDto.isActive : true,
