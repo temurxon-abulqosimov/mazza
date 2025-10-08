@@ -176,17 +176,21 @@ export class ProductsService {
   }
 
   async findAll(): Promise<Product[]> {
-    return this.productsRepository.find({
-      relations: ['seller'],
-      where: { isActive: true },
-    });
+    // Only return products that are active and have stock
+    return this.productsRepository.createQueryBuilder('product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('product.isActive = :isActive', { isActive: true })
+      .andWhere('(product.quantity IS NULL OR product.quantity > 0)')
+      .orderBy('product.createdAt', 'DESC')
+      .getMany();
   }
 
   async searchProducts(query?: string, category?: string): Promise<Product[]> {
     const queryBuilder = this.productsRepository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.seller', 'seller')
-      .where('product.isActive = :isActive', { isActive: true });
+      .where('product.isActive = :isActive', { isActive: true })
+      .andWhere('(product.quantity IS NULL OR product.quantity > 0)');
 
     // Add text search if query is provided
     if (query && query.trim()) {

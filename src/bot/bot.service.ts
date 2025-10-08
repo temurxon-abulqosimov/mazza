@@ -26,6 +26,13 @@ export class BotService implements OnModuleInit {
     console.log(' Bot service initialized');
   }
 
+  // Resolve a Telegram file_id to a direct file URL
+  async getFileUrl(fileId: string): Promise<string> {
+    const link = await this.bot.telegram.getFileLink(fileId);
+    // getFileLink returns a URL object or string depending on version; normalize to string
+    return typeof link === 'string' ? link : link.href;
+  }
+
   // Add this method to send notifications to admin
   async sendMessageToAdmin(adminTelegramId: string, message: string): Promise<void> {
     try {

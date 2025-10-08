@@ -42,6 +42,33 @@ export class WebappSellersController {
     }
   }
 
+  // Public: resolve seller image (Telegram file_id or URL) to a direct URL
+  @Get(':id/image')
+  async getSellerImage(@Param('id') id: string) {
+    try {
+      const sellerId = parseInt(id, 10);
+      if (isNaN(sellerId)) {
+        throw new HttpException('Invalid seller ID', HttpStatus.BAD_REQUEST);
+      }
+
+      const seller = await this.sellersService.findOne(sellerId);
+      if (!seller || !seller.imageUrl) {
+        return { url: null };
+      }
+
+      // If imageUrl looks like a Telegram file_id (no http/https), resolve via bot
+      const looksLikeFileId = !/^https?:\/\//i.test(seller.imageUrl);
+      if (looksLikeFileId) {
+        const url = await this.botService.getFileUrl(seller.imageUrl);
+        return { url };
+      }
+      return { url: seller.imageUrl };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException('Failed to resolve seller image', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Get('nearby')
   async findNearby(@Query('lat') lat: string, @Query('lng') lng: string) {
     try {
