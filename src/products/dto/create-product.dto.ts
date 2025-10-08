@@ -26,6 +26,10 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
   @Transform(({ value }) => {
     if (value instanceof Date) {
       return value.toISOString();

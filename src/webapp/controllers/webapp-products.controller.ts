@@ -63,6 +63,15 @@ export class WebappProductsController {
     }
   }
 
+  @Get('search')
+  async searchProducts(@Query('q') query?: string, @Query('category') category?: string) {
+    try {
+      return await this.productsService.searchProducts(query, category);
+    } catch (error) {
+      throw new HttpException('Failed to search products', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {

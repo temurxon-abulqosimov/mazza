@@ -108,6 +108,7 @@ export class ProductsService {
       price: createProductDto.price,
       originalPrice: createProductDto.originalPrice,
       description: createProductDto.description,
+      imageUrl: createProductDto.imageUrl,
       availableFrom: createProductDto.availableFrom ? new Date(createProductDto.availableFrom) : undefined,
       availableUntil: new Date(createProductDto.availableUntil),
       quantity: createProductDto.quantity || 1,
@@ -179,6 +180,31 @@ export class ProductsService {
       relations: ['seller'],
       where: { isActive: true },
     });
+  }
+
+  async searchProducts(query?: string, category?: string): Promise<Product[]> {
+    const queryBuilder = this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.seller', 'seller')
+      .where('product.isActive = :isActive', { isActive: true });
+
+    // Add text search if query is provided
+    if (query && query.trim()) {
+      queryBuilder.andWhere(
+        '(LOWER(product.name) LIKE LOWER(:query) OR LOWER(product.description) LIKE LOWER(:query))',
+        { query: `%${query.trim()}%` }
+      );
+    }
+
+    // Add category filter if provided
+    if (category && category !== 'all') {
+      queryBuilder.andWhere('product.category = :category', { category });
+    }
+
+    // Order by creation date (newest first)
+    queryBuilder.orderBy('product.createdAt', 'DESC');
+
+    return queryBuilder.getMany();
   }
 
   async findOne(id: number): Promise<Product | null> {
