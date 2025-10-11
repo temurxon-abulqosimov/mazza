@@ -191,7 +191,9 @@ export class WebappOrdersController {
         throw new HttpException('Invalid order status', HttpStatus.BAD_REQUEST);
       }
       
-      const updatedOrder = await this.ordersService.updateStatus(orderId, body.status);
+      // Treat any request to set completed as confirmed (single-step flow)
+      const normalizedStatus = body.status === ("completed" as any) ? OrderStatus.CONFIRMED : body.status;
+      const updatedOrder = await this.ordersService.updateStatus(orderId, normalizedStatus);
       
       if (!updatedOrder) {
         throw new HttpException('Order not found', HttpStatus.NOT_FOUND);
@@ -234,7 +236,7 @@ export class WebappOrdersController {
         throw new HttpException('You can only delete your own orders', HttpStatus.FORBIDDEN);
       }
       
-      if (existingOrder.status === OrderStatus.COMPLETED || existingOrder.status === OrderStatus.CONFIRMED) {
+      if (existingOrder.status === OrderStatus.CONFIRMED) {
         throw new HttpException('Cannot delete completed or confirmed orders', HttpStatus.BAD_REQUEST);
       }
       

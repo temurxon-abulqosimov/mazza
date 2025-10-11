@@ -33,6 +33,7 @@ import { AdminOrUserGuard } from './guard/userOrAdmin.guard';
 import { envVariables } from './config/env.variables';
 import { BotService } from '../bot/bot.service';
 import { LocalizationService } from '../common/services/localization.service';
+import { RealtimeGateway } from './gateways/realtime.gateway';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { LocalizationService } from '../common/services/localization.service';
     AdminOrUserGuard,
     BotService,
     LocalizationService,
+    RealtimeGateway,
   ],
   exports: [AuthService, JwtModule],
 })

@@ -57,7 +57,9 @@ export class PhotoChangeScene {
           });
           
           console.log('Store photo updated successfully, file_id:', photo.file_id);
-          await ctx.reply(getMessage(language, 'registration.photoChangedSuccess'));
+          await ctx.reply(getMessage(language, 'registration.photoChangedSuccess') + '\n' + (language === 'uz' 
+            ? 'Bu rasm sizning do\'kon fotosi sifatida saqlanadi va mahsulotlaringiz ro\'yxatlarida ko\'rinadi.'
+            : 'Это фото сохранится как фото магазина и будет показываться в карточках ваших товаров.'));
         } else {
           throw new Error('Seller not found');
         }

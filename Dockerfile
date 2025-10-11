@@ -16,18 +16,19 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (log output to help diagnose build/runtime)
 RUN npm run build
 
 # Remove dev dependencies after build
 RUN npm prune --omit=dev
 
-# Expose port
+# Expose default port (Railway will set PORT)
 EXPOSE 3000
 
-# Health check with minimal endpoint
+# Health check uses dynamic PORT with fallback to 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000/health/minimal || exit 1
+  CMD sh -c 'curl -fsS http://127.0.0.1:${PORT:-3000}/health/minimal || exit 1'
 
-# Start the application directly
+# Start the application directly (Railway sets PORT)
+ENV NODE_ENV=production
 CMD ["node", "dist/main.js"]

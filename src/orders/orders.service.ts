@@ -1,4 +1,5 @@
 ﻿import { Injectable } from '@nestjs/common';
+import { RealtimeGateway } from 'src/webapp/gateways/realtime.gateway';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
@@ -7,6 +8,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { generateOrderCode } from 'src/common/utils/code-generator.util';
 import { OrderStatus } from 'src/common/enums/order-status.enum';
 import { User } from 'src/users/entities/user.entity';
+import { Product } from 'src/products/entities/product.entity';
 
 @Injectable()
 export class OrdersService {
@@ -15,6 +17,7 @@ export class OrdersService {
     private ordersRepository: Repository<Order>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private realtime: RealtimeGateway,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -59,7 +62,12 @@ export class OrdersService {
     if (!loadedOrder) {
       throw new Error('Failed to load created order');
     }
-    
+    // Emit to seller room about new order
+    try {
+      const sellerId = loadedOrder.product?.seller?.id;
+      if (sellerId) this.realtime.emitToSeller(sellerId, 'orderCreated', loadedOrder);
+    } catch {}
+
     return loadedOrder;
   }
 
@@ -165,7 +173,7 @@ export class OrdersService {
       .leftJoinAndSelect('order.product', 'product')
       .leftJoin('product.seller', 'seller')
       .where('seller.id = :sellerId', { sellerId })
-      .andWhere('order.status = :status', { status: OrderStatus.COMPLETED })
+      .andWhere('order.status = :status', { status: OrderStatus.CONFIRMED })
       .orderBy('order.createdAt', 'DESC');
 
     if (limit) {
@@ -210,7 +218,7 @@ export class OrdersService {
       .leftJoin('order.product', 'product')
       .leftJoin('product.seller', 'seller')
       .where('seller.id = :sellerId', { sellerId })
-      .andWhere('order.status = :status', { status: OrderStatus.COMPLETED })
+      .andWhere('order.status = :status', { status: OrderStatus.CONFIRMED })
       .select('SUM(order.totalPrice)', 'total')
       .getRawOne();
 
@@ -221,7 +229,7 @@ export class OrdersService {
     const result = await this.ordersRepository
       .createQueryBuilder('order')
       .where('order.user.id = :userId', { userId })
-      .andWhere('order.status = :status', { status: OrderStatus.COMPLETED })
+      .andWhere('order.status = :status', { status: OrderStatus.CONFIRMED })
       .select('SUM(order.totalPrice)', 'total')
       .getRawOne();
 
@@ -234,7 +242,7 @@ export class OrdersService {
       .leftJoin('order.product', 'product')
       .leftJoin('product.seller', 'seller')
       .where('order.user.id = :userId', { userId })
-      .andWhere('order.status = :status', { status: OrderStatus.COMPLETED })
+      .andWhere('order.status = :status', { status: OrderStatus.CONFIRMED })
       .select('seller.id', 'sellerId')
       .addSelect('seller.businessName', 'businessName')
       .addSelect('COUNT(*)', 'orderCount')
@@ -257,8 +265,33 @@ export class OrdersService {
   }
 
   async updateStatus(id: number, status: OrderStatus): Promise<Order | null> {
+    // Update the order status first
     await this.ordersRepository.update(id, { status });
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+
+    // If seller confirmed the order, reduce product quantity and deactivate when empty
+    if (updated && status === OrderStatus.CONFIRMED) {
+      const productRepo = this.ordersRepository.manager.getRepository(Product);
+      // Reload product with current quantity
+      const product = await productRepo.findOne({ where: { id: updated.product.id } });
+      if (product) {
+        const orderQty = typeof updated.quantity === 'number' ? updated.quantity : 1;
+        const currentQty = typeof product.quantity === 'number' ? product.quantity : 1;
+        const remaining = Math.max(0, currentQty - orderQty);
+        if (remaining <= 0) {
+          await productRepo.update(product.id, { quantity: 0, isActive: false });
+        } else {
+          await productRepo.update(product.id, { quantity: remaining });
+        }
+      }
+    }
+    try {
+      const sellerId = updated?.product?.seller?.id;
+      if (sellerId) this.realtime.emitToSeller(sellerId, 'orderStatusChanged', updated);
+      const userId = updated?.user?.id;
+      if (userId) this.realtime.emitToUser(userId, 'orderStatusChanged', updated);
+    } catch {}
+    return updated;
   }
 
   async remove(id: number): Promise<void> {

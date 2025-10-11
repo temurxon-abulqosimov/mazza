@@ -1657,6 +1657,10 @@ export class BotUpdate {
             await this.sellersService.update(seller.id, { 
               imageUrl: photo.file_id
             });
+            // Inform seller how the photo will be used
+            await ctx.reply(language === 'uz' 
+              ? '✅ Do\'kon rasmi yangilandi. Bu rasm mahsulot ro\'yxatlarida do\'kon fotosi sifatida ko\'rinadi.' 
+              : '✅ Фото магазина обновлено. Оно будет показываться в карточках ваших товаров.');
             
             console.log('Store image uploaded successfully, file_id:', photo.file_id);
             await ctx.reply(getMessage(language, 'success.storeImageUploaded'));
@@ -3883,7 +3887,7 @@ export class BotUpdate {
       // Group orders by status
       const pendingOrders = orders.filter(order => order.status === OrderStatus.PENDING);
       const confirmedOrders = orders.filter(order => order.status === OrderStatus.CONFIRMED);
-      const completedOrders = orders.filter(order => order.status === OrderStatus.COMPLETED);
+      const completedOrders = orders.filter(order => order.status === OrderStatus.CONFIRMED);
       const cancelledOrders = orders.filter(order => order.status === OrderStatus.CANCELLED);
       
       let message = `📋 Sizning buyurtmalaringiz:\n\n`;

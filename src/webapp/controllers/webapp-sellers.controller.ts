@@ -10,8 +10,10 @@
   UseGuards, 
   Req, 
   HttpException, 
-  HttpStatus 
+  HttpStatus,
+  Res
 } from '@nestjs/common';
+import { Response } from 'express';
 import { SellersService } from '../../sellers/sellers.service';
 import { JwtAuthGuard } from '../guard/auth.guard';
 import { SellerAuthGuard } from '../guard/seller.guard';
@@ -66,6 +68,26 @@ export class WebappSellersController {
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new HttpException('Failed to resolve seller image', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // Public: photo redirect that can be used directly in <img src>
+  @Get(':id/photo')
+  async redirectSellerPhoto(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const sellerId = parseInt(id, 10);
+      if (isNaN(sellerId)) {
+        return res.status(HttpStatus.BAD_REQUEST).send('Invalid seller ID');
+      }
+      const seller = await this.sellersService.findOne(sellerId);
+      if (!seller || !seller.imageUrl) {
+        return res.status(HttpStatus.NOT_FOUND).send('No image');
+      }
+      const looksLikeFileId = !/^https?:\/\//i.test(seller.imageUrl);
+      const url = looksLikeFileId ? await this.botService.getFileUrl(seller.imageUrl) : seller.imageUrl;
+      return res.redirect(url);
+    } catch (error) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Failed to resolve image');
     }
   }
 
