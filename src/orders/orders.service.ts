@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { Injectable, Optional } from '@nestjs/common';
 import { RealtimeGateway } from 'src/webapp/gateways/realtime.gateway';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,7 +17,7 @@ export class OrdersService {
     private ordersRepository: Repository<Order>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-    private realtime: RealtimeGateway,
+    @Optional() private realtime?: RealtimeGateway,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -65,7 +65,7 @@ export class OrdersService {
     // Emit to seller room about new order
     try {
       const sellerId = loadedOrder.product?.seller?.id;
-      if (sellerId) this.realtime.emitToSeller(sellerId, 'orderCreated', loadedOrder);
+      if (sellerId && this.realtime) this.realtime.emitToSeller(sellerId, 'orderCreated', loadedOrder);
     } catch {}
 
     return loadedOrder;
@@ -287,9 +287,9 @@ export class OrdersService {
     }
     try {
       const sellerId = updated?.product?.seller?.id;
-      if (sellerId) this.realtime.emitToSeller(sellerId, 'orderStatusChanged', updated);
+      if (sellerId && this.realtime) this.realtime.emitToSeller(sellerId, 'orderStatusChanged', updated);
       const userId = updated?.user?.id;
-      if (userId) this.realtime.emitToUser(userId, 'orderStatusChanged', updated);
+      if (userId && this.realtime) this.realtime.emitToUser(userId, 'orderStatusChanged', updated);
     } catch {}
     return updated;
   }
