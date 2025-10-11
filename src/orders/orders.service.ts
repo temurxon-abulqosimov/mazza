@@ -1,5 +1,6 @@
 ﻿import { Injectable, Optional } from '@nestjs/common';
 import { RealtimeGateway } from 'src/webapp/gateways/realtime.gateway';
+import { NotificationService } from 'src/common/services/notification.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
@@ -9,6 +10,7 @@ import { generateOrderCode } from 'src/common/utils/code-generator.util';
 import { OrderStatus } from 'src/common/enums/order-status.enum';
 import { User } from 'src/users/entities/user.entity';
 import { Product } from 'src/products/entities/product.entity';
+import { OrderNotificationPayload } from 'src/common/types/notification.types';
 
 @Injectable()
 export class OrdersService {
@@ -18,6 +20,7 @@ export class OrdersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @Optional() private realtime?: RealtimeGateway,
+    @Optional() private notificationService?: NotificationService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -62,11 +65,40 @@ export class OrdersService {
     if (!loadedOrder) {
       throw new Error('Failed to load created order');
     }
-    // Emit to seller room about new order
+    
+    // Send notification to seller about new order
     try {
-      const sellerId = loadedOrder.product?.seller?.id;
-      if (sellerId && this.realtime) this.realtime.emitToSeller(sellerId, 'orderCreated', loadedOrder);
-    } catch {}
+      if (this.notificationService && loadedOrder.product?.seller?.id) {
+        const notificationPayload: OrderNotificationPayload = {
+          order: {
+            id: loadedOrder.id,
+            code: loadedOrder.code,
+            status: loadedOrder.status,
+            totalPrice: loadedOrder.totalPrice,
+            quantity: loadedOrder.quantity,
+            createdAt: loadedOrder.createdAt.toISOString(),
+            product: {
+              id: loadedOrder.product.id,
+              name: loadedOrder.product.name,
+              image: loadedOrder.product.imageUrl,
+              seller: {
+                id: loadedOrder.product.seller.id,
+                businessName: loadedOrder.product.seller.businessName,
+              },
+            },
+            user: {
+              id: loadedOrder.user.id,
+              telegramId: loadedOrder.user.telegramId,
+              firstName: 'Customer', // User entity doesn't have firstName/lastName
+              lastName: '',
+            },
+          },
+        };
+        await this.notificationService.notifyOrderCreated(notificationPayload);
+      }
+    } catch (error) {
+      console.error('Failed to send order created notification:', error);
+    }
 
     return loadedOrder;
   }
@@ -265,6 +297,14 @@ export class OrdersService {
   }
 
   async updateStatus(id: number, status: OrderStatus): Promise<Order | null> {
+    // Get the current order to track status change
+    const currentOrder = await this.findOne(id);
+    if (!currentOrder) {
+      throw new Error('Order not found');
+    }
+    
+    const oldStatus = currentOrder.status as OrderStatus;
+    
     // Update the order status first
     await this.ordersRepository.update(id, { status });
     const updated = await this.findOne(id);
@@ -285,12 +325,41 @@ export class OrdersService {
         }
       }
     }
+    
+    // Send notification about status change
     try {
-      const sellerId = updated?.product?.seller?.id;
-      if (sellerId && this.realtime) this.realtime.emitToSeller(sellerId, 'orderStatusChanged', updated);
-      const userId = updated?.user?.id;
-      if (userId && this.realtime) this.realtime.emitToUser(userId, 'orderStatusChanged', updated);
-    } catch {}
+      if (this.notificationService && updated) {
+        const notificationPayload: OrderNotificationPayload = {
+          order: {
+            id: updated.id,
+            code: updated.code,
+            status: updated.status,
+            totalPrice: updated.totalPrice,
+            quantity: updated.quantity,
+            createdAt: updated.createdAt.toISOString(),
+            product: {
+              id: updated.product.id,
+              name: updated.product.name,
+              image: updated.product.imageUrl,
+              seller: {
+                id: updated.product.seller.id,
+                businessName: updated.product.seller.businessName,
+              },
+            },
+            user: {
+              id: updated.user.id,
+              telegramId: updated.user.telegramId,
+              firstName: 'Customer', // User entity doesn't have firstName/lastName
+              lastName: '',
+            },
+          },
+        };
+        await this.notificationService.notifyOrderStatusChanged(notificationPayload, oldStatus, status);
+      }
+    } catch (error) {
+      console.error('Failed to send order status change notification:', error);
+    }
+    
     return updated;
   }
 
