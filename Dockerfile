@@ -26,7 +26,7 @@ RUN npm prune --omit=dev
 EXPOSE 3000
 
 # Health check uses dynamic PORT with fallback to 3000
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
   CMD sh -c 'curl -fsS http://127.0.0.1:${PORT:-3000}/health/minimal || exit 1'
 
 # Start the application directly (Railway sets PORT)

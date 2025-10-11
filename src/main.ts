@@ -18,12 +18,29 @@ async function bootstrap() {
 
   // Liveness endpoint that does not depend on DB or Nest
   server.get('/health/minimal', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), message: 'Minimal health check passed' });
+    res.status(200).json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(), 
+      message: 'Minimal health check passed',
+      uptime: process.uptime(),
+      port: process.env.PORT || 3000
+    });
   });
 
   // Optional very basic info endpoint
   server.get('/health/basic', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime(), message: 'Basic health check passed' });
+  });
+
+  // Root endpoint for basic connectivity test
+  server.get('/', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      message: 'Ulgurib Qol API is running',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      port: process.env.PORT || 3000
+    });
   });
 
   server.listen(port, '0.0.0.0', () => {
@@ -50,6 +67,13 @@ async function bootstrap() {
     } catch (validationError) {
       console.error('❌ Environment validation failed:', (validationError as Error).message);
       console.error('❌ Required environment variables may be missing. The liveness endpoint is still available.');
+      console.error('❌ Available environment variables:');
+      console.error('  - NODE_ENV:', process.env.NODE_ENV);
+      console.error('  - PORT:', process.env.PORT);
+      console.error('  - DATABASE_URL exists:', !!process.env.DATABASE_URL);
+      console.error('  - TELEGRAM_BOT_TOKEN exists:', !!process.env.TELEGRAM_BOT_TOKEN);
+      console.error('  - ADMIN_PASSWORD exists:', !!process.env.ADMIN_PASSWORD);
+      console.error('  - WEBHOOK_URL exists:', !!process.env.WEBHOOK_URL);
       // Do not throw; keep liveness running. Return early to avoid starting Nest.
       return;
     }
