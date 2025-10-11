@@ -17,6 +17,8 @@
 import { ProductsService } from '../../products/products.service';
 import { SellersService } from '../../sellers/sellers.service';
 import { UsersService } from '../../users/users.service';
+import { RatingsService } from '../../ratings/ratings.service';
+import { calculateDistance } from '../../common/utils/distance.util';
 import { JwtAuthGuard } from '../guard/auth.guard';
 import { SellerAuthGuard } from '../guard/seller.guard';
 import { AdminAuthGuard } from '../guard/admin.guard';
@@ -33,6 +35,7 @@ export class WebappProductsController {
     private readonly productsService: ProductsService,
     private readonly sellersService: SellersService,
     private readonly usersService: UsersService,
+    private readonly ratingsService: RatingsService,
     private readonly localizationService: LocalizationService,
   ) {}
 
@@ -56,7 +59,60 @@ export class WebappProductsController {
         throw new HttpException('Invalid coordinates', HttpStatus.BAD_REQUEST);
       }
       
-      return await this.productsService.findAll();
+      // Get all active products
+      const products = await this.productsService.findActiveProducts();
+      
+      // Filter and calculate distances with ratings
+      const productsWithInfo = await Promise.all(
+        products.map(async (product) => {
+          const seller = await this.sellersService.findOne(product.seller.id);
+          if (!seller || !seller.location) return null;
+          
+          const distance = calculateDistance(
+            latitude,
+            longitude,
+            seller.location.latitude,
+            seller.location.longitude
+          );
+          
+          // Get product ratings
+          const ratings = await this.ratingsService.findByProduct(product.id);
+          const averageRating = ratings.length > 0 
+            ? ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length 
+            : 0;
+
+          return {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            originalPrice: product.originalPrice,
+            description: product.description,
+            imageUrl: product.imageUrl,
+            category: product.category,
+            isActive: product.isActive,
+            quantity: product.quantity,
+            availableUntil: product.availableUntil,
+            createdAt: product.createdAt,
+            store: {
+              id: seller.id,
+              businessName: seller.businessName,
+              businessType: seller.businessType,
+              distance: Math.round(distance * 100) / 100,
+              location: seller.location
+            },
+            stats: {
+              averageRating: Math.round(averageRating * 10) / 10,
+              totalRatings: ratings.length
+            }
+          };
+        })
+      );
+
+      // Remove null values and sort by distance
+      const validProducts = productsWithInfo.filter(p => p !== null);
+      validProducts.sort((a, b) => a.store.distance - b.store.distance);
+      
+      return validProducts;
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new HttpException('Failed to fetch nearby products', HttpStatus.INTERNAL_SERVER_ERROR);

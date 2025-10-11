@@ -15,6 +15,8 @@ export interface NotificationData {
     productImage?: string;
     totalPrice?: number;
     quantity?: number;
+    requiresRating?: boolean;
+    sellerName?: string;
   };
 }
 

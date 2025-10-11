@@ -103,6 +103,7 @@ export const messages = {
     // Main Menu
     mainMenu: {
       welcome: '🎉 Xush kelibsiz! Asosiy menyu:',
+      openMiniApp: '🚀 Mini Dasturni Ochish',
       findStores: '🏪 Do\'konlarni topish',
       myOrders: '📋 Mening buyurtmalarim',
       postProduct: '📦 Mahsulot qo\'shish',
@@ -354,6 +355,7 @@ export const messages = {
     // Main Menu
     mainMenu: {
       welcome: '🎉 Добро пожаловать! Главное меню:',
+      openMiniApp: '🚀 Открыть Мини-Приложение',
       findStores: '🏪 Найти магазины',
       myOrders: '📋 Мои заказы',
       postProduct: '📦 Добавить товар',

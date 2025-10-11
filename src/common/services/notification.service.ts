@@ -58,7 +58,7 @@ export class NotificationService {
           id: `order_confirmed_${order.id}_${Date.now()}`,
           type: 'order_confirmed',
           title: 'Order Confirmed! ✅',
-          message: `Your order for "${order.product.name}" has been confirmed by ${order.product.seller.businessName}`,
+          message: `Your order for "${order.product.name}" has been confirmed by ${order.product.seller.businessName}. Please rate your experience!`,
           timestamp: new Date().toISOString(),
           orderId: order.id,
           orderCode: order.code,
@@ -66,11 +66,13 @@ export class NotificationService {
           productName: order.product.name,
           sellerId: order.product.seller.id,
           userId: order.user.id,
-          actionUrl: `/orders/${order.id}`,
+          actionUrl: `/orders/${order.id}/rate`,
           metadata: {
             productImage: order.product.image,
             totalPrice: order.totalPrice,
             quantity: order.quantity,
+            requiresRating: true,
+            sellerName: order.product.seller.businessName,
           },
         };
         break;
