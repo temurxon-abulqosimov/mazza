@@ -43,10 +43,25 @@ async function bootstrap() {
     });
   });
 
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`✅ Express liveness server started on http://0.0.0.0:${port}`);
-    console.log('🌐 Liveness endpoint available at /health/minimal');
+  // Start the Express server and wait for it to be ready
+  await new Promise<void>((resolve, reject) => {
+    const serverInstance = server.listen(port, '0.0.0.0', () => {
+      console.log(`✅ Express liveness server started on http://0.0.0.0:${port}`);
+      console.log('🌐 Liveness endpoint available at /health/minimal');
+      console.log('🌐 Root endpoint available at /');
+      console.log('🌐 Basic health endpoint available at /health/basic');
+      resolve();
+    });
+
+    serverInstance.on('error', (error) => {
+      console.error('❌ Express server error:', error);
+      reject(error);
+    });
   });
+
+  // Give the server a moment to be fully ready
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  console.log('✅ Server is ready to accept requests');
 
   // Continue with full Nest app initialization without blocking liveness
   try {
@@ -155,4 +170,7 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('❌ Bootstrap failed:', error);
+  process.exit(1);
+});
