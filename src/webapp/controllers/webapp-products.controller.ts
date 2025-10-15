@@ -81,6 +81,9 @@ export class WebappProductsController {
             ? ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length 
             : 0;
 
+          // Compute seller average rating from all product ratings
+          const sellerAverageRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+
           return {
             id: product.id,
             name: product.name,
@@ -98,7 +101,8 @@ export class WebappProductsController {
               businessName: seller.businessName,
               businessType: seller.businessType,
               distance: Math.round(distance * 100) / 100,
-              location: seller.location
+              location: seller.location,
+              averageRating: Math.round((sellerAverageRating || 0) * 10) / 10
             },
             stats: {
               averageRating: Math.round(averageRating * 10) / 10,
@@ -140,8 +144,60 @@ export class WebappProductsController {
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
       }
-      
-      return product;
+
+      // Fetch seller info
+      const seller = await this.sellersService.findOne(product.seller.id);
+      if (!seller) {
+        throw new HttpException('Seller not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Fetch ratings for this product and compute averages
+      const productRatings = await this.ratingsService.findByProduct(productId);
+      const productAverageRating = productRatings.length > 0
+        ? productRatings.reduce((sum, r) => sum + r.rating, 0) / productRatings.length
+        : 0;
+
+      // Compute seller average rating from all of their product ratings
+      const sellerAverageRating = await this.ratingsService.getAverageRatingBySeller(seller.id);
+
+      return {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        description: product.description,
+        imageUrl: product.imageUrl,
+        category: product.category,
+        isActive: product.isActive,
+        quantity: product.quantity,
+        availableUntil: product.availableUntil,
+        createdAt: product.createdAt,
+        seller: {
+          id: seller.id,
+          businessName: seller.businessName,
+          businessType: seller.businessType,
+          location: seller.location,
+          opensAt: seller.opensAt,
+          closesAt: seller.closesAt,
+          language: seller.language,
+          imageUrl: seller.imageUrl,
+          // For product details we expose seller average rating derived from product ratings
+          averageRating: Math.round((sellerAverageRating || 0) * 10) / 10,
+          // Distance is unknown here without user coords – default null
+          distance: null,
+        },
+        stats: {
+          averageRating: Math.round(productAverageRating * 10) / 10,
+          totalRatings: productRatings.length,
+        },
+        reviews: productRatings.map(r => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          createdAt: r.createdAt,
+          user: r.user ? { id: r.user.id, firstName: (r.user as any).firstName } : null,
+        })),
+      };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new HttpException('Failed to fetch product', HttpStatus.INTERNAL_SERVER_ERROR);

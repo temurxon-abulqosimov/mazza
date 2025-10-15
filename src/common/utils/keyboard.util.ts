@@ -124,10 +124,9 @@ export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'sell
   const webAppUrl = process.env.WEBAPP_URL || 'https://your-webapp-url.com';
   
   if (role === 'seller') {
-    // Seller menu: Open Mini App (prominent), My Products, Add Product, Statistics, Support, Language, Change Photo
+    // Seller menu: My Products, Add Product, Statistics, Support, Language, Change Photo
     return {
       keyboard: [
-        [getMessage(language, 'mainMenu.openMiniApp')], // Prominent mini app button
         [getMessage(language, 'mainMenu.myProducts')],
         [getMessage(language, 'mainMenu.postProduct')],
         [getMessage(language, 'mainMenu.statistics')],
@@ -135,34 +134,16 @@ export function getMainMenuKeyboard(language: 'uz' | 'ru', role?: 'user' | 'sell
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
       resize_keyboard: true,
-      // Add inline keyboard for mini app as well
-      inline_keyboard: [
-        [
-          { 
-            text: '🚀 ' + getMessage(language, 'mainMenu.openMiniApp'), 
-            web_app: { url: webAppUrl }
-          }
-        ]
-      ]
+      // No inline mini app button; opening is handled elsewhere
     };
   } else {
-    // User menu: Open Mini App (prominent), Find Stores, Support, Language
+    // User menu: Find Stores, Support, Language
     return {
       keyboard: [
-        [getMessage(language, 'mainMenu.openMiniApp')], // Prominent mini app button
         [getMessage(language, 'mainMenu.findStores')],
         [getMessage(language, 'mainMenu.support'), getMessage(language, 'mainMenu.language')]
       ],
-      resize_keyboard: true,
-      // Add inline keyboard for mini app as well
-      inline_keyboard: [
-        [
-          { 
-            text: '🚀 ' + getMessage(language, 'mainMenu.openMiniApp'), 
-            web_app: { url: webAppUrl }
-          }
-        ]
-      ]
+      resize_keyboard: true
     };
   }
 }
