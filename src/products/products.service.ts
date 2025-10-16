@@ -47,6 +47,25 @@ export class ProductsService {
       // No input; let DB default apply
       return undefined;
     }
+    // Normalize common aliases to proper enum values
+    const alias = String(inputCategory).toLowerCase().trim();
+    const aliasMap: Record<string, string> = {
+      breakfast: 'bread_bakery',
+      bakery: 'bread_bakery',
+      bread: 'bread_bakery',
+      drinks: 'beverages',
+      beverage: 'beverages',
+      drink: 'beverages',
+      dessert: 'desserts',
+      desserts: 'desserts',
+      main: 'main_dishes',
+      mains: 'main_dishes',
+      'main dishes': 'main_dishes',
+      pastry: 'pastry',
+    };
+    if (aliasMap[alias]) {
+      inputCategory = aliasMap[alias];
+    }
     if (allowed.length === 0) {
       // Could not introspect; pass through to let DB validate or default
       return inputCategory;

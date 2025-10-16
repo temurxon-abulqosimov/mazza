@@ -81,8 +81,28 @@ export class WebappProductDiscoveryController {
           if (minPrice && product.price < parseFloat(minPrice)) return null;
           if (maxPrice && product.price > parseFloat(maxPrice)) return null;
           
-          // Filter by category
-          if (category && product.category !== category) return null;
+      // Normalize category aliases like "breakfast" -> bread_bakery
+      let normalizedCategory = category;
+      if (normalizedCategory) {
+        const alias = String(normalizedCategory).toLowerCase().trim();
+        const aliasMap: Record<string, string> = {
+          breakfast: 'bread_bakery',
+          bakery: 'bread_bakery',
+          bread: 'bread_bakery',
+          drinks: 'beverages',
+          beverage: 'beverages',
+          drink: 'beverages',
+          dessert: 'desserts',
+          desserts: 'desserts',
+          main: 'main_dishes',
+          mains: 'main_dishes',
+          'main dishes': 'main_dishes',
+          pastry: 'pastry',
+        };
+        if (aliasMap[alias]) normalizedCategory = aliasMap[alias];
+      }
+      // Filter by category (after normalization)
+      if (normalizedCategory && product.category !== normalizedCategory) return null;
           
           // Get product ratings
           const ratings = await this.ratingsService.findByProduct(product.id);
