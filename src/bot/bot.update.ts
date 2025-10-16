@@ -1954,6 +1954,32 @@ export class BotUpdate {
     console.log('Role set in session:', role);
     console.log('Attempting to enter appropriate registration scene...');
     
+    // If already registered, skip registration scenes
+    try {
+      const telegramId = ctx.from?.id?.toString();
+      if (telegramId) {
+        if (roleString === 'seller') {
+          const existingSeller = await this.sellersService.findByTelegramId(telegramId);
+          if (existingSeller) {
+            ctx.session.role = UserRole.SELLER;
+            await ctx.reply(getMessage(language, 'alreadyRegisteredSeller'));
+            await ctx.reply(getMessage(language, 'openMiniAppHint'));
+            return;
+          }
+        } else if (roleString === 'user') {
+          const existingUser = await this.usersService.findByTelegramId(telegramId);
+          if (existingUser) {
+            ctx.session.role = UserRole.USER;
+            await ctx.reply(getMessage(language, 'alreadyRegisteredUser'));
+            await ctx.reply(getMessage(language, 'openMiniAppHint'));
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Registration pre-check failed, continuing to scenes:', e?.message || e);
+    }
+
     // ✅ REDIRECT TO SCENES INSTEAD OF HANDLING DIRECTLY
     if (ctx.scene) {
       try {
