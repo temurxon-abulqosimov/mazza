@@ -25,6 +25,9 @@ export class Seller {
   @Column('jsonb', { nullable: true })
   location?: { latitude: number; longitude: number } | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  address?: string | null;
+
   @Column({ type: 'int', nullable: true })
   opensAt?: number; // Minutes from midnight - now optional
 

@@ -45,6 +45,22 @@ export class SellersService {
     const seller = this.sellersRepository.create(sellerData);
     try {
       const savedSeller = await this.sellersRepository.save(seller);
+
+      // Reverse geocode once after save if we have coordinates and no address
+      if (savedSeller.location && !savedSeller.address) {
+        try {
+          const addr = await this.reverseGeocode(
+            savedSeller.location.latitude,
+            savedSeller.location.longitude
+          );
+          if (addr) {
+            await this.sellersRepository.update(savedSeller.id, { address: addr });
+            (savedSeller as any).address = addr;
+          }
+        } catch (e) {
+          console.warn('Reverse geocode failed:', e?.message || e);
+        }
+      }
       console.log('Saved seller location:', savedSeller.location);
       console.log('🔔 NEW SELLER CREATED - ADMIN NOTIFICATION NEEDED:', savedSeller.businessName, savedSeller.telegramId);
       return savedSeller;
@@ -54,6 +70,25 @@ export class SellersService {
         throw new Error('Seller already exists with this telegram ID');
       }
       throw error;
+    }
+  }
+
+  private async reverseGeocode(lat: number, lon: number): Promise<string | null> {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+      const res = await (await import('node-fetch')).default(url, {
+        headers: { 'User-Agent': 'UlguribQol/1.0' }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return (
+        data?.display_name ||
+        [data?.address?.road, data?.address?.city, data?.address?.state]
+          .filter(Boolean)
+          .join(', ')
+      );
+    } catch {
+      return null;
     }
   }
 
@@ -233,6 +268,13 @@ export class SellersService {
           latitude: updateSellerDto.location.latitude,
           longitude: updateSellerDto.location.longitude
         };
+        // when updating location, refresh address as well
+        try {
+          const addr = await this.reverseGeocode(updateSellerDto.location.latitude, updateSellerDto.location.longitude);
+          if (addr) {
+            (updateData as any).address = addr;
+          }
+        } catch {}
       } else {
         updateData.location = null;
       }

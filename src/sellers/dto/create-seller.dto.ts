@@ -52,4 +52,9 @@ export class CreateSellerDto {
   @IsString()
   @Length(0, 500)
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 255)
+  address?: string;
 }
