@@ -244,6 +244,7 @@ export class ProductsService {
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.seller', 'seller')
       .where('seller.id = :sellerId', { sellerId })
+      .andWhere('product.isActive = :isActive', { isActive: true })
       .orderBy('product.createdAt', 'DESC');
 
     if (limit) {

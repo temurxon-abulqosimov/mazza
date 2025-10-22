@@ -5115,8 +5115,8 @@ export class BotUpdate {
         return ctx.reply(getMessage(language, 'error.productNotFound'));
       }
       
-      // Delete the product
-      await this.productsService.remove(productId);
+      // Deactivate the product (soft delete to avoid foreign key constraints)
+      await this.productsService.deactivate(productId);
       
       const language = ctx.session.language || 'uz';
       await ctx.reply(
